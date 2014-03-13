@@ -13,43 +13,30 @@ module Language.LLVM.Parser.Lexer (
   ) where
 
 import Control.Applicative
-import Control.Monad (when)
 import Control.Monad.Error
-import Control.Monad.Exception
-import Control.Monad.Identity
 import Control.Monad.State
-import Control.Monad.Trans
+import Control.Monad.Exception
 import qualified Data.ByteString.Char8 as B
-import Data.Char (isAlphaNum,
-                  isDigit,
+import qualified Data.Map as Map
+import Data.Char (isDigit,
                   isOctDigit,
                   isHexDigit,
-                  isLower,
-                  isSpace,
                   chr,
                   toLower)
-import Data.List (foldl', intersperse)
 import Data.Loc
-import qualified Data.Map as Map
 import Data.Ratio ((%))
-import qualified Data.Set as Set
-import Data.Symbol
-import Data.Maybe (fromMaybe)
 import Text.PrettyPrint.Mainland
 
 import Language.LLVM.Parser.Tokens
 import Language.LLVM.Parser.Monad
 }
 
-$nondigit         = [a-z A-Z \_]
+$nondigit         = [a-z A-Z \_ \.]
 $digit            = [0-9]
 $nonzerodigit     = [1-9]
 $octalDigit       = [0-7]
 $hexadecimalDigit = [0-9A-Fa-f]
-
-@identifier = [@\%] ("0"
-                    | $nonzerodigit $digit*
-                    | $nondigit ($nondigit | $digit)*)
+$whitechar = [\ \t\n\r\f\v]
 
 @fractionalConstant = $digit* "." $digit+
                     | $digit+ "."
@@ -61,7 +48,7 @@ $hexadecimalDigit = [0-9A-Fa-f]
 @floatingConstant   = @fractionalConstant @exponentPart? @floatingSuffix?
                     | $digit+ @exponentPart @floatingSuffix?
 
-@decimalConstant     = $nonzerodigit $digit*
+@decimalConstant     = $nonzerodigit $digit* | "0"
 @octalConstant       = "0" $octalDigit*
 @hexadecimalConstant = "0" [xX] $hexadecimalDigit+
 
@@ -70,7 +57,18 @@ $hexadecimalDigit = [0-9A-Fa-f]
                | [lL] [lL] [uU]?
                | [uU] [lL] [lL]
 
-$whitechar = [\ \t\n\r\f\v]
+@idText = [a-z A-Z \$ \. \_] [a-z A-Z \$ \. \_ 0-9]*
+@identifier = [@\%] ( @decimalConstant
+                    | @idText)
+@jumpLabel = @idText ":"
+
+@attrGroupNumber = "#" @decimalConstant
+
+@integerType = "i" $nonzerodigit $digit*
+@keyword = [a-z]+ ($nonzerodigit $digit*)?
+
+@metaDataName = "!" ( @decimalConstant
+                    | @idText)
 
 tokens :-
 <0> {
@@ -78,11 +76,33 @@ tokens :-
  $whitechar+          ; 
 
  @identifier { identifier }
+ @jumpLabel { jumpLabel }
+ @integerType { numberedToken TintegerType }
+ @keyword { keyword }
+ @attrGroupNumber { numberedToken TattrGroupNumber }
+ @metaDataName { metaDataName }
 
  @floatingConstant                    { lexFloat }
  @decimalConstant @integerSuffix?     { lexInteger 0 decimal }
  @octalConstant @integerSuffix?       { lexInteger 1 octal }
  @hexadecimalConstant @integerSuffix? { lexInteger 2 hexadecimal }
+
+ \" { lexStringTok }
+
+ "("   { token Tlparen }
+ ")"   { token Trparen }
+ "["   { token Tlbrack }
+ "]"   { token Trbrack }
+ "{"   { token Tlbrace }
+ "}"   { token Trbrace }
+ "<"   { token Tless }
+ ">"   { token Tgreater }
+ ","   { token Tcomma }
+ ":"   { token Tcolon }
+ "*"   { token Tstar }
+ "="   { token Tassign }
+ "-"   { token Tminus }
+ "!"   { token Tbang }
 }
 
 {
@@ -112,11 +132,47 @@ identifier beg end = do
     ident :: String
     ident = inputString beg end
 
+jumpLabel :: Action
+jumpLabel beg end = do
+    token (TjumpLabel $ init ident) beg end
+  where
+    ident :: String
+    ident = inputString beg end
+
+metaDataName :: Action
+metaDataName beg end = do
+    case isDigit $ head $ tail ident of
+      False -> return $ locateTok beg end $ TmetaDataName (tail ident)
+      True  -> return $ locateTok beg end $ TmetaDataNumber (read $ tail ident)
+  where
+    ident :: String
+    ident = inputString beg end
+
+numberedToken :: (Integer -> Token) -> Action
+numberedToken f beg end = do
+    return $ locateTok beg end $ f (read $ tail ident)
+  where
+    ident :: String
+    ident = inputString beg end
+
+keyword :: Action
+keyword beg end = do
+    case Map.lookup ident keywordMap of
+      Nothing             -> identError
+      Just (tok, Nothing) -> token tok beg end
+      Just (tok, Just i)  -> do isKw <- useExts i
+                                if isKw then token tok beg end else identError
+  where
+    ident :: String
+    ident = inputString beg end
+
+    identError = fail $ "not a valid keyword: " ++ show ident
+
 lexStringTok :: Action
 lexStringTok beg _ = do
     s    <- lexString ""
     end  <- getInput
-    return $ locateTok beg end (TstringConst (inputString beg end, s))
+    return $ locateTok beg end (TstringConst s)
   where
     lexString :: String -> P String
     lexString s = do
@@ -167,7 +223,7 @@ lexInteger ndrop radix@(_, isRadixDigit, _) beg end =
             return n
 
     toToken :: Integer -> Token
-    toToken n = TintConst (s, n)
+    toToken n = TintConst n
 
 lexFloat :: Action
 lexFloat beg end =
@@ -194,7 +250,7 @@ lexFloat beg end =
     toToken :: Rational -> Token
     toToken n =
         case suffix of
-          ""  -> TfloatConst (s, n)
+          ""  -> TfloatConst n
 
 type Radix = (Integer, Char -> Bool, Char -> Int)
 
@@ -311,5 +367,10 @@ alexScanTokens = do
         token <- t beg end
         tokens <- alexScanTokens
         return $ token:tokens
+
+scanTokens :: String -> Either SomeException [L Token]
+scanTokens s' = 
+  let s = B.pack s'
+  in evalP alexScanTokens (emptyPState [] s (startPos s'))
 }
   

@@ -66,7 +66,6 @@ import qualified Data.ByteString.Char8 as B
 import Data.ByteString.Internal (c2w)
 import Data.List (foldl')
 import Data.Loc
-import qualified Data.Set as Set
 import Data.Typeable (Typeable)
 import Data.Word
 import Text.PrettyPrint.Mainland
