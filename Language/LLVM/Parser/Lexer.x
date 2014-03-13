@@ -95,8 +95,8 @@ tokens :-
  "]"   { token Trbrack }
  "{"   { token Tlbrace }
  "}"   { token Trbrace }
- "<"   { token Tless }
- ">"   { token Tgreater }
+ "<"   { token Tlt }
+ ">"   { token Tgt }
  ","   { token Tcomma }
  ":"   { token Tcolon }
  "*"   { token Tstar }
