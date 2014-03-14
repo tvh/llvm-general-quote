@@ -20,7 +20,8 @@ library
   exposed-modules:
     Language.LLVM.Parser.Lexer,
     Language.LLVM.Parser.Tokens,
-    Language.LLVM.Parser.Monad
+    Language.LLVM.Parser.Monad,
+    Language.LLVM.Parser.Parser
   -- other-modules:       
   other-extensions:    CPP
   build-depends:
@@ -32,7 +33,8 @@ library
     symbol,
     srcloc,
     exception-transformers,
-    mainland-pretty
+    mainland-pretty,
+    llvm-general-pure
   -- hs-source-dirs:      
-  build-tools:         alex
+  build-tools:         alex, happy
   default-language:    Haskell2010

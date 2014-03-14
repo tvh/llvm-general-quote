@@ -24,11 +24,11 @@ data Token
   | TfloatConst Rational
   | TstringConst String
   | Tnamed Visibility String
-  | Tunamed Visibility Integer
+  | Tunnamed Visibility Word
   | TjumpLabel String
   | TattrGroupNumber Integer
   | TmetaDataName String
-  | TmetaDataNumber Integer
+  | TmetaDataNumber Word
   | Tlparen
   | Trparen
   | Tlbrack
@@ -50,7 +50,6 @@ data Token
   | Tmetadata
   -- Finalizer
   | Tret
-  | Tcondbr
   | Tbr
   | Tswitch
   | Tindirectbr
@@ -138,7 +137,7 @@ data Token
   -- Types
   | Tfloat
   | Tdouble
-  | TintegerType Integer
+  | TintegerType Word32
   -- Parameter Attributes
   | Tzeroext
   | Tsignext
@@ -218,7 +217,6 @@ keywords = [("define",            Tdefine,          Nothing),
             ("insertvalue",       Tinsertvalue,     Nothing),
             ("landingpad",        Tlandingpad,      Nothing),
             ("ret",               Tret,             Nothing),
-            ("condbr",            Tcondbr,          Nothing),
             ("br",                Tbr,              Nothing),
             ("switch",            Tswitch,          Nothing),
             ("indirectbr",        Tindirectbr,      Nothing),
@@ -262,7 +260,9 @@ keywords = [("define",            Tdefine,          Nothing),
             ("attributes",        Tattributes,      Nothing),
             ("nounwind",          Tnounwind,        Nothing),
             ("uwtable",           Tuwtable,         Nothing),
-            ("metadata",          Tmetadata,        Nothing)
+            ("metadata",          Tmetadata,        Nothing),
+            ("double",            Tdouble,          Nothing),
+            ("float",             Tfloat,           Nothing)
            ]
 
 data Extensions = Antiquotation

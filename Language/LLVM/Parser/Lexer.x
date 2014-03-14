@@ -127,7 +127,7 @@ identifier beg end = do
       '@' -> return Global
     case isDigit $ head $ tail ident of
       False -> return $ locateTok beg end $ Tnamed v (tail ident)
-      True  -> return $ locateTok beg end $ Tunamed v (read $ tail ident)
+      True  -> return $ locateTok beg end $ Tunnamed v (read $ tail ident)
   where
     ident :: String
     ident = inputString beg end
@@ -148,7 +148,7 @@ metaDataName beg end = do
     ident :: String
     ident = inputString beg end
 
-numberedToken :: (Integer -> Token) -> Action
+numberedToken :: (Num a, Read a) => (a -> Token) -> Action
 numberedToken f beg end = do
     return $ locateTok beg end $ f (read $ tail ident)
   where
