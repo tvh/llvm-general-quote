@@ -11,6 +11,7 @@ import qualified Data.Map as Map
 import Data.Bits
 import Data.Word
 import Text.PrettyPrint.Mainland
+import Language.LLVM.AST
 import Data.List (foldl')
 
 data Visibility
@@ -294,10 +295,6 @@ keywords = [("define",            Tdefine,          Nothing),
             ("float",             Tfloat,           Nothing),
             ("void",              Tvoid,            Nothing)
            ]
-
-data Extensions = Antiquotation
-  deriving (Eq, Ord, Enum, Show)
-type ExtensionsInt = Word32
 
 keywordMap :: Map.Map String (Token, Maybe ExtensionsInt)
 keywordMap = Map.fromList (map f keywords)

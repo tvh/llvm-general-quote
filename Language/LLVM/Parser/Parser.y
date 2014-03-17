@@ -184,7 +184,7 @@ import qualified LLVM.General.AST.FloatingPointPredicate as AF
 %error { happyError }
 
 %name parseModule       module
-%name parseGlobal       global
+%name parseDefinition   definition
 %name parseBasicBlock   basicBlock
 %name parseInstruction  instruction
 

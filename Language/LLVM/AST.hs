@@ -2,7 +2,7 @@
 -- Note that these types are designed for fidelity rather than convenience - if the truth
 -- of what LLVM supports is less than pretty, so be it.
 module Language.LLVM.AST (
-  Module(..), defaultModule,
+  Module(..),
   Definition(..),
   Global(GlobalVariable, GlobalAlias, Function), 
         globalVariableDefaults,
@@ -10,6 +10,7 @@ module Language.LLVM.AST (
         functionDefaults,
   Parameter(..),
   BasicBlock(..),
+  Extensions(..), ExtensionsInt,
   module LLVM.General.AST.Instruction,
   module LLVM.General.AST.Name,
   module LLVM.General.AST.Operand,
@@ -22,6 +23,12 @@ import LLVM.General.AST.Global
 import LLVM.General.AST.Operand
 import LLVM.General.AST.Instruction
 import LLVM.General.AST.DataLayout
+
+import Data.Word
+
+data Extensions = Antiquotation
+  deriving (Eq, Ord, Enum, Show)
+type ExtensionsInt = Word32
 
 -- | Any thing which can be at the top level of a 'Module'
 data Definition 
@@ -42,12 +49,3 @@ data Module =
     moduleDefinitions :: [Definition]
   } 
   deriving (Eq, Read, Show)
-
--- | helper for making 'Module's
-defaultModule = 
-  Module {
-    moduleName = "<string>",
-    moduleDataLayout = Nothing,
-    moduleTargetTriple = Nothing,
-    moduleDefinitions = []
-  }

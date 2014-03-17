@@ -21,6 +21,8 @@ import Control.Monad.Exception
 import qualified Data.ByteString.Char8 as B
 import qualified Data.Map as Map
 import Data.Char (isDigit,
+                  isLower,
+                  isAlphaNum,
                   isOctDigit,
                   isHexDigit,
                   chr,
@@ -184,6 +186,48 @@ lexStringTok beg _ = do
           '\\' -> do  c' <- lexCharEscape
                       lexString (c' : s)
           _    -> lexString (c : s)
+
+lexAnti ::(String -> Token) ->  Action
+lexAnti antiTok beg end = do
+    c <- nextChar
+    s <- case c of
+           '('                 -> lexExpression 0 ""
+           _ | isIdStartChar c -> lexIdChars [c]
+             | otherwise       -> lexerError beg (text "illegal anitquotation")
+    return $ locateTok beg end (antiTok s)
+  where
+    lexIdChars :: String -> P String
+    lexIdChars s = do
+        maybe_c <- maybePeekChar
+        case maybe_c of
+          Just c | isIdChar c -> skipChar >> lexIdChars (c : s)
+          _                   -> return (reverse s)
+
+    lexExpression :: Int -> String -> P String
+    lexExpression depth s = do
+        maybe_c <- maybePeekChar
+        case maybe_c of
+          Nothing               -> do end <- getInput
+                                      parserError (Loc (alexPos beg) (alexPos end))
+                                                  (text "unterminated antiquotation")
+          Just '('              -> skipChar >> lexExpression (depth+1) ('(' : s)
+          Just ')' | depth == 0 -> skipChar >> return (unescape (reverse s))
+                   | otherwise  -> skipChar >> lexExpression (depth-1) (')' : s)
+          Just c                -> skipChar >> lexExpression depth (c : s)
+      where
+        unescape :: String -> String
+        unescape ('\\':'|':'\\':']':s)  = '|' : ']' : unescape s
+        unescape (c:s)                  = c : unescape s
+        unescape []                     = []
+
+    isIdStartChar :: Char -> Bool
+    isIdStartChar '_' = True
+    isIdStartChar c   = isLower c
+
+    isIdChar :: Char -> Bool
+    isIdChar '_'  = True
+    isIdChar '\'' = True
+    isIdChar c    = isAlphaNum c
 
 lexCharEscape :: P Char
 lexCharEscape = do
