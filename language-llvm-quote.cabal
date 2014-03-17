@@ -21,7 +21,8 @@ library
     Language.LLVM.Parser.Lexer,
     Language.LLVM.Parser.Tokens,
     Language.LLVM.Parser.Monad,
-    Language.LLVM.Parser.Parser
+    Language.LLVM.Parser.Parser,
+    Language.LLVM.AST
   -- other-modules:       
   other-extensions:    CPP
   build-depends:

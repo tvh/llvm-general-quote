@@ -15,7 +15,7 @@ import Text.PrettyPrint.Mainland
 import Language.LLVM.Parser.Lexer
 import Language.LLVM.Parser.Monad
 import qualified Language.LLVM.Parser.Tokens as T
-import qualified LLVM.General.AST as A
+import qualified Language.LLVM.AST as A
 import qualified LLVM.General.AST.Constant as A 
   (Constant(Int, Float, Null, Struct, Array, Vector, Undef, BlockAddress, GlobalReference))
 import qualified LLVM.General.AST.Float as A
