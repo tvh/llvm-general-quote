@@ -178,6 +178,8 @@ import qualified LLVM.General.AST.FloatingPointPredicate as AF
  'nounwind'         { L _ T.Tnounwind }
  'uwtable'          { L _ T.Tuwtable }
 
+ ANTI_DEF           {L _ (T.Tanti_def $$) }
+
 %monad { P } { >>= } { return }
 %lexer { lexer } { L _ T.Teof }
 %tokentype { (L T.Token) }
@@ -482,6 +484,7 @@ global :
 definition :: { A.Definition }
 definition :
     global         { A.GlobalDefinition $1 }
+  | ANTI_DEF       { A.AntiDefinition $1 }
 
 definitions :: { RevList A.Definition }
 definitions :

@@ -169,6 +169,8 @@ data Token
   | Treadonly
   | Tnounwind
   | Tuwtable
+  -- Anti-Quotation
+  | Tanti_def String
   deriving (Eq, Ord, Show)
 
 instance Pretty Token where

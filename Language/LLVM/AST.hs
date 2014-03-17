@@ -3,7 +3,7 @@
 -- of what LLVM supports is less than pretty, so be it.
 module Language.LLVM.AST (
   Module(..),
-  Definition(..),
+  Definition(..), ToDefintion(..),
   Global(GlobalVariable, GlobalAlias, Function), 
         globalVariableDefaults,
         globalAliasDefaults,
@@ -37,6 +37,7 @@ data Definition
   | MetadataNodeDefinition MetadataNodeID [Maybe Operand]
   | NamedMetadataDefinition String [MetadataNodeID]
   | ModuleInlineAssembly String
+  | AntiDefinition String
     deriving (Eq, Read, Show)
 
 -- | <http://llvm.org/docs/LangRef.html#modulestructure>
@@ -49,3 +50,10 @@ data Module =
     moduleDefinitions :: [Definition]
   } 
   deriving (Eq, Read, Show)
+
+class ToDefintion a where
+  toDefintion :: a -> Definition
+instance ToDefintion Definition where
+  toDefintion = id
+instance ToDefintion Global where
+  toDefintion = GlobalDefinition

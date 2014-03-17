@@ -75,6 +75,11 @@ $whitechar = [\ \t\n\r\f\v]
                     | @idText)
 
 tokens :-
+
+<0> {
+ "$def:"          / { allowAnti } { lexAnti Tanti_def }
+}
+
 <0> {
  ";" .* ;
  $whitechar+          ; 
