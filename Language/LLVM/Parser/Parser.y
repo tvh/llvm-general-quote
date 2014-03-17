@@ -183,9 +183,10 @@ import qualified LLVM.General.AST.FloatingPointPredicate as AF
 %tokentype { (L T.Token) }
 %error { happyError }
 
-%name parseConstant     constant
-%name parseNamed        namedI
 %name parseModule       module
+%name parseGlobal       global
+%name parseBasicBlock   basicBlock
+%name parseInstruction  instruction
 
 %%
 
