@@ -86,7 +86,7 @@ data Token
   | Tzext
   | Tsext
   | Tfptoui
-  | Tfttosi
+  | Tfptosi
   | Tuitofp
   | Tsitofp
   | Tfptrunc
@@ -113,12 +113,26 @@ data Token
   | Tugt
   | Tuge
   | Tult
+  | Tule
   | Tsgt
   | Tsge
   | Tslt
   | Tsle
+  | Tfalse
+  | Toeq
+  | Togt
+  | Toge
+  | Tolt
+  | Tole
+  | Tone
+  | Tord
+  | Tuno
+  | Tueq
+  | Tune
+  | Ttrue
 
   | Tlabel
+  | Tvolatile
   | Tinbounds
   | Talign
   | Tnnan
@@ -138,6 +152,7 @@ data Token
   | Tfloat
   | Tdouble
   | TintegerType Word32
+  | Tvoid
   -- Parameter Attributes
   | Tzeroext
   | Tsignext
@@ -195,7 +210,7 @@ keywords = [("define",            Tdefine,          Nothing),
             ("zext",              Tzext,            Nothing),
             ("sext",              Tsext,            Nothing),
             ("fptoui",            Tfptoui,          Nothing),
-            ("fttosi",            Tfttosi,          Nothing),
+            ("fptosi",            Tfptosi,          Nothing),
             ("uitofp",            Tuitofp,          Nothing),
             ("sitofp",            Tsitofp,          Nothing),
             ("fptrunc",           Tfptrunc,         Nothing),
@@ -209,7 +224,7 @@ keywords = [("define",            Tdefine,          Nothing),
             ("phi",               Tphi,             Nothing),
             ("call",              Tcall,            Nothing),
             ("select",            Tselect,          Nothing),
-            ("vaarg",             Tvaarg,           Nothing),
+            ("va_arg",            Tvaarg,           Nothing),
             ("extractelement",    Textractelement,  Nothing),
             ("insertelement",     Tinsertelement,   Nothing),
             ("shufflevector",     Tshufflevector,   Nothing),
@@ -224,6 +239,7 @@ keywords = [("define",            Tdefine,          Nothing),
             ("resume",            Tresume,          Nothing),
             ("unreachable",       Tunreachable,     Nothing),
             ("label",             Tlabel,           Nothing),
+            ("volatile",          Tvolatile,        Nothing),
             ("inbounds",          Tinbounds,        Nothing),
             ("align",             Talign,           Nothing),
             ("nnan",              Tnnan,            Nothing),
@@ -236,10 +252,23 @@ keywords = [("define",            Tdefine,          Nothing),
             ("ugt",               Tugt,             Nothing),
             ("uge",               Tuge,             Nothing),
             ("ult",               Tult,             Nothing),
+            ("ule",               Tule,             Nothing),
             ("sgt",               Tsgt,             Nothing),
             ("sge",               Tsge,             Nothing),
             ("slt",               Tslt,             Nothing),
             ("sle",               Tsle,             Nothing),
+            ("false",             Tfalse,           Nothing),
+            ("oeq",               Toeq,             Nothing),
+            ("ogt",               Togt,             Nothing),
+            ("oge",               Toge,             Nothing),
+            ("olt",               Tolt,             Nothing),
+            ("ole",               Tole,             Nothing),
+            ("one",               Tone,             Nothing),
+            ("ord",               Tord,             Nothing),
+            ("uno",               Tuno,             Nothing),
+            ("ueq",               Tueq,             Nothing),
+            ("une",               Tune,             Nothing),
+            ("true",              Ttrue,            Nothing),
             ("to",                Tto,              Nothing),
             ("nsw",               Tnsw,             Nothing),
             ("nuw",               Tnuw,             Nothing),
@@ -262,7 +291,8 @@ keywords = [("define",            Tdefine,          Nothing),
             ("uwtable",           Tuwtable,         Nothing),
             ("metadata",          Tmetadata,        Nothing),
             ("double",            Tdouble,          Nothing),
-            ("float",             Tfloat,           Nothing)
+            ("float",             Tfloat,           Nothing),
+            ("void",              Tvoid,            Nothing)
            ]
 
 data Extensions = Antiquotation

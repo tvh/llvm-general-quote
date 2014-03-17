@@ -9,7 +9,9 @@
 -- Maintainer  :  tvh@tvholtz.de
 
 module Language.LLVM.Parser.Lexer (
-    lexToken
+    lexToken,
+    alexScanTokens,
+    scanTokens
   ) where
 
 import Control.Applicative
@@ -201,7 +203,7 @@ lexCharEscape = do
       '?'  -> return '?'
       'x'  -> chr <$> checkedReadNum isHexDigit 16 hexDigit
       n | isOctDigit n -> setInput cur >> chr <$> checkedReadNum isOctDigit 8 octDigit
-      c -> return c
+      _c -> return c
 
 lexInteger :: Int -> Radix -> Action
 lexInteger ndrop radix@(_, isRadixDigit, _) beg end =
@@ -211,9 +213,6 @@ lexInteger ndrop radix@(_, isRadixDigit, _) beg end =
   where
     num :: String
     num = (takeWhile isRadixDigit . drop ndrop)  s
-
-    suffix :: String
-    suffix = (map toLower . takeWhile (not . isRadixDigit) . reverse) s
 
     s :: String
     s = inputString beg end
@@ -233,9 +232,6 @@ lexFloat beg end =
   where
     s :: String
     s = inputString beg end
-
-    prefix :: String
-    prefix = takeWhile (not . isSuffix) s
 
     suffix :: String
     suffix = (map toLower . takeWhile isSuffix . reverse) s
@@ -292,48 +288,48 @@ readDecimal = readInteger decimal
 
 readRational :: ReadS Rational
 readRational s = do
-    (n, d, t)  <- readFix s
+    (n, d, t)  <- readFix
     (x, _)     <- readExponent t
     return ((n % 1) * 10^^(x - toInteger d), t)
   where
-    readFix :: String ->  [(Integer, Int, String)]
-    readFix s =
+    readFix :: [(Integer, Int, String)]
+    readFix =
         return (read (i ++ f), length f, u)
       where
         (i, t) = span isDigit s
         (f, u) = case t of
-                   '.' : u  -> span isDigit u
+                   '.' : u' -> span isDigit u'
                    _        -> ("", t)
 
     readExponent :: ReadS Integer
     readExponent ""                        = return (0, "")
-    readExponent (e : s)  | e `elem` "eE"  = go s
-                          | otherwise      = return (0, s)
+    readExponent (e : s') | e `elem` "eE"  = go s'
+                          | otherwise      = return (0, s')
       where
         go :: ReadS Integer
-        go  ('+' : s)  = readDecimal s
-        go  ('-' : s)  = do  (x, t) <- readDecimal s
-                             return (-x, t)
-        go  s          = readDecimal s
+        go  ('+' : s'')  = readDecimal s''
+        go  ('-' : s'')  = do (x, t) <- readDecimal s''
+                              return (-x, t)
+        go  s''          = readDecimal s''
 
 checkedReadNum :: (Char -> Bool) -> Int -> (Char -> Int) -> P Int
-checkedReadNum isDigit base conv = do
+checkedReadNum isDigit' base conv = do
     cur  <- getInput
     c    <- peekChar
-    when (not $ isDigit c) $
+    when (not $ isDigit' c) $
        illegalNumericalLiteral cur
     readNum isDigit base conv
 
 readNum :: (Char -> Bool) -> Int -> (Char -> Int) -> P Int
-readNum isDigit base conv =
-    read 0
+readNum isDigit' base conv =
+    readI 0
   where
-    read :: Int -> P Int
-    read n = do
+    readI :: Int -> P Int
+    readI n = do
         c <- peekChar
-        if isDigit c
+        if isDigit' c
           then do  let n' = n*base + conv c
-                   n' `seq` skipChar >> read n'
+                   n' `seq` skipChar >> readI n'
           else return n
 
 lexToken :: P (L Token)
@@ -348,7 +344,7 @@ lexToken = do
                                   rest :: String
                                   rest = B.unpack $ B.take 80 (alexInput end)
       AlexSkip end _       -> setInput end >> lexToken
-      AlexToken end len t  -> setInput end >> t beg end
+      AlexToken end _len t  -> setInput end >> t beg end
 
 alexScanTokens :: P [L Token]
 alexScanTokens = do
@@ -362,11 +358,11 @@ alexScanTokens = do
                                   rest :: String
                                   rest = B.unpack $ B.take 80 (alexInput end)
       AlexSkip end _       -> setInput end >> alexScanTokens
-      AlexToken end len t  -> do
+      AlexToken end _len t  -> do
         setInput end
-        token <- t beg end
+        token' <- t beg end
         tokens <- alexScanTokens
-        return $ token:tokens
+        return $ token':tokens
 
 scanTokens :: String -> Either SomeException [L Token]
 scanTokens s' = 
