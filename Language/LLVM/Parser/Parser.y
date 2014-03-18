@@ -22,7 +22,6 @@ import qualified LLVM.General.AST.Float as A
 import qualified LLVM.General.AST.Instruction as A
 import qualified LLVM.General.AST.Operand as A
 import qualified LLVM.General.AST.Name as A
-import qualified LLVM.General.AST.Global as A
 import qualified LLVM.General.AST.Type as A
 import qualified LLVM.General.AST.Linkage as A
 import qualified LLVM.General.AST.Visibility as A
@@ -178,8 +177,8 @@ import qualified LLVM.General.AST.FloatingPointPredicate as AF
  'nounwind'         { L _ T.Tnounwind }
  'uwtable'          { L _ T.Tuwtable }
 
- ANTI_DEF           {L _ (T.Tanti_def $$) }
  ANTI_DEFS          {L _ (T.Tanti_defs $$) }
+ ANTI_BBS           {L _ (T.Tanti_bbs $$) }
 
 %monad { P } { >>= } { return }
 %lexer { lexer } { L _ T.Teof }
@@ -415,6 +414,7 @@ basicBlock :: { A.BasicBlock }
 basicBlock :
     JUMPLABEL instructions namedT     { A.BasicBlock (A.Name $1) (rev $2) $3 }
   | instructions namedT               { A.BasicBlock (A.UnName 0) (rev $1) $2 }
+  | ANTI_BBS                          { A.AntiBasicBlocks $1 }
 
 basicBlocks :: { RevList (A.BasicBlock) }
 basicBlocks :
@@ -485,7 +485,6 @@ global :
 definition :: { A.Definition }
 definition :
     global         { A.GlobalDefinition $1 }
-  | ANTI_DEF       { A.AntiDefinition $1 }
   | ANTI_DEFS      { A.AntiDefinitionList $1 }
 
 definitions :: { RevList A.Definition }

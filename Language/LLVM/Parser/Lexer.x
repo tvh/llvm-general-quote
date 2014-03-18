@@ -77,8 +77,8 @@ $whitechar = [\ \t\n\r\f\v]
 tokens :-
 
 <0> {
- "$def:"          / { allowAnti } { lexAnti Tanti_def }
  "$defs:"         / { allowAnti } { lexAnti Tanti_defs }
+ "$bbs:"           / { allowAnti } { lexAnti Tanti_bbs }
 }
 
 <0> {
