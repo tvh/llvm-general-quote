@@ -179,6 +179,7 @@ import qualified LLVM.General.AST.FloatingPointPredicate as AF
  'uwtable'          { L _ T.Tuwtable }
 
  ANTI_DEF           {L _ (T.Tanti_def $$) }
+ ANTI_DEFS          {L _ (T.Tanti_defs $$) }
 
 %monad { P } { >>= } { return }
 %lexer { lexer } { L _ T.Teof }
@@ -485,6 +486,7 @@ definition :: { A.Definition }
 definition :
     global         { A.GlobalDefinition $1 }
   | ANTI_DEF       { A.AntiDefinition $1 }
+  | ANTI_DEFS      { A.AntiDefinitionList $1 }
 
 definitions :: { RevList A.Definition }
 definitions :

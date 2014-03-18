@@ -31,6 +31,8 @@ import qualified LLVM.General.AST as L
 
 class ToDefintion a where
   toDefinition :: a -> L.Definition
+instance ToDefintion L.Definition where
+  toDefinition = id
 instance ToDefintion L.Global where
   toDefinition = L.GlobalDefinition
 
@@ -39,6 +41,8 @@ antiVarE = either fail return . parseExp
 
 qqDefinitionListE :: [A.Definition] -> Maybe (Q Exp)
 qqDefinitionListE [] = Just [|[]|]
+qqDefinitionListE (A.AntiDefinitionList v : defs) =
+    Just [|map toDefinition $(antiVarE v) ++ $(qqE defs)|]
 qqDefinitionListE (def : defs) =
     Just [|$(qqE def) : $(qqE defs)|]
 
@@ -65,6 +69,7 @@ qqE x = dataToExpQ qqExp x
 
 qqExp :: Typeable a => a -> Maybe (Q Exp)
 qqExp = const Nothing `extQ` qqDefinitionE
+                      `extQ` qqDefinitionListE
                       `extQ` qqModuleE
 
 parse :: [A.Extensions]

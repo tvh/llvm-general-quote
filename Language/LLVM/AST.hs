@@ -9,7 +9,6 @@ module Language.LLVM.AST (
 
 import qualified LLVM.General.AST.Constant as A
   (Constant())
-import qualified LLVM.General.AST.Constant as AC
 import qualified LLVM.General.AST.Float as A
 import qualified LLVM.General.AST.Instruction as A
 import qualified LLVM.General.AST.Operand as A
@@ -46,6 +45,7 @@ data Definition
   | NamedMetadataDefinition String [A.MetadataNodeID]
   | ModuleInlineAssembly String
   | AntiDefinition String
+  | AntiDefinitionList String
     deriving (Eq, Read, Show, Typeable, Data)
 
 -- | <http://llvm.org/docs/LangRef.html#modulestructure>
@@ -63,7 +63,7 @@ $(deriveLiftMany [''A.Visibility,
                   ''A.Linkage,
                   ''A.ParameterAttribute,
                   ''A.Global,
-                  ''AC.Constant,
+                  ''A.Constant,
                   ''A.AddrSpace,
                   ''A.CallingConvention,
                   ''A.FunctionAttribute,

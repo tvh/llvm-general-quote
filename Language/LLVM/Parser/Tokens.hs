@@ -171,6 +171,7 @@ data Token
   | Tuwtable
   -- Anti-Quotation
   | Tanti_def String
+  | Tanti_defs String
   deriving (Eq, Ord, Show)
 
 instance Pretty Token where
