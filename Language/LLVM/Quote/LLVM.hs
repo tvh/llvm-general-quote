@@ -1,5 +1,8 @@
 module Language.LLVM.Quote.LLVM (
-    llmod
+    llmod,
+    lldef,
+    llbb,
+    lli
   ) where
 
 import qualified Language.LLVM.Parser as P
@@ -12,3 +15,12 @@ exts = []
 
 llmod :: QuasiQuoter
 llmod = quasiquote exts P.parseModule
+
+lldef :: QuasiQuoter
+lldef = quasiquote exts P.parseDefinition
+
+llbb :: QuasiQuoter
+llbb = quasiquote exts P.parseBasicBlock
+
+lli :: QuasiQuoter
+lli = quasiquote exts P.parseInstruction
