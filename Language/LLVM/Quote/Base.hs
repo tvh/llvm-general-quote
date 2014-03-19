@@ -4,7 +4,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE TemplateHaskell #-}
-{-# OPTIONS_GHC -w #-}
+{-# OPTIONS_GHC -Wall -Werror #-}
 
 module Language.LLVM.Quote.Base (
     ToDefintions(..),
@@ -16,14 +16,12 @@ import qualified Data.ByteString.Char8 as B
 import Data.Data (Data(..))
 import Data.Generics (extQ)
 import Data.Loc
-import Data.Typeable (Typeable(..))
-import Language.Haskell.Meta (parseExp, parsePat)
+import Data.Typeable (Typeable)
+import Language.Haskell.Meta (parseExp)
 import Language.Haskell.TH
 import Language.Haskell.TH.Quote (QuasiQuoter(..),
-                                  dataToQa,
-                                  dataToExpQ,
-                                  dataToPatQ)
-import Language.Haskell.TH.Syntax
+                                  dataToExpQ)
+--import Language.Haskell.TH.Syntax
 
 import qualified Language.LLVM.Parser as P
 import qualified Language.LLVM.AST as A
@@ -66,6 +64,8 @@ qqDefinitionE (A.NamedMetadataDefinition i vs) =
     Just [|L.NamedMetadataDefinition $(qqE i) $(qqE vs) :: L.Definition|]
 qqDefinitionE (A.ModuleInlineAssembly s) =
     Just [|L.ModuleInlineAssembly $(qqE s) :: L.Definition|]
+qqDefinitionE a@(A.AntiDefinitionList _s) =
+    error $ "Internal Error: unexpected antiquote " ++ show a
 
 qqModuleE :: A.Module -> Maybe (Q Exp)
 qqModuleE (A.Module n dl tt ds) = 
@@ -97,7 +97,167 @@ qqBasicBlockListE (def : defs) =
 qqBasicBlockE :: A.BasicBlock -> Maybe (Q Exp)
 qqBasicBlockE (A.BasicBlock x1 x2 x3) =
   Just [|L.BasicBlock $(qqE x1) $(qqE x2) $(qqE x3)|]
+qqBasicBlockE a@(A.AntiBasicBlocks _s) =
+  error $ "Internal Error: unexpected antiquote " ++ show a
 
+qqTerminatorE :: A.Terminator -> Maybe (Q Exp)
+qqTerminatorE (A.Ret x1 x2) =
+  Just [|L.Ret $(qqE x1) $(qqE x2)|]
+qqTerminatorE (A.CondBr x1 x2 x3 x4) =
+  Just [|L.CondBr $(qqE x1) $(qqE x2) $(qqE x3) $(qqE x4)|]
+qqTerminatorE (A.Br x1 x2) =
+  Just [|L.Br $(qqE x1) $(qqE x2)|]
+qqTerminatorE (A.Switch x1 x2 x3 x4) =
+  Just [|L.Switch $(qqE x1) $(qqE x2) $(qqE x3) $(qqE x4)|]
+qqTerminatorE (A.IndirectBr x1 x2 x3) =
+  Just [|L.IndirectBr $(qqE x1) $(qqE x2) $(qqE x3)|]
+qqTerminatorE (A.Invoke x1 x2 x3 x4 x5 x6 x7 x8) =
+  Just [|L.Invoke $(qqE x1) $(qqE x2) $(qqE x3) $(qqE x4) $(qqE x5)
+                  $(qqE x6) $(qqE x7) $(qqE x8)|]
+qqTerminatorE (A.Resume x1 x2) =
+  Just [|L.Resume $(qqE x1) $(qqE x2)|]
+qqTerminatorE (A.Unreachable x1) =
+  Just [|L.Unreachable $(qqE x1)|]
+
+qqMemoryOrderingE :: A.MemoryOrdering -> Maybe (Q Exp)
+qqMemoryOrderingE A.Unordered =
+  Just [|L.Unordered|]
+qqMemoryOrderingE A.Monotonic =
+  Just [|L.Monotonic|]
+qqMemoryOrderingE A.Acquire =
+  Just [|L.Acquire|]
+qqMemoryOrderingE A.Release =
+  Just [|L.Release|]
+qqMemoryOrderingE A.AcquireRelease =
+  Just [|L.AcquireRelease|]
+qqMemoryOrderingE A.SequentiallyConsistent =
+  Just [|L.SequentiallyConsistent|]
+
+qqAtomicityE :: A.Atomicity -> Maybe (Q Exp)
+qqAtomicityE (A.Atomicity x1 x2) =
+  Just [|L.Atomicity $(qqE x1) $(qqE x2)|]
+
+qqLandingPadClauseE :: A.LandingPadClause -> Maybe (Q Exp)
+qqLandingPadClauseE (A.Catch x1) =
+  Just [|L.Catch $(qqE x1)|]
+qqLandingPadClauseE (A.Filter x1) =
+  Just [|L.Filter $(qqE x1)|]
+
+qqInstructionE :: A.Instruction -> Maybe (Q Exp)
+qqInstructionE (A.Add x1 x2 x3 x4 x5) =
+  Just [|L.Add $(qqE x1) $(qqE x2) $(qqE x3) $(qqE x4) $(qqE x5)|]
+qqInstructionE (A.FAdd x1 x2 x3) =
+  Just [|L.FAdd $(qqE x1) $(qqE x2) $(qqE x3)|]
+qqInstructionE (A.Sub x1 x2 x3 x4 x5) =
+  Just [|L.Sub $(qqE x1) $(qqE x2) $(qqE x3) $(qqE x4) $(qqE x5)|]
+qqInstructionE (A.FSub x1 x2 x3) =
+  Just [|L.FSub $(qqE x1) $(qqE x2) $(qqE x3)|]
+qqInstructionE (A.Mul x1 x2 x3 x4 x5) =
+  Just [|L.Mul $(qqE x1) $(qqE x2) $(qqE x3) $(qqE x4) $(qqE x5)|]
+qqInstructionE (A.FMul x1 x2 x3) =
+  Just [|L.FMul $(qqE x1) $(qqE x2) $(qqE x3)|]
+qqInstructionE (A.UDiv x1 x2 x3 x4) =
+  Just [|L.UDiv $(qqE x1) $(qqE x2) $(qqE x3) $(qqE x4)|]
+qqInstructionE (A.SDiv x1 x2 x3 x4) =
+  Just [|L.SDiv $(qqE x1) $(qqE x2) $(qqE x3) $(qqE x4)|]
+qqInstructionE (A.FDiv x1 x2 x3) =
+  Just [|L.FDiv $(qqE x1) $(qqE x2) $(qqE x3)|]
+qqInstructionE (A.URem x1 x2 x3) =
+  Just [|L.URem $(qqE x1) $(qqE x2) $(qqE x3)|]
+qqInstructionE (A.SRem x1 x2 x3) =
+  Just [|L.SRem $(qqE x1) $(qqE x2) $(qqE x3)|]
+qqInstructionE (A.FRem x1 x2 x3) =
+  Just [|L.FRem $(qqE x1) $(qqE x2) $(qqE x3)|]
+qqInstructionE (A.Shl x1 x2 x3 x4 x5) =
+  Just [|L.Shl $(qqE x1) $(qqE x2) $(qqE x3) $(qqE x4) $(qqE x5)|]
+qqInstructionE (A.LShr x1 x2 x3 x4) =
+  Just [|L.LShr $(qqE x1) $(qqE x2) $(qqE x3) $(qqE x4)|]
+qqInstructionE (A.AShr x1 x2 x3 x4) =
+  Just [|L.AShr $(qqE x1) $(qqE x2) $(qqE x3) $(qqE x4)|]
+qqInstructionE (A.And x1 x2 x3) =
+  Just [|L.And $(qqE x1) $(qqE x2) $(qqE x3)|]
+qqInstructionE (A.Or x1 x2 x3) =
+  Just [|L.Or $(qqE x1) $(qqE x2) $(qqE x3)|]
+qqInstructionE (A.Xor x1 x2 x3) =
+  Just [|L.Xor $(qqE x1) $(qqE x2) $(qqE x3)|]
+qqInstructionE (A.Alloca x1 x2 x3 x4) =
+  Just [|L.Alloca $(qqE x1) $(qqE x2) $(qqE x3) $(qqE x4)|]
+qqInstructionE (A.Load x1 x2 x3 x4 x5) =
+  Just [|L.Load $(qqE x1) $(qqE x2) $(qqE x3) $(qqE x4) $(qqE x5)|]
+qqInstructionE (A.Store x1 x2 x3 x4 x5 x6) =
+  Just [|L.Store $(qqE x1) $(qqE x2) $(qqE x3) $(qqE x4) $(qqE x5)
+                 $(qqE x6)|]
+qqInstructionE (A.GetElementPtr x1 x2 x3 x4) =
+  Just [|L.GetElementPtr $(qqE x1) $(qqE x2) $(qqE x3) $(qqE x4)|]
+qqInstructionE (A.Fence x1 x2) =
+  Just [|L.Fence $(qqE x1) $(qqE x2)|]
+qqInstructionE (A.CmpXchg x1 x2 x3 x4 x5 x6) =
+  Just [|L.CmpXchg $(qqE x1) $(qqE x2) $(qqE x3) $(qqE x4) $(qqE x5)
+                  $(qqE x6)|]
+qqInstructionE (A.AtomicRMW x1 x2 x3 x4 x5 x6) =
+  Just [|L.AtomicRMW $(qqE x1) $(qqE x2) $(qqE x3) $(qqE x4) $(qqE x5)
+                     $(qqE x6)|]
+qqInstructionE (A.Trunc x1 x2 x3) =
+  Just [|L.Trunc $(qqE x1) $(qqE x2) $(qqE x3)|]
+qqInstructionE (A.ZExt x1 x2 x3) =
+  Just [|L.ZExt $(qqE x1) $(qqE x2) $(qqE x3)|]
+qqInstructionE (A.SExt x1 x2 x3) =
+  Just [|L.SExt $(qqE x1) $(qqE x2) $(qqE x3)|]
+qqInstructionE (A.FPToUI x1 x2 x3) =
+  Just [|L.FPToUI $(qqE x1) $(qqE x2) $(qqE x3)|]
+qqInstructionE (A.FPToSI x1 x2 x3) =
+  Just [|L.FPToSI $(qqE x1) $(qqE x2) $(qqE x3)|]
+qqInstructionE (A.UIToFP x1 x2 x3) =
+  Just [|L.UIToFP $(qqE x1) $(qqE x2) $(qqE x3)|]
+qqInstructionE (A.SIToFP x1 x2 x3) =
+  Just [|L.SIToFP $(qqE x1) $(qqE x2) $(qqE x3)|]
+qqInstructionE (A.FPTrunc x1 x2 x3) =
+  Just [|L.FPTrunc $(qqE x1) $(qqE x2) $(qqE x3)|]
+qqInstructionE (A.FPExt x1 x2 x3) =
+  Just [|L.FPExt $(qqE x1) $(qqE x2) $(qqE x3)|]
+qqInstructionE (A.PtrToInt x1 x2 x3) =
+  Just [|L.PtrToInt $(qqE x1) $(qqE x2) $(qqE x3)|]
+qqInstructionE (A.IntToPtr x1 x2 x3) =
+  Just [|L.IntToPtr $(qqE x1) $(qqE x2) $(qqE x3)|]
+qqInstructionE (A.BitCast x1 x2 x3) =
+  Just [|L.BitCast $(qqE x1) $(qqE x2) $(qqE x3)|]
+qqInstructionE (A.AddrSpaceCast x1 x2 x3) =
+  Just [|L.AddrSpaceCast $(qqE x1) $(qqE x2) $(qqE x3)|]
+qqInstructionE (A.ICmp x1 x2 x3 x4) =
+  Just [|L.ICmp $(qqE x1) $(qqE x2) $(qqE x3) $(qqE x4)|]
+qqInstructionE (A.FCmp x1 x2 x3 x4) =
+  Just [|L.FCmp $(qqE x1) $(qqE x2) $(qqE x3) $(qqE x4)|]
+qqInstructionE (A.Phi x1 x2 x3) =
+  Just [|L.Phi $(qqE x1) $(qqE x2) $(qqE x3)|]
+qqInstructionE (A.Call x1 x2 x3 x4 x5 x6 x7) =
+  Just [|L.Call $(qqE x1) $(qqE x2) $(qqE x3) $(qqE x4) $(qqE x5)
+                $(qqE x6) $(qqE x7)|]
+qqInstructionE (A.Select x1 x2 x3 x4) =
+  Just [|L.Select $(qqE x1) $(qqE x2) $(qqE x3) $(qqE x4)|]
+qqInstructionE (A.VAArg x1 x2 x3) =
+  Just [|L.VAArg $(qqE x1) $(qqE x2) $(qqE x3)|]
+qqInstructionE (A.ExtractElement x1 x2 x3) =
+  Just [|L.ExtractElement $(qqE x1) $(qqE x2) $(qqE x3)|]
+qqInstructionE (A.InsertElement x1 x2 x3 x4) =
+  Just [|L.InsertElement $(qqE x1) $(qqE x2) $(qqE x3) $(qqE x4)|]
+qqInstructionE (A.ShuffleVector x1 x2 x3 x4) =
+  Just [|L.ShuffleVector $(qqE x1) $(qqE x2) $(qqE x3) $(qqE x4)|]
+qqInstructionE (A.ExtractValue x1 x2 x3) =
+  Just [|L.ExtractValue $(qqE x1) $(qqE x2) $(qqE x3)|]
+qqInstructionE (A.InsertValue x1 x2 x3 x4) =
+  Just [|L.InsertValue $(qqE x1) $(qqE x2) $(qqE x3) $(qqE x4)|]
+qqInstructionE (A.LandingPad x1 x2 x3 x4 x5) =
+  Just [|L.LandingPad $(qqE x1) $(qqE x2) $(qqE x3) $(qqE x4) $(qqE x5)|]
+qqInstructionE (A.AntiInstruction s) =
+  Just $ antiVarE s
+
+qqNamedE :: (Typeable a, Data a) => A.Named a -> Maybe (Q Exp)
+qqNamedE ((A.:=) x1 x2) =
+  Just [|(L.:=) $(qqE x1) $(qqE x2)|]
+qqNamedE (A.Do x1) =
+  Just [|L.Do $(qqE x1)|]
+
+qqE :: Data a => a -> Q Exp
 qqE x = dataToExpQ qqExp x
 
 qqExp :: Typeable a => a -> Maybe (Q Exp)
@@ -108,6 +268,13 @@ qqExp = const Nothing `extQ` qqDefinitionE
                       `extQ` qqParameterE
                       `extQ` qqBasicBlockE
                       `extQ` qqBasicBlockListE
+                      `extQ` qqTerminatorE
+                      `extQ` qqMemoryOrderingE
+                      `extQ` qqAtomicityE
+                      `extQ` qqLandingPadClauseE
+                      `extQ` qqInstructionE
+                      `extQ` (qqNamedE :: A.Named A.Instruction -> Maybe (Q Exp))
+                      `extQ` (qqNamedE :: A.Named A.Terminator -> Maybe (Q Exp))
 
 parse :: [A.Extensions]
       -> P.P a

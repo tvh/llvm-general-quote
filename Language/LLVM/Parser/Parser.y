@@ -19,7 +19,6 @@ import qualified Language.LLVM.AST as A
 import qualified LLVM.General.AST.Constant as A 
   (Constant(Int, Float, Null, Struct, Array, Vector, Undef, BlockAddress, GlobalReference))
 import qualified LLVM.General.AST.Float as A
-import qualified LLVM.General.AST.Instruction as A
 import qualified LLVM.General.AST.Operand as A
 import qualified LLVM.General.AST.Name as A
 import qualified LLVM.General.AST.Type as A
@@ -179,6 +178,7 @@ import qualified LLVM.General.AST.FloatingPointPredicate as AF
 
  ANTI_DEFS          {L _ (T.Tanti_defs $$) }
  ANTI_BBS           {L _ (T.Tanti_bbs $$) }
+ ANTI_INSTR         {L _ (T.Tanti_instr $$) }
 
 %monad { P } { >>= } { return }
 %lexer { lexer } { L _ T.Teof }
@@ -375,6 +375,7 @@ instruction :
                                             { A.InsertElement $2 $4 $6 [] }
   | 'shufflevector' tOperand ',' tOperand ',' type constant
                                             { A.ShuffleVector $2 $4 ($7 $6) [] }
+  | ANTI_INSTR                              { A.AntiInstruction $1 }
 
 name :: { A.Name }
 name :
