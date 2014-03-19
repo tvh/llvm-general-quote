@@ -27,6 +27,7 @@ library
     Language.LLVM.Quote.LLVM
   -- other-modules:       
   other-extensions:    CPP
+  ghc-options:     -Wall -Werror
   build-depends:
     base >=4.7 && <4.8,
     array >=0.5 && <0.6,

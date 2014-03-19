@@ -4,7 +4,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE TemplateHaskell #-}
-{-# OPTIONS_GHC -Wall -Werror #-}
 
 module Language.LLVM.Quote.Base (
     ToDefintions(..),
@@ -21,7 +20,6 @@ import Language.Haskell.Meta (parseExp)
 import Language.Haskell.TH
 import Language.Haskell.TH.Quote (QuasiQuoter(..),
                                   dataToExpQ)
---import Language.Haskell.TH.Syntax
 
 import qualified Language.LLVM.Parser as P
 import qualified Language.LLVM.AST as A

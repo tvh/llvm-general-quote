@@ -8,16 +8,15 @@
 -- License     :  BSD-style
 -- Maintainer  :  tvh@tvholtz.de
 
+{-# OPTIONS_GHC -w #-}
+
 module Language.LLVM.Parser.Lexer (
-    lexToken,
-    alexScanTokens,
-    scanTokens
+    lexToken
   ) where
 
 import Control.Applicative
 import Control.Monad.Error
 import Control.Monad.State
-import Control.Monad.Exception
 import qualified Data.ByteString.Char8 as B
 import qualified Data.Map as Map
 import Data.Char (isDigit,
@@ -214,8 +213,8 @@ lexAnti antiTok beg end = do
     lexExpression depth s = do
         maybe_c <- maybePeekChar
         case maybe_c of
-          Nothing               -> do end <- getInput
-                                      parserError (Loc (alexPos beg) (alexPos end))
+          Nothing               -> do end' <- getInput
+                                      parserError (Loc (alexPos beg) (alexPos end'))
                                                   (text "unterminated antiquotation")
           Just '('              -> skipChar >> lexExpression (depth+1) ('(' : s)
           Just ')' | depth == 0 -> skipChar >> return (unescape (reverse s))
@@ -223,8 +222,8 @@ lexAnti antiTok beg end = do
           Just c                -> skipChar >> lexExpression depth (c : s)
       where
         unescape :: String -> String
-        unescape ('\\':'|':'\\':']':s)  = '|' : ']' : unescape s
-        unescape (c:s)                  = c : unescape s
+        unescape ('\\':'|':'\\':']':s')  = '|' : ']' : unescape s'
+        unescape (c:s')                  = c : unescape s'
         unescape []                     = []
 
     isIdStartChar :: Char -> Bool
@@ -396,28 +395,5 @@ lexToken = do
                                   rest = B.unpack $ B.take 80 (alexInput end)
       AlexSkip end _       -> setInput end >> lexToken
       AlexToken end _len t  -> setInput end >> t beg end
-
-alexScanTokens :: P [L Token]
-alexScanTokens = do
-    beg  <- getInput
-    sc   <- getLexState
-    st   <- get
-    case alexScanUser st beg sc of
-      AlexEOF              -> return $ [locateTok beg beg Teof]
-      AlexError end        -> lexerError end (text rest)
-                                where
-                                  rest :: String
-                                  rest = B.unpack $ B.take 80 (alexInput end)
-      AlexSkip end _       -> setInput end >> alexScanTokens
-      AlexToken end _len t  -> do
-        setInput end
-        token' <- t beg end
-        tokens <- alexScanTokens
-        return $ token':tokens
-
-scanTokens :: String -> Either SomeException [L Token]
-scanTokens s' = 
-  let s = B.pack s'
-  in evalP alexScanTokens (emptyPState [] s (startPos s'))
 }
   
