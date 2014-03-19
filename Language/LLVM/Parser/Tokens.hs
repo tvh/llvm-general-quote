@@ -166,8 +166,21 @@ data Token
   | Tnest
   | Treturned
   -- Function Attributes
-  | Treadonly
+  | Talignstack
+  | Talwaysinline
+  | Tinlinehint
+  | Tnaked
+  | Tnoimplicitfloat
+  | Tnoinline
+  | Tnonlazybind
+  | Tnoredzone
+  | Tnoreturn
   | Tnounwind
+  | Toptsize
+  | Treadnone
+  | Treadonly
+  | Tssp
+  | Tsspreq
   | Tuwtable
   -- Anti-Quotation
   | Tanti_defs String
@@ -284,20 +297,34 @@ keywords = [("define",            Tdefine,          Nothing),
             ("inalloca",          Tinalloca,        Nothing),
             ("sret",              Tsret,            Nothing),
             ("noalias",           Tnoalias,         Nothing),
-            ("nocapture",         Tnocapture,       Nothing),
             ("nest",              Tnest,            Nothing),
             ("returned",          Treturned,        Nothing),
-            ("readonly",          Treadonly,        Nothing),
             ("x",                 Tx,               Nothing),
             ("zeroinitializer",   Tzeroinitializer, Nothing),
             ("undef",             Tundef,           Nothing),
             ("attributes",        Tattributes,      Nothing),
             ("nounwind",          Tnounwind,        Nothing),
-            ("uwtable",           Tuwtable,         Nothing),
+            ("nocapture",         Tnocapture,       Nothing),
             ("metadata",          Tmetadata,        Nothing),
             ("double",            Tdouble,          Nothing),
             ("float",             Tfloat,           Nothing),
-            ("void",              Tvoid,            Nothing)
+            ("void",              Tvoid,            Nothing),
+            ("alignstack",        Talignstack,      Nothing),
+            ("alwaysinline",      Talwaysinline,    Nothing),
+            ("inlinehint",        Tinlinehint,      Nothing),
+            ("naked",             Tnaked,           Nothing),
+            ("noimplicitfloat",   Tnoimplicitfloat, Nothing),
+            ("noinline",          Tnoinline,        Nothing),
+            ("nonlazybind",       Tnonlazybind,     Nothing),
+            ("noredzone",         Tnoredzone,       Nothing),
+            ("noreturn",          Tnoreturn,        Nothing),
+            ("nounwind",          Tnounwind,        Nothing),
+            ("optsize",           Toptsize,         Nothing),
+            ("readnone",          Treadnone,        Nothing),
+            ("readonly",          Treadonly,        Nothing),
+            ("ssp",               Tssp,             Nothing),
+            ("sspreq",            Tsspreq,          Nothing),
+            ("uwtable",           Tuwtable,         Nothing)
            ]
 
 keywordMap :: Map.Map String (Token, Maybe ExtensionsInt)

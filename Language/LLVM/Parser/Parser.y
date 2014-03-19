@@ -172,8 +172,21 @@ import qualified LLVM.General.AST.FloatingPointPredicate as AF
  'nocapture'        { L _ T.Tnocapture }
  'nest'             { L _ T.Tnest }
  'returned'         { L _ T.Treturned }
- 'readonly'         { L _ T.Treadonly }
+ 'alignstack'       { L _ T.Talignstack }
+ 'alwaysinline'     { L _ T.Talwaysinline }
+ 'inlinehint'       { L _ T.Tinlinehint }
+ 'naked'            { L _ T.Tnaked }
+ 'noimplicitfloat'  { L _ T.Tnoimplicitfloat }
+ 'noinline'         { L _ T.Tnoinline }
+ 'nonlazybind'      { L _ T.Tnonlazybind }
+ 'noredzone'        { L _ T.Tnoredzone }
+ 'noreturn'         { L _ T.Tnoreturn }
  'nounwind'         { L _ T.Tnounwind }
+ 'optsize'          { L _ T.Toptsize }
+ 'readnone'         { L _ T.Treadnone }
+ 'readonly'         { L _ T.Treadonly }
+ 'ssp'              { L _ T.Tssp }
+ 'sspreq'           { L _ T.Tsspreq }
  'uwtable'          { L _ T.Tuwtable }
 
  ANTI_DEFS          {L _ (T.Tanti_defs $$) }
@@ -470,12 +483,35 @@ parameterList :
     {- empty -}                      { RNil }
   | parameter                        { RCons $1 RNil }
   | parameterList ',' parameter      { RCons $3 $1 }
-    
+
+fAttribute :: { A.FunctionAttribute }    
+fAttribute :
+    'alignstack' '(' INT ')'         { A.StackAlignment (fromIntegral $3) }
+  | 'alwaysinline'                   { A.AlwaysInline }
+  | 'inlinehint'                     { A.InlineHint }
+  | 'naked'                          { A.Naked }
+  | 'noimplicitfloat'                { A.NoImplicitFloat }
+  | 'noinline'                       { A.NoInline }
+  | 'nonlazybind'                    { A.NonLazyBind }
+  | 'noredzone'                      { A.NoRedZone }
+  | 'noreturn'                       { A.NoReturn }
+  | 'nounwind'                       { A.NoUnwind }
+  | 'optsize'                        { A.OptimizeForSize }
+  | 'readnone'                       { A.ReadNone }
+  | 'readonly'                       { A.ReadOnly }
+  | 'ssp'                            { A.StackProtect }
+  | 'sspreq'                         { A.StackProtectReq }
+  | 'uwtable'                        { A.UWTable }
+
+fAttributes :: { RevList A.FunctionAttribute }
+fAttributes :
+    {- empty -}                   { RNil }
+  | fAttributes fAttribute        { RCons $2 $1 }
 
 global :: { A.Global }
 global :
-    'define' type globalName '(' parameterList ')' '{' basicBlocks '}'
-      { A.Function A.External A.Default A.C [] $2 $3 ([], False) [] Nothing 0 Nothing (rev $8) }
+    'define' type globalName '(' parameterList ')' fAttributes '{' basicBlocks '}'
+      { A.Function A.External A.Default A.C [] $2 $3 ([], False) [] Nothing 0 Nothing (rev $9) }
 
 {------------------------------------------------------------------------------
  -

@@ -7,7 +7,8 @@
 
 module Language.LLVM.Quote.Base (
     ToDefintions(..),
-    quasiquote
+    quasiquote,
+    parse
   ) where
 
 import Control.Monad ((>=>))
