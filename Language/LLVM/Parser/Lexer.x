@@ -65,13 +65,8 @@ $whitechar = [\ \t\n\r\f\v]
                     | @idText)
 @jumpLabel = @idText ":"
 
-@attrGroupNumber = "#" @decimalConstant
-
 @integerType = "i" $nonzerodigit $digit*
 @keyword = [a-z]+ ($nonzerodigit $digit*)?
-
-@metaDataName = "!" ( @decimalConstant
-                    | @idText)
 
 tokens :-
 
@@ -89,8 +84,6 @@ tokens :-
  @jumpLabel { jumpLabel }
  @integerType { numberedToken TintegerType }
  @keyword { keyword }
- @attrGroupNumber { numberedToken TattrGroupNumber }
- @metaDataName { metaDataName }
 
  @floatingConstant                    { lexFloat }
  @decimalConstant @integerSuffix?     { lexInteger 0 decimal }
@@ -108,11 +101,9 @@ tokens :-
  "<"   { token Tlt }
  ">"   { token Tgt }
  ","   { token Tcomma }
- ":"   { token Tcolon }
  "*"   { token Tstar }
  "="   { token Tassign }
  "-"   { token Tminus }
- "!"   { token Tbang }
 }
 
 {
@@ -145,15 +136,6 @@ identifier beg end = do
 jumpLabel :: Action
 jumpLabel beg end = do
     token (TjumpLabel $ init ident) beg end
-  where
-    ident :: String
-    ident = inputString beg end
-
-metaDataName :: Action
-metaDataName beg end = do
-    case isDigit $ head $ tail ident of
-      False -> return $ locateTok beg end $ TmetaDataName (tail ident)
-      True  -> return $ locateTok beg end $ TmetaDataNumber (read $ tail ident)
   where
     ident :: String
     ident = inputString beg end

@@ -27,9 +27,6 @@ data Token
   | Tnamed Visibility String
   | Tunnamed Visibility Word
   | TjumpLabel String
-  | TattrGroupNumber Integer
-  | TmetaDataName String
-  | TmetaDataNumber Word
   | Tlparen
   | Trparen
   | Tlbrack
@@ -39,16 +36,12 @@ data Token
   | Tlt
   | Tgt
   | Tcomma
-  | Tcolon
-  | Tbang
   | Tassign
   | Tstar
   | Tminus
   | Tx
   | Tzeroinitializer
   | Tundef
-  | Tattributes
-  | Tmetadata
   -- Finalizer
   | Tret
   | Tbr
@@ -159,12 +152,10 @@ data Token
   | Tsignext
   | Tinreg
   | Tbyval
-  | Tinalloca
   | Tsret
   | Tnoalias
   | Tnocapture
   | Tnest
-  | Treturned
   -- Function Attributes
   | Talignstack
   | Talwaysinline
@@ -294,18 +285,14 @@ keywords = [("define",            Tdefine,          Nothing),
             ("signext",           Tsignext,         Nothing),
             ("inreg",             Tinreg,           Nothing),
             ("byval",             Tbyval,           Nothing),
-            ("inalloca",          Tinalloca,        Nothing),
             ("sret",              Tsret,            Nothing),
             ("noalias",           Tnoalias,         Nothing),
             ("nest",              Tnest,            Nothing),
-            ("returned",          Treturned,        Nothing),
             ("x",                 Tx,               Nothing),
             ("zeroinitializer",   Tzeroinitializer, Nothing),
             ("undef",             Tundef,           Nothing),
-            ("attributes",        Tattributes,      Nothing),
             ("nounwind",          Tnounwind,        Nothing),
             ("nocapture",         Tnocapture,       Nothing),
-            ("metadata",          Tmetadata,        Nothing),
             ("double",            Tdouble,          Nothing),
             ("float",             Tfloat,           Nothing),
             ("void",              Tvoid,            Nothing),

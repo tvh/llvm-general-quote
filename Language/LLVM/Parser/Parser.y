@@ -44,9 +44,6 @@ import qualified LLVM.General.AST.FloatingPointPredicate as AF
  UNNAMED_GLOBAL      { L _ (T.Tunnamed T.Global $$) }
  UNNAMED_LOCAL       { L _ (T.Tunnamed T.Local $$) }
  JUMPLABEL           { L _ (T.TjumpLabel $$) }
- AGNUMBER            { L _ (T.TattrGroupNumber $$) }
- MDNAME              { L _ (T.TmetaDataName $$) }
- MDNUMBER            { L _ (T.TmetaDataNumber $$) }
  '('    { L _ T.Tlparen }
  ')'    { L _ T.Trparen }
  '['    { L _ T.Tlbrack }
@@ -56,16 +53,12 @@ import qualified LLVM.General.AST.FloatingPointPredicate as AF
  '<'    { L _ T.Tlt }
  '>'    { L _ T.Tgt }
  ','    { L _ T.Tcomma }
- ':'    { L _ T.Tcolon }
- '!'    { L _ T.Tbang }
  '='    { L _ T.Tassign }
  '*'    { L _ T.Tstar }
  '-'    { L _ T.Tminus }
  'x'    { L _ T.Tx }
  'zeroinitializer'  { L _ T.Tzeroinitializer }
  'undef'            { L _ T.Tundef }
- 'attributes'       { L _ T.Tattributes }
- 'metadata'         { L _ T.Tmetadata }
  'ret'              { L _ T.Tret }
  'br'               { L _ T.Tbr }
  'switch'           { L _ T.Tswitch }
@@ -169,12 +162,10 @@ import qualified LLVM.General.AST.FloatingPointPredicate as AF
  'signext'          { L _ T.Tsignext }
  'inreg'            { L _ T.Tinreg }
  'byval'            { L _ T.Tbyval }
- 'inalloca'         { L _ T.Tinalloca }
  'sret'             { L _ T.Tsret }
  'noalias'          { L _ T.Tnoalias }
  'nocapture'        { L _ T.Tnocapture }
  'nest'             { L _ T.Tnest }
- 'returned'         { L _ T.Treturned }
  'alignstack'       { L _ T.Talignstack }
  'alwaysinline'     { L _ T.Talwaysinline }
  'inlinehint'       { L _ T.Tinlinehint }
@@ -226,10 +217,14 @@ constant :
   | 'undef'               { A.Undef }
   | globalName            { \_ -> A.GlobalReference $1 }
 
+tConstant :: { A.Constant }
+tConstant :
+    type constant         { $2 $1 }
+
 constantList :: { RevList A.Constant }
 constantList :
-    type constant                    { RCons ($2 $1) RNil }
-  | constantList ',' type constant   { RCons ($4 $3) $1 }
+    tConstant                    { RCons $1 RNil }
+  | constantList ',' tConstant   { RCons $3 $1 }
 
 {------------------------------------------------------------------------------
  -
@@ -337,7 +332,15 @@ argumentList :
     {- empty -}                      { RNil }
   | argument                         { RCons $1 RNil }
   | argumentList ',' argument        { RCons $3 $1 }
-    
+
+idx :: { Word32 }
+idx :
+    INT               { fromIntegral $1 }
+
+idxs :: { RevList Word32 }
+idxs :
+    idx            { RCons $1 RNil }
+  | idxs ',' idx   { RCons $3 $1 }
 
 instruction :: { A.Instruction }
 instruction :
@@ -391,6 +394,9 @@ instruction :
                                             { A.InsertElement $2 $4 $6 [] }
   | 'shufflevector' tOperand ',' tOperand ',' type constant
                                             { A.ShuffleVector $2 $4 ($7 $6) [] }
+  | 'extractvalue' tOperand ',' idxs        { A.ExtractValue $2 (rev $4) [] }
+  | 'insertvalue' tOperand ',' tOperand ',' idxs
+                                            { A.InsertValue $2 $4 (rev $6) [] }
   | ANTI_INSTR                              { A.AntiInstruction $1 }
 
 name :: { A.Name }
@@ -408,6 +414,24 @@ instructions :
     {- empty -}                   { RNil }
   | instructions namedI           { RCons $2 $1 }
 
+destination :: { (A.Constant, A.Name) }
+destination :
+    tConstant ',' label    { ($1, $3) }
+
+destinations :: { RevList (A.Constant, A.Name) }
+destinations :
+    {- empty -}                   { RNil }
+  | destinations destination      { RCons $2 $1 }
+
+label :: { A.Name }
+label :
+  'label' name        { $2 }
+
+labels :: { RevList A.Name }
+labels :
+    label                         { RCons $1 RNil }
+  | labels ','label               { RCons $3 $1 }
+
 namedT :: { A.Named A.Terminator }
 namedT :
     terminator                      { A.Do $1 }
@@ -420,6 +444,12 @@ terminator :
   | 'br' 'label' name     { A.Br $3 [] }
   | 'br' type operand ',' 'label' name ',' 'label' name
                           { A.CondBr ($3 $2) $6 $9 [] }
+  | 'switch' type operand ',' 'label' name '[' destinations ']'
+                          { A.Switch ($3 $2) $6 (rev $8) [] }
+  | 'indirectbr' tOperand ',' '[' labels ']'
+                          { A.IndirectBr $2 (rev $5) [] }
+  | 'resume' tOperand     { A.Resume $2 [] }
+  | 'unreachable'         { A.Unreachable [] }
 
 {------------------------------------------------------------------------------
  -
