@@ -7,8 +7,11 @@ import Control.Monad (forM_,
                       liftM)
 import Control.Monad.Exception
 import Data.List (intersperse)
+import Data.List.Split
 import Data.Loc
-import Data.Maybe (fromMaybe, catMaybes)
+import qualified Data.Map as M
+import qualified Data.Set as S
+import Data.Maybe (fromMaybe, catMaybes, listToMaybe)
 import Data.Word
 import Text.PrettyPrint.Mainland
 
@@ -538,7 +541,7 @@ definitions :
 dataLayout :: { Maybe A.DataLayout }
 dataLayout :
     {- empty -}                      { Nothing }
-  | 'target' 'datalayout' '=' STRING { Nothing --TODO }
+  | 'target' 'datalayout' '=' STRING { Just (dataLayout $4) }
 
 targetTriple :: { Maybe String }
 targetTriple :
@@ -556,6 +559,57 @@ intConstant n (A.IntegerType bs) = A.Int bs n
 floatConstant :: Rational -> A.Type -> A.Constant
 floatConstant x (A.FloatingPointType 32 _) = A.Float (A.Single (fromRational $2))
 floatConstant x (A.FloatingPointType 64 _) = A.Float (A.Double (fromRational $2))
+
+dataLayout :: String -> A.DataLayout
+dataLayout s = A.DataLayout endianness stackAlignment pointerLayouts typeLayouts nativeSizes
+ where
+  infos :: [String]
+  infos = splitOn "-" s
+  endianness :: Maybe A.Endianness
+  endianness = listToMaybe $ do
+    [c] <- infos
+    case c of
+      'E' -> return A.BigEndian
+      'e' -> return A.LittleEndian
+      _   -> []
+  stackAlignment :: Maybe Word32
+  stackAlignment = listToMaybe $ do
+    ('S':s) <- infos
+    (n,"") <- reads s
+    return n
+  pointerLayouts :: M.Map A.AddrSpace (Word32, A.AlignmentInfo)
+  pointerLayouts = M.fromList $ do
+    ('p':s@(x:_)) <- infos
+    let parts = splitOn ":" s
+    (n,size,abi,pref) <- case parts of
+      [s,size,abi,pref] -> do
+        (n,"") <- reads s
+        return (n,size,abi,pref)
+      [size,abi,pref] -> return (0,size,abi,pref)
+      _ -> []
+    (size',"") <- reads size
+    (abi',"") <- reads abi
+    (pref',"") <- reads pref
+    return (A.AddrSpace n, (size', A.AlignmentInfo abi' (Just pref')))
+  typeLayouts :: M.Map (A.AlignType, Word32) A.AlignmentInfo
+  typeLayouts = M.fromList $ do
+    [(t:size),abi,pref] <- map (splitOn ":") infos
+    k <- case t of
+      'i' -> reads size >>= \(size,"") -> return (A.IntegerAlign, size)
+      'v' -> reads size >>= \(size,"") -> return (A.VectorAlign, size)
+      'f' -> reads size >>= \(size,"") -> return (A.FloatAlign, size)
+      's' -> reads size >>= \(size,"") -> return (A.StackAlign, size)
+      'a' -> return (A.AggregateAlign, 0)
+      _ -> []
+    (abi',"") <- reads abi
+    (pref',"") <- reads pref
+    return (k, A.AlignmentInfo abi' (Just pref'))
+  nativeSizes :: Maybe (S.Set Word32)
+  nativeSizes = Just $ S.fromList $ do
+    ('n':s) <- infos
+    size <- splitOn ":" s
+    (size',"") <- reads size
+    return size'
 
 
 happyError :: L T.Token -> P a
