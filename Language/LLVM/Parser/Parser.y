@@ -213,6 +213,7 @@ constant :
   | '-' FLOAT             { floatConstant (-$2) }
   | 'zeroinitializer'     { A.Null }
   | '{' constantList '}'  { \_ -> A.Struct Nothing False (rev $2) }
+  | '[' constantList ']'  { \t -> A.Array t (rev $2) }
   | '<' constantList '>'  { \_ -> A.Vector (rev $2) }
   | 'undef'               { A.Undef }
   | globalName            { \_ -> A.GlobalReference $1 }
