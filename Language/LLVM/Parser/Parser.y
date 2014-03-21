@@ -179,6 +179,9 @@ import qualified LLVM.General.AST.FloatingPointPredicate as AF
  'ssp'              { L _ T.Tssp }
  'sspreq'           { L _ T.Tsspreq }
  'uwtable'          { L _ T.Tuwtable }
+ 'global'           { L _ T.Tglobal }
+ 'constant'         { L _ T.Tconstant }
+ 'alias'            { L _ T.Talias }
 
  ANTI_DEFS          {L _ (T.Tanti_defs $$) }
  ANTI_BBS           {L _ (T.Tanti_bbs $$) }
@@ -541,10 +544,19 @@ fAttributes :
     {- empty -}                   { RNil }
   | fAttributes fAttribute        { RCons $2 $1 }
 
+isConstant :: { Bool }
+isConstant :
+    'global'        { False }
+  | 'constant'      { True }
+
 global :: { A.Global }
 global :
     'define' type globalName '(' parameterList ')' fAttributes '{' basicBlocks '}'
       { A.Function A.External A.Default A.C [] $2 $3 ([], False) [] Nothing 0 Nothing (rev $9) }
+  | globalName '=' isConstant type alignment
+      { A.GlobalVariable $1 A.External A.Default False (A.AddrSpace 0) False $3 $4 Nothing Nothing $5 }
+  | globalName '=' 'alias' type constant
+      { A.GlobalAlias $1 A.External A.Default $4 ($5 $4) }
 
 {------------------------------------------------------------------------------
  -

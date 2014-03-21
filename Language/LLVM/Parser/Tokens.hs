@@ -42,6 +42,9 @@ data Token
   | Tx
   | Tzeroinitializer
   | Tundef
+  | Tglobal
+  | Tconstant
+  | Talias
   -- Finalizer
   | Tret
   | Tbr
@@ -312,7 +315,10 @@ keywords = [("define",            Tdefine,          Nothing),
             ("readonly",          Treadonly,        Nothing),
             ("ssp",               Tssp,             Nothing),
             ("sspreq",            Tsspreq,          Nothing),
-            ("uwtable",           Tuwtable,         Nothing)
+            ("uwtable",           Tuwtable,         Nothing),
+            ("global",            Tglobal,          Nothing),
+            ("constant",          Tconstant,        Nothing),
+            ("alias",             Talias,           Nothing)
            ]
 
 keywordMap :: Map.Map String (Token, Maybe ExtensionsInt)
