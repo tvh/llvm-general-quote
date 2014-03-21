@@ -15,6 +15,7 @@ import Control.Monad ((>=>))
 import qualified Data.ByteString.Char8 as B
 import Data.Data (Data(..))
 import Data.Generics (extQ)
+import Data.Word
 import Data.Loc
 import Data.Typeable (Typeable)
 import Language.Haskell.Meta (parseExp)
@@ -25,7 +26,9 @@ import Language.Haskell.TH.Quote (QuasiQuoter(..),
 import qualified Language.LLVM.Parser as P
 import qualified Language.LLVM.AST as A
 import qualified LLVM.General.AST as L
-
+import qualified LLVM.General.AST.Constant as L
+  (Constant(Int, Float, Null, Struct, Array, Vector, Undef, BlockAddress, GlobalReference))
+import qualified LLVM.General.AST.Float as L
 class ToDefintions a where
   toDefinitions :: a -> [L.Definition]
 instance ToDefintions L.Definition where
@@ -41,6 +44,21 @@ instance ToBasicBlocks L.BasicBlock where
   toBasicBlocks = (:[])
 instance ToBasicBlocks a => ToBasicBlocks [a] where
   toBasicBlocks xs = xs >>= toBasicBlocks
+
+class ToConstant a where
+  toConstant :: a -> L.Constant
+instance ToConstant Word8 where
+  toConstant n = L.Int 8 (toInteger n)
+instance ToConstant Word16 where
+  toConstant n = L.Int 16 (toInteger n)
+instance ToConstant Word32 where
+  toConstant n = L.Int 32 (toInteger n)
+instance ToConstant Word64 where
+  toConstant n = L.Int 64 (toInteger n)
+instance ToConstant Float where
+  toConstant n = L.Float (L.Single n)
+instance ToConstant Double where
+  toConstant n = L.Float (L.Double n)
 
 antiVarE :: String -> ExpQ
 antiVarE = either fail return . parseExp
@@ -256,6 +274,49 @@ qqNamedE ((A.:=) x1 x2) =
 qqNamedE (A.Do x1) =
   Just [|L.Do $(qqE x1)|]
 
+qqMetadataNodeIDE :: A.MetadataNodeID -> Maybe (Q Exp)
+qqMetadataNodeIDE (A.MetadataNodeID x1) =
+  Just [|L.MetadataNodeID $(qqE x1)|]
+
+qqMetadataNodeE :: A.MetadataNode -> Maybe (Q Exp)
+qqMetadataNodeE (A.MetadataNode x1) =
+  Just [|L.MetadataNode $(qqE x1)|]
+qqMetadataNodeE (A.MetadataNodeReference x1) =
+  Just [|L.MetadataNodeReference $(qqE x1)|]
+
+qqOperandE :: A.Operand -> Maybe (Q Exp)
+qqOperandE (A.LocalReference x1) =
+  Just [|L.LocalReference $(qqE x1)|]
+qqOperandE (A.ConstantOperand x1) =
+  Just [|L.ConstantOperand $(qqE x1)|]
+qqOperandE (A.MetadataStringOperand x1) =
+  Just [|L.MetadataStringOperand $(qqE x1)|]
+qqOperandE (A.MetadataNodeOperand x1) =
+  Just [|L.MetadataNodeOperand $(qqE x1)|]
+
+qqConstantE :: A.Constant -> Maybe (Q Exp)
+qqConstantE (A.Int x1 x2) =
+  Just [|L.Int $(qqE x1) $(qqE x2)|]
+qqConstantE (A.Float x1) =
+  Just [|L.Float $(qqE x1)|]
+qqConstantE (A.Null x1) =
+  Just [|L.Null $(qqE x1)|]
+qqConstantE (A.Struct x1 x2 x3) =
+  Just [|L.Struct $(qqE x1) $(qqE x2) $(qqE x3)|]
+qqConstantE (A.Array x1 x2) =
+  Just [|L.Array $(qqE x1) $(qqE x2)|]
+qqConstantE (A.Vector x1) =
+  Just [|L.Vector $(qqE x1)|]
+qqConstantE (A.Undef x1) =
+  Just [|L.Undef $(qqE x1)|]
+qqConstantE (A.BlockAddress x1 x2) =
+  Just [|L.BlockAddress $(qqE x1) $(qqE x2)|]
+qqConstantE (A.GlobalReference x1) =
+  Just [|L.GlobalReference $(qqE x1)|]
+qqConstantE (A.AntiConstant s) =
+  Just [|toConstant $(antiVarE s)|]
+
+
 qqE :: Data a => a -> Q Exp
 qqE x = dataToExpQ qqExp x
 
@@ -274,6 +335,10 @@ qqExp = const Nothing `extQ` qqDefinitionE
                       `extQ` qqInstructionE
                       `extQ` (qqNamedE :: A.Named A.Instruction -> Maybe (Q Exp))
                       `extQ` (qqNamedE :: A.Named A.Terminator -> Maybe (Q Exp))
+                      `extQ` qqMetadataNodeIDE
+                      `extQ` qqMetadataNodeE
+                      `extQ` qqOperandE
+                      `extQ` qqConstantE
 
 parse :: [A.Extensions]
       -> P.P a

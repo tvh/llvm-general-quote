@@ -19,10 +19,7 @@ import Language.LLVM.Parser.Lexer
 import Language.LLVM.Parser.Monad
 import qualified Language.LLVM.Parser.Tokens as T
 import qualified Language.LLVM.AST as A
-import qualified LLVM.General.AST.Constant as A 
-  (Constant(Int, Float, Null, Struct, Array, Vector, Undef, BlockAddress, GlobalReference))
 import qualified LLVM.General.AST.Float as A
-import qualified LLVM.General.AST.Operand as A
 import qualified LLVM.General.AST.Name as A
 import qualified LLVM.General.AST.Type as A
 import qualified LLVM.General.AST.Linkage as A
@@ -186,6 +183,7 @@ import qualified LLVM.General.AST.FloatingPointPredicate as AF
  ANTI_DEFS          {L _ (T.Tanti_defs $$) }
  ANTI_BBS           {L _ (T.Tanti_bbs $$) }
  ANTI_INSTR         {L _ (T.Tanti_instr $$) }
+ ANTI_CONST         {L _ (T.Tanti_const $$) }
 
 %monad { P } { >>= } { return }
 %lexer { lexer } { L _ T.Teof }
@@ -217,6 +215,7 @@ constant :
   | '<' constantList '>'  { \_ -> A.Vector (rev $2) }
   | 'undef'               { A.Undef }
   | globalName            { \_ -> A.GlobalReference $1 }
+  | ANTI_CONST            { \_ -> A.AntiConstant $1 }
 
 tConstant :: { A.Constant }
 tConstant :

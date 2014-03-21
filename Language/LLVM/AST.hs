@@ -14,13 +14,15 @@ module Language.LLVM.AST (
   LandingPadClause(..),
   Instruction(..),
   Named(..),
+  MetadataNodeID(..),
+  MetadataNode(..),
+  Operand(..),
+  CallableOperand,
+  Constant(..),
   Extensions(..), ExtensionsInt
   ) where
 
-import qualified LLVM.General.AST.Constant as A
-  (Constant())
 import qualified LLVM.General.AST.Float as A
-import qualified LLVM.General.AST.Operand as A
 import qualified LLVM.General.AST.Name as A
 import qualified LLVM.General.AST.Type as A
 import qualified LLVM.General.AST.Linkage as A
@@ -57,7 +59,7 @@ data Global
         hasUnnamedAddr :: Bool,
         isConstant :: Bool,
         _type' :: A.Type,
-        initializer :: Maybe A.Constant,
+        initializer :: Maybe Constant,
         section :: Maybe String,
         alignmentG :: Word32
       }
@@ -67,7 +69,7 @@ data Global
         linkage :: A.Linkage,
         visibility :: A.Visibility,
         _type' :: A.Type,
-        aliasee :: A.Constant
+        aliasee :: Constant
       }
     -- | <http://llvm.org/docs/LangRef.html#functions>
     | Function {
@@ -102,8 +104,8 @@ data BasicBlock
 data Definition 
   = GlobalDefinition Global
   | TypeDefinition A.Name (Maybe A.Type)
-  | MetadataNodeDefinition A.MetadataNodeID [Maybe A.Operand]
-  | NamedMetadataDefinition String [A.MetadataNodeID]
+  | MetadataNodeDefinition MetadataNodeID [Maybe Operand]
+  | NamedMetadataDefinition String [MetadataNodeID]
   | ModuleInlineAssembly String
   | AntiDefinitionList String
     deriving (Eq, Read, Show, Typeable, Data)
@@ -121,16 +123,16 @@ data Module =
 
 -- | <http://llvm.org/docs/LangRef.html#metadata-nodes-and-metadata-strings>
 -- Metadata can be attached to an instruction
-type InstructionMetadata = [(String, A.MetadataNode)]
+type InstructionMetadata = [(String, MetadataNode)]
 
 -- | <http://llvm.org/docs/LangRef.html#terminators>
 data Terminator 
   = Ret { 
-      returnOperand :: Maybe A.Operand,
+      returnOperand :: Maybe Operand,
       metadata' :: InstructionMetadata
     }
   | CondBr { 
-      condition :: A.Operand, 
+      condition :: Operand, 
       trueDest :: A.Name, 
       falseDest :: A.Name,
       metadata' :: InstructionMetadata
@@ -140,28 +142,28 @@ data Terminator
       metadata' :: InstructionMetadata
     }
   | Switch {
-      operand0' :: A.Operand,
+      operand0' :: Operand,
       defaultDest :: A.Name,
-      dests :: [(A.Constant, A.Name)],
+      dests :: [(Constant, A.Name)],
       metadata' :: InstructionMetadata
     }
   | IndirectBr {
-      operand0' :: A.Operand,
+      operand0' :: Operand,
       possibleDests :: [A.Name],
       metadata' :: InstructionMetadata
     }
   | Invoke {
       callingConvention' :: A.CallingConvention,
       returnAttributes' :: [A.ParameterAttribute],
-      function' :: A.CallableOperand,
-      arguments' :: [(A.Operand, [A.ParameterAttribute])],
+      function' :: CallableOperand,
+      arguments' :: [(Operand, [A.ParameterAttribute])],
       functionAttributes' :: [A.FunctionAttribute],
       returnDest :: A.Name,
       exceptionDest :: A.Name,
       metadata' :: InstructionMetadata
     }
   | Resume {
-      operand0' :: A.Operand,
+      operand0' :: Operand,
       metadata' :: InstructionMetadata
     }
   | Unreachable {
@@ -189,8 +191,8 @@ data Atomicity = Atomicity {
 
 -- | For the redoubtably complex 'LandingPad' instruction
 data LandingPadClause
-    = Catch A.Constant
-    | Filter A.Constant
+    = Catch Constant
+    | Filter Constant
     deriving (Eq, Ord, Read, Show, Typeable, Data)
 
 -- | non-terminator instructions:
@@ -202,130 +204,130 @@ data Instruction
   = Add { 
       nsw :: Bool,
       nuw :: Bool,
-      operand0 :: A.Operand,
-      operand1 :: A.Operand,
+      operand0 :: Operand,
+      operand1 :: Operand,
       metadata :: InstructionMetadata
     }
   | FAdd {
-      operand0 :: A.Operand,
-      operand1 :: A.Operand,
+      operand0 :: Operand,
+      operand1 :: Operand,
       metadata :: InstructionMetadata
     }
   | Sub {
       nsw :: Bool,
       nuw :: Bool,
-      operand0 :: A.Operand,
-      operand1 :: A.Operand,
+      operand0 :: Operand,
+      operand1 :: Operand,
       metadata :: InstructionMetadata
     }
   | FSub { 
-      operand0 :: A.Operand, 
-      operand1 :: A.Operand, 
+      operand0 :: Operand, 
+      operand1 :: Operand, 
       metadata :: InstructionMetadata
     }
   | Mul { 
       nsw :: Bool, 
       nuw :: Bool, 
-      operand0 :: A.Operand, 
-      operand1 :: A.Operand, 
+      operand0 :: Operand, 
+      operand1 :: Operand, 
       metadata :: InstructionMetadata 
     }
   | FMul { 
-      operand0 :: A.Operand, 
-      operand1 :: A.Operand, 
+      operand0 :: Operand, 
+      operand1 :: Operand, 
       metadata :: InstructionMetadata
     }
   | UDiv { 
       exact :: Bool, 
-      operand0 :: A.Operand, 
-      operand1 :: A.Operand, 
+      operand0 :: Operand, 
+      operand1 :: Operand, 
       metadata :: InstructionMetadata
     }
   | SDiv { 
       exact :: Bool, 
-      operand0 :: A.Operand, 
-      operand1 :: A.Operand, 
+      operand0 :: Operand, 
+      operand1 :: Operand, 
       metadata :: InstructionMetadata
     }
   | FDiv { 
-      operand0 :: A.Operand, 
-      operand1 :: A.Operand, 
+      operand0 :: Operand, 
+      operand1 :: Operand, 
       metadata :: InstructionMetadata
     }
   | URem { 
-      operand0 :: A.Operand, 
-      operand1 :: A.Operand, 
+      operand0 :: Operand, 
+      operand1 :: Operand, 
       metadata :: InstructionMetadata
     }
   | SRem { 
-      operand0 :: A.Operand, 
-      operand1 :: A.Operand, 
+      operand0 :: Operand, 
+      operand1 :: Operand, 
       metadata :: InstructionMetadata
     }
   | FRem { 
-      operand0 :: A.Operand, 
-      operand1 :: A.Operand, 
+      operand0 :: Operand, 
+      operand1 :: Operand, 
       metadata :: InstructionMetadata
     }
   | Shl { 
       nsw :: Bool, 
       nuw :: Bool, 
-      operand0 :: A.Operand, 
-      operand1 :: A.Operand, 
+      operand0 :: Operand, 
+      operand1 :: Operand, 
       metadata :: InstructionMetadata
     }
   | LShr { 
       exact :: Bool, 
-      operand0 :: A.Operand, 
-      operand1 :: A.Operand, 
+      operand0 :: Operand, 
+      operand1 :: Operand, 
       metadata :: InstructionMetadata
     }
   | AShr { 
       exact :: Bool, 
-      operand0 :: A.Operand, 
-      operand1 :: A.Operand, 
+      operand0 :: Operand, 
+      operand1 :: Operand, 
       metadata :: InstructionMetadata
     }
   | And { 
-      operand0 :: A.Operand, 
-      operand1 :: A.Operand, 
+      operand0 :: Operand, 
+      operand1 :: Operand, 
       metadata :: InstructionMetadata
     }
   | Or { 
-      operand0 :: A.Operand, 
-      operand1 :: A.Operand, 
+      operand0 :: Operand, 
+      operand1 :: Operand, 
       metadata :: InstructionMetadata
     }
   | Xor { 
-      operand0 :: A.Operand, 
-      operand1 :: A.Operand, 
+      operand0 :: Operand, 
+      operand1 :: Operand, 
       metadata :: InstructionMetadata
     }
   | Alloca { 
       allocatedType :: A.Type,
-      numElements :: Maybe A.Operand,
+      numElements :: Maybe Operand,
       alignmentI :: Word32,
       metadata :: InstructionMetadata
     }
   | Load {
       volatile :: Bool, 
-      address :: A.Operand,
+      address :: Operand,
       maybeAtomicity :: Maybe Atomicity,
       alignmentI :: Word32,
       metadata :: InstructionMetadata
     }
   | Store {
       volatile :: Bool, 
-      address :: A.Operand,
-      value :: A.Operand,
+      address :: Operand,
+      value :: Operand,
       maybeAtomicity :: Maybe Atomicity,
       alignmentI :: Word32,
       metadata :: InstructionMetadata
     }
   | GetElementPtr { 
       inBounds :: Bool,
-      address :: A.Operand,
-      indices :: [A.Operand],
+      address :: Operand,
+      indices :: [Operand],
       metadata :: InstructionMetadata
     }
   | Fence { 
@@ -334,153 +336,153 @@ data Instruction
     }
   | CmpXchg { 
       volatile :: Bool,
-      address :: A.Operand,
-      expected :: A.Operand,
-      replacement :: A.Operand,
+      address :: Operand,
+      expected :: Operand,
+      replacement :: Operand,
       atomicity :: Atomicity,
       metadata :: InstructionMetadata 
     }
   | AtomicRMW { 
       volatile :: Bool,
       rmwOperation :: A.RMWOperation,
-      address :: A.Operand,
-      value :: A.Operand,
+      address :: Operand,
+      value :: Operand,
       atomicity :: Atomicity,
       metadata :: InstructionMetadata 
     }
   | Trunc { 
-      operand0 :: A.Operand,
+      operand0 :: Operand,
       type' :: A.Type,
       metadata :: InstructionMetadata 
     }
   | ZExt {
-      operand0 :: A.Operand,
+      operand0 :: Operand,
       type' :: A.Type,
       metadata :: InstructionMetadata 
     }
   | SExt {
-      operand0 :: A.Operand,
+      operand0 :: Operand,
       type' :: A.Type,
       metadata :: InstructionMetadata
     }
   | FPToUI {
-      operand0 :: A.Operand,
+      operand0 :: Operand,
       type' :: A.Type,
       metadata :: InstructionMetadata
     }
   | FPToSI {
-      operand0 :: A.Operand,
+      operand0 :: Operand,
       type' :: A.Type,
       metadata :: InstructionMetadata
     }
   | UIToFP {
-      operand0 :: A.Operand,
+      operand0 :: Operand,
       type' :: A.Type,
       metadata :: InstructionMetadata
     }
   | SIToFP {
-      operand0 :: A.Operand,
+      operand0 :: Operand,
       type' :: A.Type,
       metadata :: InstructionMetadata
     }
   | FPTrunc {
-      operand0 :: A.Operand,
+      operand0 :: Operand,
       type' :: A.Type,
       metadata :: InstructionMetadata
     }
   | FPExt {
-      operand0 :: A.Operand,
+      operand0 :: Operand,
       type' :: A.Type,
       metadata :: InstructionMetadata
     }
   | PtrToInt {
-      operand0 :: A.Operand,
+      operand0 :: Operand,
       type' :: A.Type,
       metadata :: InstructionMetadata
     }
   | IntToPtr {
-      operand0 :: A.Operand,
+      operand0 :: Operand,
       type' :: A.Type,
       metadata :: InstructionMetadata
     }
   | BitCast {
-      operand0 :: A.Operand,
+      operand0 :: Operand,
       type' :: A.Type,
       metadata :: InstructionMetadata
     }
   | AddrSpaceCast {
-      operand0 :: A.Operand,
+      operand0 :: Operand,
       type' :: A.Type,
       metadata :: InstructionMetadata
     }
   | ICmp {
       iPredicate :: AI.IntegerPredicate,
-      operand0 :: A.Operand,
-      operand1 :: A.Operand,
+      operand0 :: Operand,
+      operand1 :: Operand,
       metadata :: InstructionMetadata
     }
   | FCmp {
       fpPredicate :: AF.FloatingPointPredicate,
-      operand0 :: A.Operand,
-      operand1 :: A.Operand,
+      operand0 :: Operand,
+      operand1 :: Operand,
       metadata :: InstructionMetadata
     }
   | Phi {
       type' :: A.Type,
-      incomingValues :: [ (A.Operand, A.Name) ],
+      incomingValues :: [ (Operand, A.Name) ],
       metadata :: InstructionMetadata
   } 
   | Call {
       isTailCall :: Bool,
       callingConvention :: A.CallingConvention,
       returnAttributes :: [A.ParameterAttribute],
-      function :: A.CallableOperand,
-      arguments :: [(A.Operand, [A.ParameterAttribute])],
+      function :: CallableOperand,
+      arguments :: [(Operand, [A.ParameterAttribute])],
       functionAttributes :: [A.FunctionAttribute],
       metadata :: InstructionMetadata
   }
   | Select { 
-      condition' :: A.Operand,
-      trueValue :: A.Operand,
-      falseValue :: A.Operand,
+      condition' :: Operand,
+      trueValue :: Operand,
+      falseValue :: Operand,
       metadata :: InstructionMetadata
     }
   | VAArg { 
-      argList :: A.Operand,
+      argList :: Operand,
       type' :: A.Type,
       metadata :: InstructionMetadata 
     }
   | ExtractElement { 
-      vector :: A.Operand,
-      index :: A.Operand,
+      vector :: Operand,
+      index :: Operand,
       metadata :: InstructionMetadata 
     }
   | InsertElement { 
-      vector :: A.Operand,
-      element :: A.Operand,
-      index :: A.Operand,
+      vector :: Operand,
+      element :: Operand,
+      index :: Operand,
       metadata :: InstructionMetadata
     }
   | ShuffleVector { 
-      operand0 :: A.Operand,
-      operand1 :: A.Operand,
-      mask :: A.Constant,
+      operand0 :: Operand,
+      operand1 :: Operand,
+      mask :: Constant,
       metadata :: InstructionMetadata
     }
   | ExtractValue { 
-      aggregate :: A.Operand,
+      aggregate :: Operand,
       indices' :: [Word32],
       metadata :: InstructionMetadata
     }
   | InsertValue { 
-      aggregate :: A.Operand,
-      element :: A.Operand,
+      aggregate :: Operand,
+      element :: Operand,
       indices' :: [Word32],
       metadata :: InstructionMetadata
     }
   | LandingPad { 
       type' :: A.Type,
-      personalityFunction :: A.Operand,
+      personalityFunction :: Operand,
       cleanup :: Bool,
       clauses :: [LandingPadClause],
       metadata :: InstructionMetadata
@@ -495,12 +497,61 @@ data Named a
   | Do a
   deriving (Eq, Read, Show, Typeable, Data)
 
+-- | A 'MetadataNodeID' is a number for identifying a metadata node.
+-- Note this is different from "named metadata", which are represented with
+-- 'LLVM.General.AST.NamedMetadataDefinition'.
+newtype MetadataNodeID = MetadataNodeID Word
+  deriving (Eq, Ord, Read, Show, Typeable, Data)
+
+-- | <http://llvm.org/docs/LangRef.html#metadata>
+data MetadataNode 
+  = MetadataNode [Maybe Operand]
+  | MetadataNodeReference MetadataNodeID
+  deriving (Eq, Ord, Read, Show, Typeable, Data)
+
+-- | An 'Operand' is roughly that which is an argument to an 'LLVM.General.AST.Instruction.Instruction'
+data Operand 
+  -- | %foo
+  = LocalReference A.Name
+  -- | 'Constant's include 'LLVM.General.AST.Constant.GlobalReference', for \@foo
+  | ConstantOperand Constant
+  | MetadataStringOperand String
+  | MetadataNodeOperand MetadataNode
+  deriving (Eq, Ord, Read, Show, Typeable, Data)
+
+-- | The 'LLVM.General.AST.Instruction.Call' instruction is special: the callee can be inline assembly
+type CallableOperand  = Either A.InlineAssembly Operand
+
+{- |
+<http://llvm.org/docs/LangRef.html#constants>
+
+N.B. - <http://llvm.org/docs/LangRef.html#constant-expressions>
+
+Although constant expressions and instructions have many similarites, there are important
+differences - so they're represented using different types in this AST. At the cost of making it
+harder to move an code back and forth between being constant and not, this approach embeds more of
+the rules of what IR is legal into the Haskell types.
+-} 
+data Constant
+    = Int { integerBits :: Word32, integerValue :: Integer }
+    | Float { floatValue :: A.SomeFloat }
+    | Null { constantType :: A.Type }
+    | Struct { structName :: Maybe A.Name, isPacked :: Bool, memberValues :: [ Constant ] }
+    | Array { memberType :: A.Type, memberValues :: [ Constant ] }
+    | Vector { memberValues :: [ Constant ] }
+    | Undef { constantType :: A.Type }
+    | BlockAddress { blockAddressFunction :: A.Name, blockAddressBlock :: A.Name }
+    | GlobalReference A.Name
+    | AntiConstant String
+    deriving (Eq, Ord, Read, Show, Typeable, Data)
+
+
 
 $(deriveLiftMany [''A.Visibility,
                   ''A.Linkage,
                   ''A.ParameterAttribute,
                   ''Global,
-                  ''A.Constant,
+                  ''Constant,
                   ''A.AddrSpace,
                   ''A.CallingConvention,
                   ''A.FunctionAttribute,
@@ -519,9 +570,9 @@ $(deriveLiftMany [''A.Visibility,
                   ''MemoryOrdering,
                   ''Terminator,
                   ''A.Name,
-                  ''A.MetadataNode,
-                  ''A.MetadataNodeID,
-                  ''A.Operand,
+                  ''MetadataNode,
+                  ''MetadataNodeID,
+                  ''Operand,
                   ''A.Type,
                   ''A.FloatingPointFormat,
                   ''A.DataLayout,

@@ -177,6 +177,7 @@ data Token
   | Tanti_defs String
   | Tanti_bbs String
   | Tanti_instr String
+  | Tanti_const String
   deriving (Eq, Ord, Show)
 
 instance Pretty Token where
