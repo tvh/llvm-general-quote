@@ -19,12 +19,15 @@ module Language.LLVM.AST (
   Operand(..),
   CallableOperand,
   Constant(..),
+  Name(..),
+  FloatingPointFormat(..),
+  Type(..),
+  Dialect(..),
+  InlineAssembly(..),
   Extensions(..), ExtensionsInt
   ) where
 
 import qualified LLVM.General.AST.Float as A
-import qualified LLVM.General.AST.Name as A
-import qualified LLVM.General.AST.Type as A
 import qualified LLVM.General.AST.Linkage as A
 import qualified LLVM.General.AST.Visibility as A
 import qualified LLVM.General.AST.CallingConvention as A
@@ -33,7 +36,6 @@ import qualified LLVM.General.AST.AddrSpace as A
 import qualified LLVM.General.AST.Attribute as A
 import qualified LLVM.General.AST.IntegerPredicate as AI
 import qualified LLVM.General.AST.FloatingPointPredicate as AF
-import qualified LLVM.General.AST.InlineAssembly as A
 import qualified LLVM.General.AST.RMWOperation as A
 
 import Data.Word
@@ -51,24 +53,24 @@ type ExtensionsInt = Word32
 data Global
     -- | <http://llvm.org/docs/LangRef.html#global-variables>
     = GlobalVariable {
-        name :: A.Name,
+        name :: Name,
         linkage :: A.Linkage,
         visibility :: A.Visibility,
         isThreadLocal :: Bool,
         addrSpace :: A.AddrSpace,
         hasUnnamedAddr :: Bool,
         isConstant :: Bool,
-        _type' :: A.Type,
+        _type' :: Type,
         initializer :: Maybe Constant,
         section :: Maybe String,
         alignmentG :: Word32
       }
     -- | <http://llvm.org/docs/LangRef.html#aliases>
     | GlobalAlias {
-        name :: A.Name,
+        name :: Name,
         linkage :: A.Linkage,
         visibility :: A.Visibility,
-        _type' :: A.Type,
+        _type' :: Type,
         aliasee :: Constant
       }
     -- | <http://llvm.org/docs/LangRef.html#functions>
@@ -77,8 +79,8 @@ data Global
         visibility :: A.Visibility,
         _callingConvention :: A.CallingConvention,
         _returnAttributes :: [A.ParameterAttribute],
-        returnType :: A.Type,
-        name :: A.Name,
+        returnType :: Type,
+        name :: Name,
         parameters :: ([Parameter],Bool), -- ^ snd indicates varargs
         _functionAttributes :: [A.FunctionAttribute],
         section :: Maybe String,
@@ -89,24 +91,29 @@ data Global
   deriving (Eq, Read, Show, Typeable, Data)
 
 -- | 'Parameter's for 'Function's
-data Parameter = Parameter A.Type A.Name [A.ParameterAttribute]
+data Parameter
+  = Parameter Type Name [A.ParameterAttribute]
+  | AntiParameter String
+  | AntiParameterList String
   deriving (Eq, Read, Show, Typeable, Data)
 
 -- | <http://llvm.org/doxygen/classllvm_1_1BasicBlock.html>
 -- LLVM code in a function is a sequence of 'BasicBlock's each with a label,
 -- some instructions, and a terminator.
 data BasicBlock
-  = BasicBlock A.Name [Named Instruction] (Named Terminator)
-  | AntiBasicBlocks String
+  = BasicBlock Name [Named Instruction] (Named Terminator)
+  | AntiBasicBlock String
+  | AntiBasicBlockList String
   deriving (Eq, Read, Show, Typeable, Data)
 
 -- | Any thing which can be at the top level of a 'Module'
 data Definition 
   = GlobalDefinition Global
-  | TypeDefinition A.Name (Maybe A.Type)
+  | TypeDefinition Name (Maybe Type)
   | MetadataNodeDefinition MetadataNodeID [Maybe Operand]
   | NamedMetadataDefinition String [MetadataNodeID]
   | ModuleInlineAssembly String
+  | AntiDefinition String
   | AntiDefinitionList String
     deriving (Eq, Read, Show, Typeable, Data)
 
@@ -133,23 +140,23 @@ data Terminator
     }
   | CondBr { 
       condition :: Operand, 
-      trueDest :: A.Name, 
-      falseDest :: A.Name,
+      trueDest :: Name, 
+      falseDest :: Name,
       metadata' :: InstructionMetadata
     }
   | Br { 
-      dest :: A.Name,
+      dest :: Name,
       metadata' :: InstructionMetadata
     }
   | Switch {
       operand0' :: Operand,
-      defaultDest :: A.Name,
-      dests :: [(Constant, A.Name)],
+      defaultDest :: Name,
+      dests :: [(Constant, Name)],
       metadata' :: InstructionMetadata
     }
   | IndirectBr {
       operand0' :: Operand,
-      possibleDests :: [A.Name],
+      possibleDests :: [Name],
       metadata' :: InstructionMetadata
     }
   | Invoke {
@@ -158,8 +165,8 @@ data Terminator
       function' :: CallableOperand,
       arguments' :: [(Operand, [A.ParameterAttribute])],
       functionAttributes' :: [A.FunctionAttribute],
-      returnDest :: A.Name,
-      exceptionDest :: A.Name,
+      returnDest :: Name,
+      exceptionDest :: Name,
       metadata' :: InstructionMetadata
     }
   | Resume {
@@ -304,7 +311,7 @@ data Instruction
       metadata :: InstructionMetadata
     }
   | Alloca { 
-      allocatedType :: A.Type,
+      allocatedType :: Type,
       numElements :: Maybe Operand,
       alignmentI :: Word32,
       metadata :: InstructionMetadata
@@ -352,67 +359,67 @@ data Instruction
     }
   | Trunc { 
       operand0 :: Operand,
-      type' :: A.Type,
+      type' :: Type,
       metadata :: InstructionMetadata 
     }
   | ZExt {
       operand0 :: Operand,
-      type' :: A.Type,
+      type' :: Type,
       metadata :: InstructionMetadata 
     }
   | SExt {
       operand0 :: Operand,
-      type' :: A.Type,
+      type' :: Type,
       metadata :: InstructionMetadata
     }
   | FPToUI {
       operand0 :: Operand,
-      type' :: A.Type,
+      type' :: Type,
       metadata :: InstructionMetadata
     }
   | FPToSI {
       operand0 :: Operand,
-      type' :: A.Type,
+      type' :: Type,
       metadata :: InstructionMetadata
     }
   | UIToFP {
       operand0 :: Operand,
-      type' :: A.Type,
+      type' :: Type,
       metadata :: InstructionMetadata
     }
   | SIToFP {
       operand0 :: Operand,
-      type' :: A.Type,
+      type' :: Type,
       metadata :: InstructionMetadata
     }
   | FPTrunc {
       operand0 :: Operand,
-      type' :: A.Type,
+      type' :: Type,
       metadata :: InstructionMetadata
     }
   | FPExt {
       operand0 :: Operand,
-      type' :: A.Type,
+      type' :: Type,
       metadata :: InstructionMetadata
     }
   | PtrToInt {
       operand0 :: Operand,
-      type' :: A.Type,
+      type' :: Type,
       metadata :: InstructionMetadata
     }
   | IntToPtr {
       operand0 :: Operand,
-      type' :: A.Type,
+      type' :: Type,
       metadata :: InstructionMetadata
     }
   | BitCast {
       operand0 :: Operand,
-      type' :: A.Type,
+      type' :: Type,
       metadata :: InstructionMetadata
     }
   | AddrSpaceCast {
       operand0 :: Operand,
-      type' :: A.Type,
+      type' :: Type,
       metadata :: InstructionMetadata
     }
   | ICmp {
@@ -428,8 +435,8 @@ data Instruction
       metadata :: InstructionMetadata
     }
   | Phi {
-      type' :: A.Type,
-      incomingValues :: [ (Operand, A.Name) ],
+      type' :: Type,
+      incomingValues :: [ (Operand, Name) ],
       metadata :: InstructionMetadata
   } 
   | Call {
@@ -449,7 +456,7 @@ data Instruction
     }
   | VAArg { 
       argList :: Operand,
-      type' :: A.Type,
+      type' :: Type,
       metadata :: InstructionMetadata 
     }
   | ExtractElement { 
@@ -481,7 +488,7 @@ data Instruction
       metadata :: InstructionMetadata
     }
   | LandingPad { 
-      type' :: A.Type,
+      type' :: Type,
       personalityFunction :: Operand,
       cleanup :: Bool,
       clauses :: [LandingPadClause],
@@ -493,7 +500,7 @@ data Instruction
 -- | Instances of instructions may be given a name, allowing their results to be referenced as 'Operand's.
 -- Sometimes instructions - e.g. a call to a function returning void - don't need names.
 data Named a 
-  = A.Name := a
+  = Name := a
   | Do a
   deriving (Eq, Read, Show, Typeable, Data)
 
@@ -512,7 +519,7 @@ data MetadataNode
 -- | An 'Operand' is roughly that which is an argument to an 'LLVM.General.AST.Instruction.Instruction'
 data Operand 
   -- | %foo
-  = LocalReference A.Name
+  = LocalReference Name
   -- | 'Constant's include 'LLVM.General.AST.Constant.GlobalReference', for \@foo
   | ConstantOperand Constant
   | MetadataStringOperand String
@@ -520,7 +527,7 @@ data Operand
   deriving (Eq, Ord, Read, Show, Typeable, Data)
 
 -- | The 'LLVM.General.AST.Instruction.Call' instruction is special: the callee can be inline assembly
-type CallableOperand  = Either A.InlineAssembly Operand
+type CallableOperand  = Either InlineAssembly Operand
 
 {- |
 <http://llvm.org/docs/LangRef.html#constants>
@@ -535,16 +542,96 @@ the rules of what IR is legal into the Haskell types.
 data Constant
     = Int { integerBits :: Word32, integerValue :: Integer }
     | Float { floatValue :: A.SomeFloat }
-    | Null { constantType :: A.Type }
-    | Struct { structName :: Maybe A.Name, isPacked :: Bool, memberValues :: [ Constant ] }
-    | Array { memberType :: A.Type, memberValues :: [ Constant ] }
+    | Null { constantType :: Type }
+    | Struct { structName :: Maybe Name, _isPacked :: Bool, memberValues :: [ Constant ] }
+    | Array { memberType :: Type, memberValues :: [ Constant ] }
     | Vector { memberValues :: [ Constant ] }
-    | Undef { constantType :: A.Type }
-    | BlockAddress { blockAddressFunction :: A.Name, blockAddressBlock :: A.Name }
-    | GlobalReference A.Name
+    | Undef { constantType :: Type }
+    | BlockAddress { blockAddressFunction :: Name, blockAddressBlock :: Name }
+    | GlobalReference Name
     | AntiConstant String
     deriving (Eq, Ord, Read, Show, Typeable, Data)
 
+{- |
+Objects of various sorts in LLVM IR are identified by address in the LLVM C++ API, and
+may be given a string name. When printed to (resp. read from) human-readable LLVM assembly, objects without
+string names are numbered sequentially (resp. must be numbered sequentially). String names may be quoted, and
+are quoted when printed if they would otherwise be misread - e.g. when containing special characters. 
+
+> 7
+
+means the seventh unnamed object, while
+
+> "7"
+
+means the object named with the string "7".
+
+This libraries handling of 'UnName's during translation of the AST down into C++ IR is somewhat more
+forgiving than the LLVM assembly parser: it does not require that unnamed values be numbered sequentially;
+however, the numbers of 'UnName's passed into C++ cannot be preserved in the C++ objects. If the C++ IR is
+printed as assembly or translated into a Haskell AST, unnamed nodes will be renumbered sequentially. Thus
+unnamed node numbers should be thought of as having any scope limited to the 'LLVM.General.AST.Module' in
+which they are used.
+-}
+data Name 
+    = Name String -- ^ a string name 
+    | UnName Word -- ^ a number for a nameless thing
+    | AntiName String
+   deriving (Eq, Ord, Read, Show, Typeable, Data)
+
+-- | LLVM supports some special formats floating point format. This type is to distinguish those format.
+-- I believe it's treated as a format for "a" float, as opposed to a vector of two floats, because
+-- its intended usage is to represent a single number with a combined significand.
+data FloatingPointFormat
+  = IEEE
+  | DoubleExtended
+  | PairOfFloats
+  deriving (Eq, Ord, Read, Show, Typeable, Data)
+
+-- | <http://llvm.org/docs/LangRef.html#type-system>
+data Type
+  -- | <http://llvm.org/docs/LangRef.html#void-type>
+  = VoidType
+  -- | <http://llvm.org/docs/LangRef.html#integer-type>
+  | IntegerType { typeBits :: Word32 }
+  -- | <http://llvm.org/docs/LangRef.html#pointer-type>
+  | PointerType { pointerReferent :: Type, pointerAddrSpace :: A.AddrSpace }
+  -- | <http://llvm.org/docs/LangRef.html#floating-point-types>
+  | FloatingPointType { typeBits :: Word32, floatingPointFormat :: FloatingPointFormat }
+  -- | <http://llvm.org/docs/LangRef.html#function-type>
+  | FunctionType { resultType :: Type, argumentTypes :: [Type], isVarArg :: Bool }
+  -- | <http://llvm.org/docs/LangRef.html#vector-type>
+  | VectorType { nVectorElements :: Word32, elementType :: Type }
+  -- | <http://llvm.org/docs/LangRef.html#structure-type>
+  | StructureType { isPacked :: Bool, elementTypes :: [Type] }
+  -- | <http://llvm.org/docs/LangRef.html#array-type>
+  | ArrayType { nArrayElements :: Word64, elementType :: Type }
+  -- | <http://llvm.org/docs/LangRef.html#opaque-structure-types>
+  | NamedTypeReference Name
+  -- | <http://llvm.org/docs/LangRef.html#metadata-type>
+  | MetadataType -- only to be used as a parameter type for a few intrinsics
+  deriving (Eq, Ord, Read, Show, Typeable, Data)
+
+-- | the dialect of assembly used in an inline assembly string
+-- <http://en.wikipedia.org/wiki/X86_assembly_language#Syntax>
+data Dialect
+  = ATTDialect
+  | IntelDialect
+  deriving (Eq, Read, Show, Typeable, Data)
+
+-- | <http://llvm.org/docs/LangRef.html#inline-assembler-expressions>
+-- to be used through 'LLVM.General.AST.Operand.CallableOperand' with a
+-- 'LLVM.General.AST.Instruction.Call' instruction
+data InlineAssembly
+  = InlineAssembly {
+      __type' :: Type,
+      assembly :: String,
+      constraints :: String,
+      hasSideEffects :: Bool,
+      alignStack :: Bool,
+      dialect :: Dialect
+    }
+  deriving (Eq, Read, Show, Typeable, Data)
 
 
 $(deriveLiftMany [''A.Visibility,
@@ -562,19 +649,19 @@ $(deriveLiftMany [''A.Visibility,
                   ''Parameter,
                   ''Named,
                   ''Instruction,
-                  ''A.InlineAssembly,
-                  ''A.Dialect,
+                  ''InlineAssembly,
+                  ''Dialect,
                   ''A.RMWOperation,
                   ''Atomicity,
                   ''LandingPadClause,
                   ''MemoryOrdering,
                   ''Terminator,
-                  ''A.Name,
+                  ''Name,
                   ''MetadataNode,
                   ''MetadataNodeID,
                   ''Operand,
-                  ''A.Type,
-                  ''A.FloatingPointFormat,
+                  ''Type,
+                  ''FloatingPointFormat,
                   ''A.DataLayout,
                   ''A.Endianness,
                   ''M.Map,

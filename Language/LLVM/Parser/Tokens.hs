@@ -177,10 +177,16 @@ data Token
   | Tsspreq
   | Tuwtable
   -- Anti-Quotation
+  | Tanti_def String
   | Tanti_defs String
+  | Tanti_bb String
   | Tanti_bbs String
   | Tanti_instr String
   | Tanti_const String
+  | Tanti_id String
+  | Tanti_gid String
+  | Tanti_param String
+  | Tanti_params String
   deriving (Eq, Ord, Show)
 
 instance Pretty Token where

@@ -31,21 +31,18 @@ import qualified LLVM.General.AST as L
 import qualified LLVM.General.AST.Constant as L
   (Constant(Int, Float, Null, Struct, Array, Vector, Undef, BlockAddress, GlobalReference))
 import qualified LLVM.General.AST.Float as L
+import qualified LLVM.General.AST.InlineAssembly as L
+class ToDefintion a where
+  toDefinition :: a -> L.Definition
+instance ToDefintion L.Definition where
+  toDefinition = id
+instance ToDefintion L.Global where
+  toDefinition = L.GlobalDefinition
+
 class ToDefintions a where
   toDefinitions :: a -> [L.Definition]
-instance ToDefintions L.Definition where
-  toDefinitions = (:[])
-instance ToDefintions L.Global where
-  toDefinitions = (:[]) . L.GlobalDefinition
-instance ToDefintions a => ToDefintions [a] where
-  toDefinitions xs = xs >>= toDefinitions
-
-class ToBasicBlocks a where
-  toBasicBlocks :: a -> [L.BasicBlock]
-instance ToBasicBlocks L.BasicBlock where
-  toBasicBlocks = (:[])
-instance ToBasicBlocks a => ToBasicBlocks [a] where
-  toBasicBlocks xs = xs >>= toBasicBlocks
+instance ToDefintion a => ToDefintions [a] where
+  toDefinitions = map toDefinition
 
 class ToConstant a where
   toConstant :: a -> L.Constant
@@ -61,6 +58,15 @@ instance ToConstant Float where
   toConstant n = L.Float (L.Single n)
 instance ToConstant Double where
   toConstant n = L.Float (L.Double n)
+
+class ToName a where
+  toName :: a -> L.Name
+instance ToName L.Name where
+  toName = id
+instance ToName String where
+  toName = L.Name
+instance ToName Word where
+  toName = L.UnName
 
 antiVarE :: String -> ExpQ
 antiVarE = either fail return . parseExp
@@ -83,6 +89,8 @@ qqDefinitionE (A.NamedMetadataDefinition i vs) =
     Just [|L.NamedMetadataDefinition $(qqE i) $(qqE vs) :: L.Definition|]
 qqDefinitionE (A.ModuleInlineAssembly s) =
     Just [|L.ModuleInlineAssembly $(qqE s) :: L.Definition|]
+qqDefinitionE a@(A.AntiDefinition s) =
+    Just $ antiVarE s
 qqDefinitionE a@(A.AntiDefinitionList _s) =
     error $ "Internal Error: unexpected antiquote " ++ show a
 
@@ -102,21 +110,34 @@ qqGlobalE (A.Function x1 x2 x3 x4 x5 x6 x7 x8 x9 xA xB xC) =
                     $(qqE x6) $(qqE x7) $(qqE x8) $(qqE x9) $(qqE xA)
                     $(qqE xB) $(qqE xC)|]
 
+qqParameterListE :: [A.Parameter] -> Maybe (Q Exp)
+qqParameterListE [] = Just [|[]|]
+qqParameterListE (A.AntiParameterList v : defs) =
+    Just [|$(antiVarE v) ++ $(qqE defs)|]
+qqParameterListE (def : defs) =
+    Just [|$(qqE def) : $(qqE defs)|]
+
 qqParameterE :: A.Parameter -> Maybe (Q Exp)
 qqParameterE (A.Parameter x1 x2 x3) =
   Just [|L.Parameter $(qqE x1) $(qqE x2) $(qqE x3)|]
+qqParameterE (A.AntiParameter s) =
+  Just $ antiVarE s
+qqParameterE a@(A.AntiParameterList _s) =
+  error $ "Internal Error: unexpected antiquote " ++ show a
 
 qqBasicBlockListE :: [A.BasicBlock] -> Maybe (Q Exp)
 qqBasicBlockListE [] = Just [|[]|]
-qqBasicBlockListE (A.AntiBasicBlocks v : defs) =
-    Just [|toBasicBlocks $(antiVarE v) ++ $(qqE defs)|]
+qqBasicBlockListE (A.AntiBasicBlockList v : defs) =
+    Just [|$(antiVarE v) ++ $(qqE defs)|]
 qqBasicBlockListE (def : defs) =
     Just [|$(qqE def) : $(qqE defs)|]
 
 qqBasicBlockE :: A.BasicBlock -> Maybe (Q Exp)
 qqBasicBlockE (A.BasicBlock x1 x2 x3) =
   Just [|L.BasicBlock $(qqE x1) $(qqE x2) $(qqE x3)|]
-qqBasicBlockE a@(A.AntiBasicBlocks _s) =
+qqBasicBlockE (A.AntiBasicBlock s) =
+  Just $ antiVarE s
+qqBasicBlockE a@(A.AntiBasicBlockList _s) =
   error $ "Internal Error: unexpected antiquote " ++ show a
 
 qqTerminatorE :: A.Terminator -> Maybe (Q Exp)
@@ -318,6 +339,54 @@ qqConstantE (A.GlobalReference x1) =
 qqConstantE (A.AntiConstant s) =
   Just [|toConstant $(antiVarE s)|]
 
+qqNameE :: A.Name -> Maybe (Q Exp)
+qqNameE (A.Name x1) =
+  Just [|L.Name $(qqE x1)|]
+qqNameE (A.UnName x1) =
+  Just [|L.UnName $(qqE x1)|]
+qqNameE (A.AntiName s) =
+  Just [|toName $(antiVarE s)|]
+
+qqFloatingPointFormatE :: A.FloatingPointFormat -> Maybe (Q Exp)
+qqFloatingPointFormatE A.IEEE =
+  Just [|L.IEEE|]
+qqFloatingPointFormatE A.DoubleExtended =
+  Just [|L.DoubleExtended|]
+qqFloatingPointFormatE A.PairOfFloats =
+  Just [|L.PairOfFloats|]
+
+qqTypeE :: A.Type -> Maybe (Q Exp)
+qqTypeE A.VoidType =
+  Just [|L.VoidType|]
+qqTypeE (A.IntegerType x1) =
+  Just [|L.IntegerType $(qqE x1)|]
+qqTypeE (A.PointerType x1 x2) =
+  Just [|L.PointerType $(qqE x1) $(qqE x2)|]
+qqTypeE (A.FloatingPointType x1 x2) =
+  Just [|L.FloatingPointType $(qqE x1) $(qqE x2)|]
+qqTypeE (A.FunctionType x1 x2 x3) =
+  Just [|L.FunctionType $(qqE x1) $(qqE x2) $(qqE x3)|]
+qqTypeE (A.VectorType x1 x2) =
+  Just [|L.VectorType $(qqE x1) $(qqE x2)|]
+qqTypeE (A.StructureType x1 x2) =
+  Just [|L.StructureType $(qqE x1) $(qqE x2)|]
+qqTypeE (A.ArrayType x1 x2) =
+  Just [|L.ArrayType $(qqE x1) $(qqE x2)|]
+qqTypeE (A.NamedTypeReference x1) =
+  Just [|L.NamedTypeReference $(qqE x1)|]
+qqTypeE A.MetadataType =
+  Just [|L.MetadataType|]
+
+qqDialectE :: A.Dialect -> Maybe (Q Exp)
+qqDialectE A.ATTDialect =
+  Just [|L.ATTDialect|]
+qqDialectE A.IntelDialect =
+  Just [|L.IntelDialect|]
+
+qqInlineAssemblyE :: A.InlineAssembly -> Maybe (Q Exp)
+qqInlineAssemblyE (A.InlineAssembly x1 x2 x3 x4 x5 x6) =
+  Just [|L.InlineAssembly $(qqE x1) $(qqE x2) $(qqE x3) $(qqE x4) $(qqE x5)
+                          $(qqE x6)|]
 
 qqE :: Data a => a -> Q Exp
 qqE x = dataToExpQ qqExp x
@@ -327,6 +396,7 @@ qqExp = const Nothing `extQ` qqDefinitionE
                       `extQ` qqDefinitionListE
                       `extQ` qqModuleE
                       `extQ` qqGlobalE
+                      `extQ` qqParameterListE
                       `extQ` qqParameterE
                       `extQ` qqBasicBlockE
                       `extQ` qqBasicBlockListE
@@ -341,6 +411,11 @@ qqExp = const Nothing `extQ` qqDefinitionE
                       `extQ` qqMetadataNodeE
                       `extQ` qqOperandE
                       `extQ` qqConstantE
+                      `extQ` qqNameE
+                      `extQ` qqFloatingPointFormatE
+                      `extQ` qqTypeE
+                      `extQ` qqDialectE
+                      `extQ` qqInlineAssemblyE
 
 antiVarP :: String -> PatQ
 antiVarP = either fail return . parsePat
@@ -365,6 +440,8 @@ qqDefinitionP (A.NamedMetadataDefinition i vs) =
     Just [p|L.NamedMetadataDefinition $(qqP i) $(qqP vs)|]
 qqDefinitionP (A.ModuleInlineAssembly s) =
     Just [p|L.ModuleInlineAssembly $(qqP s)|]
+qqDefinitionP (A.AntiDefinition s) =
+    Just $ antiVarP s
 qqDefinitionP a@(A.AntiDefinitionList _s) =
     error $ "Internal Error: unexpected antiquote " ++ show a
 
@@ -384,15 +461,28 @@ qqGlobalP (A.Function x1 x2 x3 x4 x5 x6 x7 x8 x9 xA xB xC) =
                     $(qqP x6) $(qqP x7) $(qqP x8) $(qqP x9) $(qqP xA)
                     $(qqP xB) $(qqP xC)|]
 
+qqParameterListP :: [A.Parameter] -> Maybe (Q Pat)
+qqParameterListP [] = Just [p|[]|]
+qqParameterListP [A.AntiParameterList v] =
+    Just $ antiVarP v
+qqParameterListP (A.AntiParameterList v : _) =
+    error "Antiquoted list of Parameters must be last item in quoted list"
+qqParameterListP (def : defs) =
+    Just [p|$(qqP def) : $(qqP defs)|]
+
 qqParameterP :: A.Parameter -> Maybe (Q Pat)
 qqParameterP (A.Parameter x1 x2 x3) =
   Just [p|L.Parameter $(qqP x1) $(qqP x2) $(qqP x3)|]
+qqParameterP (A.AntiParameter s) =
+  Just $ antiVarP s
+qqParameterP a@(A.AntiParameterList _s) =
+  error $ "Internal Error: unexpected antiquote " ++ show a
 
 qqBasicBlockListP :: [A.BasicBlock] -> Maybe (Q Pat)
 qqBasicBlockListP [] = Just [p|[]|]
-qqBasicBlockListP [A.AntiBasicBlocks v] =
+qqBasicBlockListP [A.AntiBasicBlockList v] =
     Just $ antiVarP v
-qqBasicBlockListP (A.AntiBasicBlocks v : defs) =
+qqBasicBlockListP (A.AntiBasicBlockList v : defs) =
     error "Antiquoted list of BasicBlocks must be last item in quoted list"
 qqBasicBlockListP (def : defs) =
     Just [p|$(qqP def) : $(qqP defs)|]
@@ -400,7 +490,9 @@ qqBasicBlockListP (def : defs) =
 qqBasicBlockP :: A.BasicBlock -> Maybe (Q Pat)
 qqBasicBlockP (A.BasicBlock x1 x2 x3) =
   Just [p|L.BasicBlock $(qqP x1) $(qqP x2) $(qqP x3)|]
-qqBasicBlockP a@(A.AntiBasicBlocks _s) =
+qqBasicBlockP (A.AntiBasicBlock s) =
+  Just $ antiVarP s
+qqBasicBlockP a@(A.AntiBasicBlockList _s) =
   error $ "Internal Error: unexpected antiquote " ++ show a
 
 qqTerminatorP :: A.Terminator -> Maybe (Q Pat)
@@ -602,6 +694,54 @@ qqConstantP (A.GlobalReference x1) =
 qqConstantP (A.AntiConstant s) =
   Just $ antiVarP s
 
+qqNameP :: A.Name -> Maybe (Q Pat)
+qqNameP (A.Name x1) =
+  Just [p|L.Name $(qqP x1)|]
+qqNameP (A.UnName x1) =
+  Just [p|L.UnName $(qqP x1)|]
+qqNameP (A.AntiName s) =
+  Just $ antiVarP s
+
+qqFloatingPointFormatP :: A.FloatingPointFormat -> Maybe (Q Pat)
+qqFloatingPointFormatP A.IEEE =
+  Just [p|L.IEEE|]
+qqFloatingPointFormatP A.DoubleExtended =
+  Just [p|L.DoubleExtended|]
+qqFloatingPointFormatP A.PairOfFloats =
+  Just [p|L.PairOfFloats|]
+
+qqTypeP :: A.Type -> Maybe (Q Pat)
+qqTypeP A.VoidType =
+  Just [p|L.VoidType|]
+qqTypeP (A.IntegerType x1) =
+  Just [p|L.IntegerType $(qqP x1)|]
+qqTypeP (A.PointerType x1 x2) =
+  Just [p|L.PointerType $(qqP x1) $(qqP x2)|]
+qqTypeP (A.FloatingPointType x1 x2) =
+  Just [p|L.FloatingPointType $(qqP x1) $(qqP x2)|]
+qqTypeP (A.FunctionType x1 x2 x3) =
+  Just [p|L.FunctionType $(qqP x1) $(qqP x2) $(qqP x3)|]
+qqTypeP (A.VectorType x1 x2) =
+  Just [p|L.VectorType $(qqP x1) $(qqP x2)|]
+qqTypeP (A.StructureType x1 x2) =
+  Just [p|L.StructureType $(qqP x1) $(qqP x2)|]
+qqTypeP (A.ArrayType x1 x2) =
+  Just [p|L.ArrayType $(qqP x1) $(qqP x2)|]
+qqTypeP (A.NamedTypeReference x1) =
+  Just [p|L.NamedTypeReference $(qqP x1)|]
+qqTypeP A.MetadataType =
+  Just [p|L.MetadataType|]
+
+qqDialectP :: A.Dialect -> Maybe (Q Pat)
+qqDialectP A.ATTDialect =
+  Just [p|L.ATTDialect|]
+qqDialectP A.IntelDialect =
+  Just [p|L.IntelDialect|]
+
+qqInlineAssemblyP :: A.InlineAssembly -> Maybe (Q Pat)
+qqInlineAssemblyP (A.InlineAssembly x1 x2 x3 x4 x5 x6) =
+  Just [p|L.InlineAssembly $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4) $(qqP x5)
+                          $(qqP x6)|]
 
 qqP :: Data a => a -> Q Pat
 qqP x = dataToPatQ qqPat x
@@ -611,6 +751,7 @@ qqPat = const Nothing `extQ` qqDefinitionP
                       `extQ` qqDefinitionListP
                       `extQ` qqModuleP
                       `extQ` qqGlobalP
+                      `extQ` qqParameterListP
                       `extQ` qqParameterP
                       `extQ` qqBasicBlockP
                       `extQ` qqBasicBlockListP
@@ -625,6 +766,11 @@ qqPat = const Nothing `extQ` qqDefinitionP
                       `extQ` qqMetadataNodeP
                       `extQ` qqOperandP
                       `extQ` qqConstantP
+                      `extQ` qqNameP
+                      `extQ` qqFloatingPointFormatP
+                      `extQ` qqTypeP
+                      `extQ` qqDialectP
+                      `extQ` qqInlineAssemblyP
 
 parse :: [A.Extensions]
       -> P.P a

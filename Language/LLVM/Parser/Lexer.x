@@ -71,10 +71,16 @@ $whitechar = [\ \t\n\r\f\v]
 tokens :-
 
 <0> {
+ "$def:"          / { allowAnti } { lexAnti Tanti_def }
  "$defs:"         / { allowAnti } { lexAnti Tanti_defs }
+ "$bb:"           / { allowAnti } { lexAnti Tanti_bb }
  "$bbs:"          / { allowAnti } { lexAnti Tanti_bbs }
  "$instr:"        / { allowAnti } { lexAnti Tanti_instr }
  "$const:"        / { allowAnti } { lexAnti Tanti_const }
+ "$id:"           / { allowAnti } { lexAnti Tanti_id }
+ "$gid:"          / { allowAnti } { lexAnti Tanti_gid }
+ "$param:"        / { allowAnti } { lexAnti Tanti_param }
+ "$params:"       / { allowAnti } { lexAnti Tanti_params }
 }
 
 <0> {

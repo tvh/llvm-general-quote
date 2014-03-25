@@ -20,8 +20,6 @@ import Language.LLVM.Parser.Monad
 import qualified Language.LLVM.Parser.Tokens as T
 import qualified Language.LLVM.AST as A
 import qualified LLVM.General.AST.Float as A
-import qualified LLVM.General.AST.Name as A
-import qualified LLVM.General.AST.Type as A
 import qualified LLVM.General.AST.Linkage as A
 import qualified LLVM.General.AST.Visibility as A
 import qualified LLVM.General.AST.CallingConvention as A
@@ -182,11 +180,17 @@ import qualified LLVM.General.AST.FloatingPointPredicate as AF
  'global'           { L _ T.Tglobal }
  'constant'         { L _ T.Tconstant }
  'alias'            { L _ T.Talias }
-
- ANTI_DEFS          {L _ (T.Tanti_defs $$) }
- ANTI_BBS           {L _ (T.Tanti_bbs $$) }
- ANTI_INSTR         {L _ (T.Tanti_instr $$) }
- ANTI_CONST         {L _ (T.Tanti_const $$) }
+ 
+ ANTI_DEF           { L _ (T.Tanti_def $$) }
+ ANTI_DEFS          { L _ (T.Tanti_defs $$) }
+ ANTI_BB            { L _ (T.Tanti_bb $$) }
+ ANTI_BBS           { L _ (T.Tanti_bbs $$) }
+ ANTI_INSTR         { L _ (T.Tanti_instr $$) }
+ ANTI_CONST         { L _ (T.Tanti_const $$) }
+ ANTI_ID            { L _ (T.Tanti_id $$) }
+ ANTI_GID           { L _ (T.Tanti_gid $$) }
+ ANTI_PARAM         { L _ (T.Tanti_param $$) }
+ ANTI_PARAMS        { L _ (T.Tanti_params $$) }
 
 %monad { P } { >>= } { return }
 %lexer { lexer } { L _ T.Teof }
@@ -406,6 +410,7 @@ name :: { A.Name }
 name :
     NAMED_LOCAL     { A.Name $1 }
   | UNNAMED_LOCAL   { A.UnName $1 }
+  | ANTI_ID         { A.AntiName $1 }
 
 namedI :: { A.Named A.Instruction }
 namedI :
@@ -464,7 +469,8 @@ basicBlock :: { A.BasicBlock }
 basicBlock :
     JUMPLABEL instructions namedT     { A.BasicBlock (A.Name $1) (rev $2) $3 }
   | instructions namedT               { A.BasicBlock (A.UnName 0) (rev $1) $2 }
-  | ANTI_BBS                          { A.AntiBasicBlocks $1 }
+  | ANTI_BB                           { A.AntiBasicBlock $1 }
+  | ANTI_BBS                          { A.AntiBasicBlockList $1 }
 
 basicBlocks :: { RevList (A.BasicBlock) }
 basicBlocks :
@@ -481,6 +487,7 @@ globalName :: { A.Name }
 globalName :
     NAMED_GLOBAL     { A.Name $1 }
   | UNNAMED_GLOBAL   { A.UnName $1 }
+  | ANTI_GID         { A.AntiName $1 }
 
 type :: { A.Type }
 type :
@@ -513,6 +520,8 @@ pAttributes :
 parameter :: { A.Parameter }
 parameter :
     type pAttributes name         { A.Parameter $1 $3 (rev $2) }
+  | ANTI_PARAM                    { A.AntiParameter $1 }
+  | ANTI_PARAMS                   { A.AntiParameterList $1 }
 
 parameterList :: { RevList A.Parameter }
 parameterList :
@@ -567,6 +576,7 @@ global :
 definition :: { A.Definition }
 definition :
     global         { A.GlobalDefinition $1 }
+  | ANTI_DEF       { A.AntiDefinition $1 }
   | ANTI_DEFS      { A.AntiDefinitionList $1 }
 
 definitions :: { RevList A.Definition }
