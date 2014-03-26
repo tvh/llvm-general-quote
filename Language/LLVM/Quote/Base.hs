@@ -75,6 +75,13 @@ instance ToName String where
 instance ToName Word where
   toName = L.UnName
 
+class ToTargetTriple a where
+  toTargetTriple :: a -> Maybe String
+instance ToTargetTriple String where
+  toTargetTriple = Just
+instance ToTargetTriple (Maybe String) where
+  toTargetTriple = id
+
 antiVarE :: String -> ExpQ
 antiVarE = either fail return . parseExp
 
@@ -461,6 +468,14 @@ qqDataLayoutE (A.DataLayout x1 x2 x3 x4 x5) =
 qqDataLayoutE (A.AntiDataLayout s) =
   Just $ antiVarE s
 
+qqTargetTripleE :: A.TargetTriple -> Maybe (Q Exp)
+qqTargetTripleE A.NoTargetTriple =
+  Just [|Nothing|]
+qqTargetTripleE (A.TargetTriple v) =
+  Just [|Just $(qqE v)|]
+qqTargetTripleE (A.AntiTargetTriple v) =
+  Just [|toTargetTriple $(antiVarE v)|]
+
 
 qqE :: Data a => a -> Q Exp
 qqE x = dataToExpQ qqExp x
@@ -497,6 +512,7 @@ qqExp = const Nothing `extQ` qqDefinitionE
                       `extQ` qqAlignmentInfoE
                       `extQ` qqAlignTypeE
                       `extQ` qqDataLayoutE
+                      `extQ` qqTargetTripleE
 
 
 antiVarP :: String -> PatQ
@@ -855,6 +871,14 @@ qqDataLayoutP (A.DataLayout x1 x2 x3 x4 x5) =
 qqDataLayoutP (A.AntiDataLayout s) =
   Just $ antiVarP s
 
+qqTargetTripleP :: A.TargetTriple -> Maybe (Q Pat)
+qqTargetTripleP A.NoTargetTriple =
+  Just [p|Nothing|]
+qqTargetTripleP (A.TargetTriple v) =
+  Just [p|Just $(qqP v)|]
+qqTargetTripleP (A.AntiTargetTriple v) =
+  Just $ antiVarP v
+
 qqP :: Data a => a -> Q Pat
 qqP x = dataToPatQ qqPat x
 
@@ -887,6 +911,7 @@ qqPat = const Nothing `extQ` qqDefinitionP
                       `extQ` qqAlignmentInfoP
                       `extQ` qqAlignTypeP
                       `extQ` qqDataLayoutP
+                      `extQ` qqTargetTripleP
 
 parse :: [A.Extensions]
       -> P.P a

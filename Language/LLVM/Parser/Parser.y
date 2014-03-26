@@ -187,6 +187,7 @@ import qualified LLVM.General.AST.FloatingPointPredicate as AF
  'as'               { L _ T.Tas }
 
  ANTI_DL            { L _ (T.Tanti_dl $$) }
+ ANTI_TT            { L _ (T.Tanti_tt $$) }
  ANTI_DEF           { L _ (T.Tanti_def $$) }
  ANTI_DEFS          { L _ (T.Tanti_defs $$) }
  ANTI_BB            { L _ (T.Tanti_bb $$) }
@@ -608,10 +609,11 @@ dataLayout :
   | 'target' 'datalayout' '=' STRING { Just (dataLayout $4) }
   | ANTI_DL                          { Just (A.AntiDataLayout $1) }
 
-targetTriple :: { Maybe String }
+targetTriple :: { A.TargetTriple }
 targetTriple :
-    {- empty -}                       { Nothing }
-  | 'target' 'triple' '=' STRING      { Just $4 } 
+    {- empty -}                       { A.NoTargetTriple }
+  | 'target' 'triple' '=' STRING      { A.TargetTriple $4 }
+  | ANTI_TT                           { A.AntiTargetTriple $1 }
 
 module :: { A.Module }
 module :

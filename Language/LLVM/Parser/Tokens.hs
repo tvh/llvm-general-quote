@@ -184,6 +184,7 @@ data Token
   | Tas
   -- Anti-Quotation
   | Tanti_dl String
+  | Tanti_tt String
   | Tanti_def String
   | Tanti_defs String
   | Tanti_bb String

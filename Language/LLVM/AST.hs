@@ -28,6 +28,7 @@ module Language.LLVM.AST (
   AlignmentInfo(..),
   AlignType(..),
   DataLayout(..),
+  TargetTriple(..),
   Extensions(..), ExtensionsInt
   ) where
 
@@ -140,7 +141,7 @@ data Module =
     moduleName :: String,
     -- | a 'DataLayout', if specified, must match that of the eventual code generator
     moduleDataLayout :: Maybe DataLayout, 
-    moduleTargetTriple :: Maybe String,
+    moduleTargetTriple :: TargetTriple,
     moduleDefinitions :: [Definition]
   } 
   deriving (Eq, Read, Show, Typeable, Data)
@@ -683,6 +684,12 @@ data DataLayout
   | AntiDataLayout String
   deriving (Eq, Ord, Read, Show, Typeable, Data)
 
+data TargetTriple
+  = NoTargetTriple
+  | TargetTriple String
+  | AntiTargetTriple String
+  deriving (Eq, Ord, Read, Show, Typeable, Data)
+
 $(deriveLiftMany [''A.Visibility,
                   ''A.Linkage,
                   ''A.ParameterAttribute,
@@ -718,7 +725,8 @@ $(deriveLiftMany [''A.Visibility,
                   ''AlignmentInfo,
                   ''S.Set,
                   ''Definition,
-                  ''Module
+                  ''Module,
+                  ''TargetTriple
                   ])
 instance Lift Word64 where
   lift = lift . toInteger

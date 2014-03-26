@@ -72,6 +72,7 @@ tokens :-
 
 <0> {
  "$dl:"           / { allowAnti } { lexAnti Tanti_dl }
+ "$tt:"           / { allowAnti } { lexAnti Tanti_tt }
  "$def:"          / { allowAnti } { lexAnti Tanti_def }
  "$defs:"         / { allowAnti } { lexAnti Tanti_defs }
  "$bb:"           / { allowAnti } { lexAnti Tanti_bb }
