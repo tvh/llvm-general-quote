@@ -573,7 +573,7 @@ isConstant :
 global :: { A.Global }
 global :
     'define' type globalName '(' parameterList ')' fAttributes '{' basicBlocks '}'
-      { A.Function A.External A.Default A.C [] $2 $3 ([], False) [] Nothing 0 Nothing (rev $9) }
+      { A.Function A.External A.Default A.C [] $2 $3 (rev $5, False) [] Nothing 0 Nothing (rev $9) }
   | globalName '=' isConstant type alignment
       { A.GlobalVariable $1 A.External A.Default False (A.AddrSpace 0) False $3 $4 Nothing Nothing $5 }
   | globalName '=' 'alias' type constant
