@@ -23,7 +23,6 @@ import qualified LLVM.General.AST.Float as A
 import qualified LLVM.General.AST.Linkage as A
 import qualified LLVM.General.AST.Visibility as A
 import qualified LLVM.General.AST.CallingConvention as A
-import qualified LLVM.General.AST.DataLayout as A
 import qualified LLVM.General.AST.AddrSpace as A
 import qualified LLVM.General.AST.Attribute as A
 import qualified LLVM.General.AST.IntegerPredicate as AI
@@ -187,6 +186,7 @@ import qualified LLVM.General.AST.FloatingPointPredicate as AF
  'retfor'           { L _ T.Tretfor }
  'as'               { L _ T.Tas }
 
+ ANTI_DL            { L _ (T.Tanti_dl $$) }
  ANTI_DEF           { L _ (T.Tanti_def $$) }
  ANTI_DEFS          { L _ (T.Tanti_defs $$) }
  ANTI_BB            { L _ (T.Tanti_bb $$) }
@@ -606,6 +606,7 @@ dataLayout :: { Maybe A.DataLayout }
 dataLayout :
     {- empty -}                      { Nothing }
   | 'target' 'datalayout' '=' STRING { Just (dataLayout $4) }
+  | ANTI_DL                          { Just (A.AntiDataLayout $1) }
 
 targetTriple :: { Maybe String }
 targetTriple :

@@ -24,6 +24,10 @@ module Language.LLVM.AST (
   Type(..),
   Dialect(..),
   InlineAssembly(..),
+  Endianness(..),
+  AlignmentInfo(..),
+  AlignType(..),
+  DataLayout(..),
   Extensions(..), ExtensionsInt
   ) where
 
@@ -31,7 +35,6 @@ import qualified LLVM.General.AST.Float as A
 import qualified LLVM.General.AST.Linkage as A
 import qualified LLVM.General.AST.Visibility as A
 import qualified LLVM.General.AST.CallingConvention as A
-import qualified LLVM.General.AST.DataLayout as A
 import qualified LLVM.General.AST.AddrSpace as A
 import qualified LLVM.General.AST.Attribute as A
 import qualified LLVM.General.AST.IntegerPredicate as AI
@@ -136,7 +139,7 @@ data Module =
   Module {
     moduleName :: String,
     -- | a 'DataLayout', if specified, must match that of the eventual code generator
-    moduleDataLayout :: Maybe A.DataLayout, 
+    moduleDataLayout :: Maybe DataLayout, 
     moduleTargetTriple :: Maybe String,
     moduleDefinitions :: [Definition]
   } 
@@ -647,6 +650,38 @@ data InlineAssembly
     }
   deriving (Eq, Read, Show, Typeable, Data)
 
+-- | Little Endian is the one true way :-). Sadly, we must support the infidels.
+data Endianness = LittleEndian | BigEndian
+  deriving (Eq, Ord, Read, Show, Typeable, Data)
+
+-- | An AlignmentInfo describes how a given type must and would best be aligned
+data AlignmentInfo = AlignmentInfo {
+    abiAlignment :: Word32,
+    preferredAlignment :: Maybe Word32
+  }
+  deriving (Eq, Ord, Read, Show, Typeable, Data)
+
+-- | A type of type for which 'AlignmentInfo' may be specified
+data AlignType
+  = IntegerAlign
+  | VectorAlign
+  | FloatAlign
+  | AggregateAlign
+  | StackAlign
+  deriving (Eq, Ord, Read, Show, Typeable, Data)
+
+-- | a description of the various data layout properties which may be used during
+-- optimization
+data DataLayout
+  = DataLayout {
+    endianness :: Maybe Endianness,
+    stackAlignment :: Maybe Word32,
+    pointerLayouts :: M.Map A.AddrSpace (Word32, AlignmentInfo),
+    typeLayouts :: M.Map (AlignType, Word32) AlignmentInfo,
+    nativeSizes :: Maybe (S.Set Word32)
+  }
+  | AntiDataLayout String
+  deriving (Eq, Ord, Read, Show, Typeable, Data)
 
 $(deriveLiftMany [''A.Visibility,
                   ''A.Linkage,
@@ -676,11 +711,11 @@ $(deriveLiftMany [''A.Visibility,
                   ''Operand,
                   ''Type,
                   ''FloatingPointFormat,
-                  ''A.DataLayout,
-                  ''A.Endianness,
+                  ''DataLayout,
+                  ''Endianness,
                   ''M.Map,
-                  ''A.AlignType,
-                  ''A.AlignmentInfo,
+                  ''AlignType,
+                  ''AlignmentInfo,
                   ''S.Set,
                   ''Definition,
                   ''Module

@@ -33,7 +33,7 @@ import qualified LLVM.General.AST.Constant as L
   (Constant(Int, Float, Null, Struct, Array, Vector, Undef, BlockAddress, GlobalReference))
 import qualified LLVM.General.AST.Float as L
 import qualified LLVM.General.AST.InlineAssembly as L
-import qualified LLVM.General.AST.DataLayout as A
+import qualified LLVM.General.AST.DataLayout as L
 import qualified LLVM.General.AST.AddrSpace as A
 
 import qualified Data.Map as M
@@ -433,6 +433,35 @@ qqSetE :: Data a => S.Set a -> Maybe (Q Exp)
 qqSetE m =
   Just [|S.fromList $(qqE (S.toList m))|]
 
+qqEndiannessE :: A.Endianness -> Maybe (Q Exp)
+qqEndiannessE A.LittleEndian =
+  Just [|L.LittleEndian|]
+qqEndiannessE A.BigEndian =
+  Just [|L.BigEndian|]
+
+qqAlignmentInfoE :: A.AlignmentInfo -> Maybe (Q Exp)
+qqAlignmentInfoE (A.AlignmentInfo x1 x2) =
+  Just [|L.AlignmentInfo $(qqE x1) $(qqE x2)|]
+
+qqAlignTypeE :: A.AlignType -> Maybe (Q Exp)
+qqAlignTypeE A.IntegerAlign =
+  Just [|L.IntegerAlign|]
+qqAlignTypeE A.VectorAlign =
+  Just [|L.VectorAlign|]
+qqAlignTypeE A.FloatAlign =
+  Just [|L.FloatAlign|]
+qqAlignTypeE A.AggregateAlign =
+  Just [|L.AggregateAlign|]
+qqAlignTypeE A.StackAlign =
+  Just [|L.StackAlign|]
+
+qqDataLayoutE :: A.DataLayout -> Maybe (Q Exp)
+qqDataLayoutE (A.DataLayout x1 x2 x3 x4 x5) =
+  Just [|L.DataLayout $(qqE x1) $(qqE x2) $(qqE x3) $(qqE x4) $(qqE x5)|]
+qqDataLayoutE (A.AntiDataLayout s) =
+  Just $ antiVarE s
+
+
 qqE :: Data a => a -> Q Exp
 qqE x = dataToExpQ qqExp x
 
@@ -464,6 +493,11 @@ qqExp = const Nothing `extQ` qqDefinitionE
                       `extQ` (qqMapE :: M.Map A.AddrSpace (Word32, A.AlignmentInfo) -> Maybe (Q Exp))
                       `extQ` (qqMapE :: M.Map (A.AlignType, Word32) A.AlignmentInfo -> Maybe (Q Exp))
                       `extQ` (qqSetE :: S.Set Word32 -> Maybe (Q Exp))
+                      `extQ` qqEndiannessE
+                      `extQ` qqAlignmentInfoE
+                      `extQ` qqAlignTypeE
+                      `extQ` qqDataLayoutE
+
 
 antiVarP :: String -> PatQ
 antiVarP = either fail return . parsePat
@@ -793,6 +827,34 @@ qqInlineAssemblyP (A.InlineAssembly x1 x2 x3 x4 x5 x6) =
   Just [p|L.InlineAssembly $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4) $(qqP x5)
                           $(qqP x6)|]
 
+qqEndiannessP :: A.Endianness -> Maybe (Q Pat)
+qqEndiannessP A.LittleEndian =
+  Just [p|L.LittleEndian|]
+qqEndiannessP A.BigEndian =
+  Just [p|L.BigEndian|]
+
+qqAlignmentInfoP :: A.AlignmentInfo -> Maybe (Q Pat)
+qqAlignmentInfoP (A.AlignmentInfo x1 x2) =
+  Just [p|L.AlignmentInfo $(qqP x1) $(qqP x2)|]
+
+qqAlignTypeP :: A.AlignType -> Maybe (Q Pat)
+qqAlignTypeP A.IntegerAlign =
+  Just [p|L.IntegerAlign|]
+qqAlignTypeP A.VectorAlign =
+  Just [p|L.VectorAlign|]
+qqAlignTypeP A.FloatAlign =
+  Just [p|L.FloatAlign|]
+qqAlignTypeP A.AggregateAlign =
+  Just [p|L.AggregateAlign|]
+qqAlignTypeP A.StackAlign =
+  Just [p|L.StackAlign|]
+
+qqDataLayoutP :: A.DataLayout -> Maybe (Q Pat)
+qqDataLayoutP (A.DataLayout x1 x2 x3 x4 x5) =
+  Just [p|L.DataLayout $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4) $(qqP x5)|]
+qqDataLayoutP (A.AntiDataLayout s) =
+  Just $ antiVarP s
+
 qqP :: Data a => a -> Q Pat
 qqP x = dataToPatQ qqPat x
 
@@ -821,6 +883,10 @@ qqPat = const Nothing `extQ` qqDefinitionP
                       `extQ` qqTypeP
                       `extQ` qqDialectP
                       `extQ` qqInlineAssemblyP
+                      `extQ` qqEndiannessP
+                      `extQ` qqAlignmentInfoP
+                      `extQ` qqAlignTypeP
+                      `extQ` qqDataLayoutP
 
 parse :: [A.Extensions]
       -> P.P a
