@@ -33,6 +33,12 @@ import qualified LLVM.General.AST.Constant as L
   (Constant(Int, Float, Null, Struct, Array, Vector, Undef, BlockAddress, GlobalReference))
 import qualified LLVM.General.AST.Float as L
 import qualified LLVM.General.AST.InlineAssembly as L
+import qualified LLVM.General.AST.DataLayout as A
+import qualified LLVM.General.AST.AddrSpace as A
+
+import qualified Data.Map as M
+import qualified Data.Set as S
+
 class ToDefintion a where
   toDefinition :: a -> L.Definition
 instance ToDefintion L.Definition where
@@ -419,6 +425,14 @@ qqInlineAssemblyE (A.InlineAssembly x1 x2 x3 x4 x5 x6) =
   Just [|L.InlineAssembly $(qqE x1) $(qqE x2) $(qqE x3) $(qqE x4) $(qqE x5)
                           $(qqE x6)|]
 
+qqMapE :: (Data a, Data b) => M.Map a b -> Maybe (Q Exp)
+qqMapE m =
+  Just [|M.fromList $(qqE (M.toList m))|]
+
+qqSetE :: Data a => S.Set a -> Maybe (Q Exp)
+qqSetE m =
+  Just [|S.fromList $(qqE (S.toList m))|]
+
 qqE :: Data a => a -> Q Exp
 qqE x = dataToExpQ qqExp x
 
@@ -447,6 +461,9 @@ qqExp = const Nothing `extQ` qqDefinitionE
                       `extQ` qqTypeE
                       `extQ` qqDialectE
                       `extQ` qqInlineAssemblyE
+                      `extQ` (qqMapE :: M.Map A.AddrSpace (Word32, A.AlignmentInfo) -> Maybe (Q Exp))
+                      `extQ` (qqMapE :: M.Map (A.AlignType, Word32) A.AlignmentInfo -> Maybe (Q Exp))
+                      `extQ` (qqSetE :: S.Set Word32 -> Maybe (Q Exp))
 
 antiVarP :: String -> PatQ
 antiVarP = either fail return . parsePat
