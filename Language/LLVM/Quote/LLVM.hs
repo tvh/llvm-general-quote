@@ -11,7 +11,7 @@ import Language.LLVM.Quote.Base (quasiquote)
 import Language.Haskell.TH.Quote (QuasiQuoter)
 
 exts :: [A.Extensions]
-exts = []
+exts = [A.Loops]
 
 llmod :: QuasiQuoter
 llmod = quasiquote exts P.parseModule

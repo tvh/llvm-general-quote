@@ -45,7 +45,9 @@ import qualified Data.Map as M
 import qualified Data.Set as S
 import Language.Haskell.TH.Lift
 
-data Extensions = Antiquotation
+data Extensions
+  = Antiquotation
+  | Loops
   deriving (Eq, Ord, Enum, Show)
 type ExtensionsInt = Word32
 
@@ -102,6 +104,18 @@ data Parameter
 -- some instructions, and a terminator.
 data BasicBlock
   = BasicBlock Name [Named Instruction] (Named Terminator)
+  | ForLoop {
+    label :: Name,
+    iterType :: Type,
+    iterName :: Name,
+    from :: Operand,
+    to :: Operand,
+    _elementType :: Type,
+    _element :: [(Operand,Name)],
+    _elementName :: Name,
+    body :: [Named Instruction],
+    result :: Operand,
+    next :: Name}
   | AntiBasicBlock String
   | AntiBasicBlockList String
   deriving (Eq, Read, Show, Typeable, Data)

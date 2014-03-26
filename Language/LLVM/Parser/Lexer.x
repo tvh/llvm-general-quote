@@ -60,7 +60,7 @@ $whitechar = [\ \t\n\r\f\v]
                | [lL] [lL] [uU]?
                | [uU] [lL] [lL]
 
-@idText = [a-z A-Z \$ \. \_] [a-z A-Z \$ \. \_ 0-9]*
+@idText = [a-z A-Z \. \_] [a-z A-Z \. \_ 0-9]*
 @identifier = [@\%] ( @decimalConstant
                     | @idText)
 @jumpLabel = @idText ":"

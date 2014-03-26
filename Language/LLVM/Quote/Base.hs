@@ -27,6 +27,7 @@ import Language.Haskell.TH.Quote (QuasiQuoter(..),
 
 import qualified Language.LLVM.Parser as P
 import qualified Language.LLVM.AST as A
+import qualified LLVM.General.AST.IntegerPredicate as AI
 import qualified LLVM.General.AST as L
 import qualified LLVM.General.AST.Constant as L
   (Constant(Int, Float, Null, Struct, Array, Vector, Undef, BlockAddress, GlobalReference))
@@ -127,16 +128,46 @@ qqParameterE a@(A.AntiParameterList _s) =
 
 qqBasicBlockListE :: [A.BasicBlock] -> Maybe (Q Exp)
 qqBasicBlockListE [] = Just [|[]|]
+qqBasicBlockListE (A.ForLoop label iterType iterName from to elementType element elementName body result next : defs) =
+  Just [|$(qqE forLoop) ++ $(qqE defs)|]
+ where
+  forLoop :: [A.BasicBlock]
+  forLoop =
+    let labelString = case label of
+                        A.Name s -> s
+                        A.UnName n -> "num"++show n
+                        A.AntiName s -> error $ "Error: antiquotation for names not legal in for-header " ++ s
+        cond = A.Name $ labelString ++ ".cond"
+        iterNameNew = A.Name $ case iterName of
+                        A.Name s -> s ++ ".new"
+                        A.UnName n -> "num"++show n++".new"
+                        A.AntiName s -> error $ "Error: antiquotation for names not legal in for-header " ++ s
+        iterBits = case iterType of
+                     A.IntegerType n -> n
+                     t -> error $ "Internal Error: unexpected type " ++ show t
+        iter = (A.LocalReference iterName)
+        preInstrs = 
+          [ iterName A.:= A.Phi iterType ((A.LocalReference iterNameNew,bodyLabel):map (\(_,s) -> (from,s)) element) []
+          , elementName A.:= A.Phi elementType ((result,bodyLabel):element) []
+          , cond A.:= A.ICmp AI.ULE iter to []
+          ]
+        bodyLabel = A.Name $ labelString ++ ".body"
+        body' = [iterNameNew A.:= A.Add True True iter (A.ConstantOperand $ A.Int iterBits 1) []] ++ body
+        pre  = A.BasicBlock label preInstrs (A.Do $ A.CondBr (A.LocalReference cond) bodyLabel next [])
+        main = A.BasicBlock bodyLabel body' (A.Do $ A.Br label [])
+    in [pre,main]
 qqBasicBlockListE (A.AntiBasicBlockList v : defs) =
-    Just [|$(antiVarE v) ++ $(qqE defs)|]
+  Just [|$(antiVarE v) ++ $(qqE defs)|]
 qqBasicBlockListE (def : defs) =
-    Just [|$(qqE def) : $(qqE defs)|]
+  Just [|$(qqE def) : $(qqE defs)|]
 
 qqBasicBlockE :: A.BasicBlock -> Maybe (Q Exp)
 qqBasicBlockE (A.BasicBlock x1 x2 x3) =
   Just [|L.BasicBlock $(qqE x1) $(qqE x2) $(qqE x3)|]
 qqBasicBlockE (A.AntiBasicBlock s) =
   Just $ antiVarE s
+qqBasicBlockE a@A.ForLoop{} =
+  error $ "Internal Error: unexpected loop " ++ show a
 qqBasicBlockE a@(A.AntiBasicBlockList _s) =
   error $ "Internal Error: unexpected antiquote " ++ show a
 
@@ -492,6 +523,8 @@ qqBasicBlockP (A.BasicBlock x1 x2 x3) =
   Just [p|L.BasicBlock $(qqP x1) $(qqP x2) $(qqP x3)|]
 qqBasicBlockP (A.AntiBasicBlock s) =
   Just $ antiVarP s
+qqBasicBlockP a@A.ForLoop{} =
+  error $ "Error: for-loop not allowed in pattern quote " ++ show a
 qqBasicBlockP a@(A.AntiBasicBlockList _s) =
   error $ "Internal Error: unexpected antiquote " ++ show a
 

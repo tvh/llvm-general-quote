@@ -176,6 +176,12 @@ data Token
   | Tssp
   | Tsspreq
   | Tuwtable
+  -- Loops
+  | Tfor
+  | Tin
+  | Twith
+  | Tretfor
+  | Tas
   -- Anti-Quotation
   | Tanti_def String
   | Tanti_defs String
@@ -324,7 +330,12 @@ keywords = [("define",            Tdefine,          Nothing),
             ("uwtable",           Tuwtable,         Nothing),
             ("global",            Tglobal,          Nothing),
             ("constant",          Tconstant,        Nothing),
-            ("alias",             Talias,           Nothing)
+            ("alias",             Talias,           Nothing),
+            ("for",               Tfor,             Just [Loops]),
+            ("in",                Tin,              Just [Loops]),
+            ("with",              Twith,            Just [Loops]),
+            ("retfor",            Tretfor,          Just [Loops]),
+            ("as",                Tas,              Just [Loops])
            ]
 
 keywordMap :: Map.Map String (Token, Maybe ExtensionsInt)

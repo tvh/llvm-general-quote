@@ -181,6 +181,12 @@ import qualified LLVM.General.AST.FloatingPointPredicate as AF
  'constant'         { L _ T.Tconstant }
  'alias'            { L _ T.Talias }
  
+ 'for'              { L _ T.Tfor }
+ 'in'               { L _ T.Tin }
+ 'with'             { L _ T.Twith }
+ 'retfor'           { L _ T.Tretfor }
+ 'as'               { L _ T.Tas }
+
  ANTI_DEF           { L _ (T.Tanti_def $$) }
  ANTI_DEFS          { L _ (T.Tanti_defs $$) }
  ANTI_BB            { L _ (T.Tanti_bb $$) }
@@ -467,10 +473,16 @@ terminator :
 
 basicBlock :: { A.BasicBlock }
 basicBlock :
-    JUMPLABEL instructions namedT     { A.BasicBlock (A.Name $1) (rev $2) $3 }
-  | instructions namedT               { A.BasicBlock (A.UnName 0) (rev $1) $2 }
-  | ANTI_BB                           { A.AntiBasicBlock $1 }
-  | ANTI_BBS                          { A.AntiBasicBlockList $1 }
+    JUMPLABEL instructions namedT
+      { A.BasicBlock (A.Name $1) (rev $2) $3 }
+  | instructions namedT
+      { A.BasicBlock (A.UnName 0) (rev $1) $2 }
+  | JUMPLABEL 'for' type name 'in' operand 'to' operand 'with' type phiList 'as' name '{' instructions 'retfor' tOperand ',' 'label' name '}'
+      { A.ForLoop (A.Name $1) $3 $4 ($6 $3) ($8 $3) $10 (rev ($11 $10)) $13 (rev $15) $17 $20 } 
+  | ANTI_BB
+      { A.AntiBasicBlock $1 }
+  | ANTI_BBS
+      { A.AntiBasicBlockList $1 }
 
 basicBlocks :: { RevList (A.BasicBlock) }
 basicBlocks :
