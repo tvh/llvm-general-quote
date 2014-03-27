@@ -217,7 +217,7 @@ import qualified LLVM.General.AST.RMWOperation as AR
  'fastcc'           { L _ T.Tfastcc }
  'coldcc'           { L _ T.Tcoldcc }
  'cc'               { L _ T.Tcc }
-
+ 'atomic'           { L _ T.Tatomic }
 
  'for'              { L _ T.Tfor }
  'in'               { L _ T.Tin }
@@ -308,12 +308,25 @@ tOperand :
 nuw :: { Bool }
 nuw :
     {- empty  -}        { False }
-  | 'nuw'          { True }
+  | 'nuw'               { True }
 
 nsw :: { Bool }
 nsw :
     {- empty  -}        { False }
-  | 'nsw'          { True }
+  | 'nsw'               { True }
+
+fmflag :: { () }
+fmflag :
+    'nnan'       { () }
+  | 'ninf'       { () }
+  | 'nsz'        { () }
+  | 'arcp'       { () }
+  | 'fast'       { () }
+
+fmflags :: { () }
+fmflags :
+    {- empty -}         { () }
+  | fmflags fmflag      {% fail "fast-math flags are not supported at this time" }
 
 volatile :: { Bool }
 volatile :
@@ -457,17 +470,17 @@ idxs :
 instruction :: { A.Instruction }
 instruction :
     'add' nuw nsw type operand ',' operand  { A.Add $2 $3 ($5 $4) ($7 $4) [] }
-  | 'fadd' type operand ',' operand         { A.FAdd ($3 $2) ($5 $2) [] }
+  | 'fadd' fmflags type operand ',' operand { A.FAdd ($4 $3) ($6 $3) [] }
   | 'sub' nuw nsw type operand ',' operand  { A.Sub $2 $3 ($5 $4) ($7 $4) [] }
-  | 'fsub' type operand ',' operand         { A.FSub ($3 $2) ($5 $2) [] }
+  | 'fsub' fmflags type operand ',' operand { A.FSub ($4 $3) ($6 $3) [] }
   | 'mul' nuw nsw type operand ',' operand  { A.Mul $2 $3 ($5 $4) ($7 $4) [] }
-  | 'fmul' type operand ',' operand         { A.FMul ($3 $2) ($5 $2) [] }
+  | 'fmul' fmflags type operand ',' operand { A.FMul ($4 $3) ($6 $3) [] }
   | 'udiv' type operand ',' operand         { A.UDiv False ($3 $2) ($5 $2) [] }
   | 'sdiv' type operand ',' operand         { A.SDiv False ($3 $2) ($5 $2) [] }
-  | 'fdiv' type operand ',' operand         { A.FDiv ($3 $2) ($5 $2) [] }
+  | 'fdiv' fmflags type operand ',' operand { A.FDiv ($4 $3) ($6 $3) [] }
   | 'urem' type operand ',' operand         { A.URem ($3 $2) ($5 $2) [] }
   | 'srem' type operand ',' operand         { A.SRem ($3 $2) ($5 $2) [] }
-  | 'frem' type operand ',' operand         { A.FRem ($3 $2) ($5 $2) [] }
+  | 'frem' fmflags type operand ',' operand { A.FRem ($4 $3) ($6 $3) [] }
   | 'shl' nuw nsw type operand ',' operand  { A.Shl $2 $3 ($5 $4) ($7 $4) [] }
   | 'lshr' type operand ',' operand         { A.LShr False ($3 $2) ($5 $2) [] }
   | 'ashr' type operand ',' operand         { A.AShr False ($3 $2) ($5 $2) [] }
@@ -476,13 +489,20 @@ instruction :
   | 'xor' type operand ',' operand          { A.Xor ($3 $2) ($5 $2) [] }
   | 'alloca' type mOperand alignment        { A.Alloca $2 ($3 $2) $4 [] }
   | 'load' volatile tOperand alignment      { A.Load $2 $3 Nothing $4 [] }
+  | 'load' 'atomic' volatile tOperand atomicity alignment      { A.Load $3 $4 (Just $5) $6 [] }
   | 'store' volatile tOperand ',' tOperand alignment 
                                             { A.Store $2 $5 $3 Nothing $6 [] }
+  | 'store' 'atomic' volatile tOperand ',' tOperand atomicity alignment 
+                                            { A.Store $3 $6 $4 (Just $7) $8 [] }
   | 'getelementptr' inBounds tOperand indices
                                             { A.GetElementPtr $2 $3 (rev $4) [] }
   | 'fence' atomicity                       { A.Fence $2 [] }
-  | 'atomicrmw' rmwOperation tOperand ',' tOperand atomicity
-                                            { A.AtomicRMW False $2 $3 $5 $6 [] }
+  | 'cmpxchg' volatile tOperand ',' tOperand ',' tOperand atomicity
+                                            { A.CmpXchg $2 $3 $5 $7 $8 [] }
+  | 'cmpxchg' volatile tOperand ',' tOperand ',' tOperand atomicity memoryOrdering
+                                            {% fail "cmpxchg has only one ordering in this implementation, sry." }
+  | 'atomicrmw' volatile rmwOperation tOperand ',' tOperand atomicity
+                                            { A.AtomicRMW $2 $3 $4 $6 $7 [] }
   | 'trunc' tOperand 'to' type              { A.Trunc $2 $4 [] }
   | 'zext' tOperand 'to' type               { A.ZExt $2 $4 [] }
   | 'sext' tOperand 'to' type               { A.SExt $2 $4 [] }
