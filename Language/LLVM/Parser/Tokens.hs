@@ -84,6 +84,7 @@ data Token
   | Tcoldcc
   | Tcc
   | Tatomic
+  | Tnull
   -- Finalizer
   | Tret
   | Tbr
@@ -413,6 +414,7 @@ keywords = [("define",            Tdefine,          Nothing),
             ("coldcc",            Tcoldcc,          Nothing),
             ("cc",                Tcc,              Nothing),
             ("atomic",            Tatomic,          Nothing),
+            ("null",              Tnull,            Nothing),
             ("for",               Tfor,             Just [Loops]),
             ("in",                Tin,              Just [Loops]),
             ("with",              Twith,            Just [Loops]),

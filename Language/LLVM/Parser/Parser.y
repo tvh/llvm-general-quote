@@ -222,6 +222,7 @@ import qualified LLVM.General.AST.RMWOperation as AR
  'coldcc'           { L _ T.Tcoldcc }
  'cc'               { L _ T.Tcc }
  'atomic'           { L _ T.Tatomic }
+ 'null'             { L _ T.Tnull }
 
  'for'              { L _ T.Tfor }
  'in'               { L _ T.Tin }
@@ -266,7 +267,8 @@ constant :
   | '-' INT               { intConstant (-$2) }
   | FLOAT                 { floatConstant $1 }
   | '-' FLOAT             { floatConstant (-$2) }
-  | 'zeroinitializer'     { A.Null }
+  | 'zeroinitializer'     {% fail "'zeroinitializer' is not supported at the moment" }
+  | 'null'                { A.Null }
   | '{' constantList '}'  { \_ -> A.Struct Nothing False (rev $2) }
   | '[' constantList ']'  { \t -> A.Array t (rev $2) }
   | '<' constantList '>'  { \_ -> A.Vector (rev $2) }
@@ -779,17 +781,22 @@ global :
  -
  -----------------------------------------------------------------------------}
 
-operandList :: { RevList A.Operand }
-operandList :
-    {- empty -}                { RNil }
-  | tOperand                    { RCons $1 RNil }
-  | operandList ',' tOperand    { RCons $3 $1 }
+metadataItem :: { Maybe A.Operand }
+metadataItem :
+    tOperand                    { Just $1 }
+  | 'null'                      { Nothing }
+
+metadataList :: { RevList (Maybe A.Operand) }
+metadataList :
+    {- empty -}                     { RNil }
+  | metadataItem                    { RCons $1 RNil }
+  | metadataList ',' metadataItem   { RCons $3 $1 }
 
 definition :: { A.Definition }
 definition :
     global         { A.GlobalDefinition $1 }
-  | metadataNodeID '=' 'metadata' '!' '{' operandList '}'
-                   { A.MetadataNodeDefinition $1 (map Just (rev $6)) }
+  | metadataNodeID '=' 'metadata' '!' '{' metadataList '}'
+                   { A.MetadataNodeDefinition $1 (rev $6) }
   | NAMED_META '=' '!' '{' metadataNodeIDs '}'
                    { A.NamedMetadataDefinition $1 (rev $5) }
   | ANTI_DEF       { A.AntiDefinition $1 }
