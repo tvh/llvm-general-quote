@@ -22,6 +22,7 @@ library
     Language.LLVM.Parser.Tokens,
     Language.LLVM.Parser.Monad,
     Language.LLVM.Parser.Parser,
+    Language.LLVM.Parser,
     Language.LLVM.AST,
     Language.LLVM.Quote.Base,
     Language.LLVM.Quote.LLVM
