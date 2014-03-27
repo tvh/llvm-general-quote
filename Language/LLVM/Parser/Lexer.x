@@ -61,8 +61,8 @@ $whitechar = [\ \t\n\r\f\v]
                | [uU] [lL] [lL]
 
 @idText = [a-z A-Z \. \_] [a-z A-Z \. \_ 0-9]*
-@identifier = [@\%] ( @decimalConstant
-                    | @idText)
+@identifier = [@\%\!] ( @decimalConstant
+                      | @idText)
 @jumpLabel = @idText ":"
 
 @integerType = "i" $nonzerodigit $digit*
@@ -113,6 +113,7 @@ tokens :-
  "*"   { token Tstar }
  "="   { token Tassign }
  "-"   { token Tminus }
+ "!"   { token Tbang }
 }
 
 {
@@ -135,6 +136,7 @@ identifier beg end = do
     v <- case head ident of
       '%' -> return Local
       '@' -> return Global
+      '!' -> return Meta
     case isDigit $ head $ tail ident of
       False -> return $ locateTok beg end $ Tnamed v (tail ident)
       True  -> return $ locateTok beg end $ Tunnamed v (read $ tail ident)

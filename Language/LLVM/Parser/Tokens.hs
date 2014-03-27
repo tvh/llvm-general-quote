@@ -17,6 +17,7 @@ import Data.List (foldl')
 data Visibility
   = Global
   | Local
+  | Meta
   deriving (Eq, Ord, Show)
 
 data Token
@@ -39,6 +40,7 @@ data Token
   | Tassign
   | Tstar
   | Tminus
+  | Tbang
   | Tx
   | Tzeroinitializer
   | Tundef
@@ -187,6 +189,7 @@ data Token
   | Tdouble
   | TintegerType Word32
   | Tvoid
+  | Tmetadata
   -- Parameter Attributes
   | Tzeroext
   | Tsignext
@@ -351,6 +354,7 @@ keywords = [("define",            Tdefine,          Nothing),
             ("double",            Tdouble,          Nothing),
             ("float",             Tfloat,           Nothing),
             ("void",              Tvoid,            Nothing),
+            ("metadata",          Tmetadata,        Nothing),
             ("alignstack",        Talignstack,      Nothing),
             ("alwaysinline",      Talwaysinline,    Nothing),
             ("inlinehint",        Tinlinehint,      Nothing),

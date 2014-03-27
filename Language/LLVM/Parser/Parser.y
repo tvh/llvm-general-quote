@@ -36,8 +36,10 @@ import qualified LLVM.General.AST.RMWOperation as AR
  STRING              { L _ (T.TstringConst $$) }
  NAMED_GLOBAL        { L _ (T.Tnamed T.Global $$) }
  NAMED_LOCAL         { L _ (T.Tnamed T.Local $$) }
+ NAMED_META          { L _ (T.Tnamed T.Meta $$) }
  UNNAMED_GLOBAL      { L _ (T.Tunnamed T.Global $$) }
  UNNAMED_LOCAL       { L _ (T.Tunnamed T.Local $$) }
+ UNNAMED_META        { L _ (T.Tunnamed T.Meta $$) }
  JUMPLABEL           { L _ (T.TjumpLabel $$) }
  '('    { L _ T.Tlparen }
  ')'    { L _ T.Trparen }
@@ -51,6 +53,7 @@ import qualified LLVM.General.AST.RMWOperation as AR
  '='    { L _ T.Tassign }
  '*'    { L _ T.Tstar }
  '-'    { L _ T.Tminus }
+ '!'    { L _ T.Tbang }
  'x'    { L _ T.Tx }
  'zeroinitializer'  { L _ T.Tzeroinitializer }
  'undef'            { L _ T.Tundef }
@@ -153,6 +156,7 @@ import qualified LLVM.General.AST.RMWOperation as AR
  'float'            { L _ T.Tfloat }
  'double'           { L _ T.Tdouble }
  INTEGERTYPE        { L _ (T.TintegerType $$) }
+ 'metadata'         { L _ T.Tmetadata }
  'zeroext'          { L _ T.Tzeroext }
  'signext'          { L _ T.Tsignext }
  'inreg'            { L _ T.Tinreg }
@@ -289,6 +293,8 @@ operand :: { A.Type -> A.Operand }
 operand :
     constant            { A.ConstantOperand . $1 }
   | name                { \_ -> A.LocalReference $1 }
+  | '!' STRING          { \A.MetadataType -> A.MetadataStringOperand $2 }
+  | metadataNode        { \A.MetadataType -> A.MetadataNodeOperand $1 }
 
 mOperand :: { A.Type -> Maybe A.Operand }
 mOperand :
@@ -467,9 +473,28 @@ idxs :
     idx            { RCons $1 RNil }
   | idxs ',' idx   { RCons $3 $1 }
 
-instructionMetaData :: { A.InstructionMetadata }
-instructionMetaData :
-    {- empty -}     { [] }
+metadataNodeID :: { A.MetadataNodeID }
+metadataNodeID :
+    UNNAMED_META       { A.MetadataNodeID $1 }
+
+metadataNodeIDs :: { RevList A.MetadataNodeID }
+metadataNodeIDs :
+    metadataNodeID                      { RCons $1 RNil }
+  | metadataNodeIDs ',' metadataNodeID  { RCons $3 $1 }
+
+metadataNode :: { A.MetadataNode }
+metadataNode :
+    metadataNodeID      { A.MetadataNodeReference $1 }
+
+instructionMetaDataItem :: { (String, A.MetadataNode) }
+instructionMetaDataItem :
+    ',' NAMED_META metadataNode   { ($2,$3) }
+
+instructionMetadata :: { RevList (String, A.MetadataNode) }
+instructionMetadata :
+    {- empty -}               { RNil }
+  | instructionMetadata instructionMetaDataItem
+                              { RCons $2 $1 }
 
 instruction_ :: { A.InstructionMetadata -> A.Instruction }
 instruction_ :
@@ -542,7 +567,7 @@ instruction_ :
 
 instruction :: { A.Instruction }
 instruction :
-  instruction_ instructionMetaData   { $1 $2 }
+  instruction_ instructionMetadata   { $1 (rev $2) }
 
 name :: { A.Name }
 name :
@@ -601,7 +626,7 @@ terminator_ :
 
 terminator :: { A.Terminator }
 terminator :
-  terminator_ instructionMetaData   { $1 $2 }
+  terminator_ instructionMetadata   { $1 (rev $2) }
 
 {------------------------------------------------------------------------------
  -
@@ -651,6 +676,7 @@ type :
   | '{' typeList '}'          { A.StructureType False (rev $2) }
   | '<' '{' typeList '}' '>'  { A.StructureType True (rev $3) }
   | '[' INT 'x' type ']'      { A.ArrayType (fromIntegral $2) $4 }
+  | 'metadata'                { A.MetadataType }
 
 typeList :: { RevList A.Type }
 typeList :
@@ -753,9 +779,19 @@ global :
  -
  -----------------------------------------------------------------------------}
 
+operandList :: { RevList A.Operand }
+operandList :
+    {- empty -}                { RNil }
+  | tOperand                    { RCons $1 RNil }
+  | operandList ',' tOperand    { RCons $3 $1 }
+
 definition :: { A.Definition }
 definition :
     global         { A.GlobalDefinition $1 }
+  | metadataNodeID '=' 'metadata' '!' '{' operandList '}'
+                   { A.MetadataNodeDefinition $1 (map Just (rev $6)) }
+  | NAMED_META '=' '!' '{' metadataNodeIDs '}'
+                   { A.NamedMetadataDefinition $1 (rev $5) }
   | ANTI_DEF       { A.AntiDefinition $1 }
   | ANTI_DEFS      { A.AntiDefinitionList $1 }
 
