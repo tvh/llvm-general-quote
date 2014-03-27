@@ -460,11 +460,15 @@ argument :: { (A.Operand, [A.ParameterAttribute]) }
 argument :
     type parameterAttributes operand      { ($3 $1, rev $2) }
 
+argumentList_ :: { RevList (A.Operand, [A.ParameterAttribute]) }
+argumentList_ :
+    argument                          { RCons $1 RNil }
+  | argumentList_ ',' argument        { RCons $3 $1 }
+
 argumentList :: { RevList (A.Operand, [A.ParameterAttribute]) }
 argumentList :
     {- empty -}                      { RNil }
-  | argument                         { RCons $1 RNil }
-  | argumentList ',' argument        { RCons $3 $1 }
+  | argumentList_                    { $1 }
 
 idx :: { Word32 }
 idx :
@@ -680,11 +684,15 @@ type :
   | '[' INT 'x' type ']'      { A.ArrayType (fromIntegral $2) $4 }
   | 'metadata'                { A.MetadataType }
 
+typeList_ :: { RevList A.Type }
+typeList_ :
+    type                             { RCons $1 RNil }
+  | typeList_ ',' type               { RCons $3 $1 }
+
 typeList :: { RevList A.Type }
 typeList :
     {- empty -}                      { RNil }
-  | type                             { RCons $1 RNil }
-  | typeList ',' type                { RCons $3 $1 }
+  | typeList_                        { $1 }
 
 linkage :: { A.Linkage }
 linkage :
@@ -731,11 +739,15 @@ parameter :
   | ANTI_PARAM                    { A.AntiParameter $1 }
   | ANTI_PARAMS                   { A.AntiParameterList $1 }
 
+parameterList_ :: { RevList A.Parameter }
+parameterList_ :
+    parameter                        { RCons $1 RNil }
+  | parameterList_ ',' parameter     { RCons $3 $1 }
+
 parameterList :: { RevList A.Parameter }
 parameterList :
     {- empty -}                      { RNil }
-  | parameter                        { RCons $1 RNil }
-  | parameterList ',' parameter      { RCons $3 $1 }
+  | parameterList_                   { $1 }
 
 fAttribute :: { A.FunctionAttribute }    
 fAttribute :
@@ -786,11 +798,15 @@ metadataItem :
     tOperand                    { Just $1 }
   | 'null'                      { Nothing }
 
+metadataList_ :: { RevList (Maybe A.Operand) }
+metadataList_ :
+    metadataItem                    { RCons $1 RNil }
+  | metadataList_ ',' metadataItem  { RCons $3 $1 }
+
 metadataList :: { RevList (Maybe A.Operand) }
 metadataList :
     {- empty -}                     { RNil }
-  | metadataItem                    { RCons $1 RNil }
-  | metadataList ',' metadataItem   { RCons $3 $1 }
+  | metadataList_                   { $1 }
 
 definition :: { A.Definition }
 definition :
