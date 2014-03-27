@@ -27,6 +27,7 @@ import qualified LLVM.General.AST.AddrSpace as A
 import qualified LLVM.General.AST.Attribute as A
 import qualified LLVM.General.AST.IntegerPredicate as AI
 import qualified LLVM.General.AST.FloatingPointPredicate as AF
+import qualified LLVM.General.AST.RMWOperation as AR
 }
 
 %token
@@ -179,7 +180,26 @@ import qualified LLVM.General.AST.FloatingPointPredicate as AF
  'global'           { L _ T.Tglobal }
  'constant'         { L _ T.Tconstant }
  'alias'            { L _ T.Talias }
- 
+ 'unwind'           { L _ T.Tunwind }
+ 'unordered'        { L _ T.Tunordered }
+ 'monotonic'        { L _ T.Tmonotonic }
+ 'acquire'          { L _ T.Tacquire }
+ 'release'          { L _ T.Trelease }
+ 'acq_rel'          { L _ T.Tacq_rel }
+ 'seq_cst'          { L _ T.Tseq_cst }
+ 'singlethread'     { L _ T.Tsinglethread }
+ 'xchg'             { L _ T.Txchg }
+ 'nand'             { L _ T.Tnand }
+ 'max'              { L _ T.Tmax }
+ 'min'              { L _ T.Tmin }
+ 'umax'             { L _ T.Tumax }
+ 'umin'             { L _ T.Tumin }
+ 'cleanup'          { L _ T.Tcleanup }
+ 'catch'            { L _ T.Tcatch }
+ 'filter'           { L _ T.Tfilter }
+ 'personality'      { L _ T.Tpersonality }
+
+
  'for'              { L _ T.Tfor }
  'in'               { L _ T.Tin }
  'with'             { L _ T.Twith }
@@ -328,6 +348,49 @@ fpP :
     | 'une'            { AF.UNE }  
     | 'true'           { AF.True }
 
+memoryOrdering :: { A.MemoryOrdering }
+memoryOrdering :
+    'unordered'        { A.Unordered }
+  | 'monotonic'        { A.Monotonic }
+  | 'acquire'          { A.Acquire }
+  | 'release'          { A.Release }
+  | 'acq_rel'          { A.AcquireRelease }
+  | 'seq_cst'          { A.SequentiallyConsistent }
+
+atomicity :: { A.Atomicity }
+atomicity :
+    'singlethread' memoryOrdering    { A.Atomicity False $2 }
+  | memoryOrdering                    { A.Atomicity True $1 }
+
+rmwOperation :: { AR.RMWOperation }
+rmwOperation :
+    'xchg'           { AR.Xchg }
+  | 'add'            { AR.Add }
+  | 'sub'            { AR.Sub }
+  | 'and'            { AR.And }
+  | 'nand'           { AR.Nand }
+  | 'or'             { AR.Or }
+  | 'xor'            { AR.Xor }
+  | 'max'            { AR.Max }
+  | 'min'            { AR.Min }
+  | 'umax'           { AR.UMax }
+  | 'umin'           { AR.UMin }
+
+cleanup :: { Bool }
+cleanup :
+    {- empty -}        { False }
+  | 'cleanup'          { True }
+
+clause :: { A.LandingPadClause }
+clause :
+    'catch' tConstant     { A.Catch $2 }
+  | 'filter' tConstant    { A.Filter $2 }
+
+clauses :: { RevList A.LandingPadClause }
+clauses :
+    {- empty -}        { RNil }
+  | clauses clause     { RCons $2 $1 }
+
 phiItem :: { A.Type -> (A.Operand, A.Name) }
 phiItem :
     '[' operand ',' name ']'     { \t -> ($2 t, $4) }
@@ -337,9 +400,25 @@ phiList :
     phiItem                { \t -> RCons ($1 t) RNil }
   | phiList ',' phiItem    { \t -> RCons ($3 t) ($1 t) }
 
+parameterAttribute :: { A.ParameterAttribute }
+parameterAttribute :
+    'zeroext'          { A.ZeroExt }
+  | 'signext'          { A.SignExt }
+  | 'inreg'            { A.InReg }
+  | 'sret'             { A.SRet }
+  | 'noalias'          { A.NoAlias }
+  | 'byval'            { A.ByVal }
+  | 'nocapture'        { A.NoCapture }
+  | 'nest'             { A.Nest }
+
+parameterAttributes :: { RevList A.ParameterAttribute }
+parameterAttributes :
+    {- empty -}                                { RNil }
+  | parameterAttributes parameterAttribute     { RCons $2 $1 }
+
 argument :: { (A.Operand, [A.ParameterAttribute]) }
 argument :
-    tOperand      { ($1, []) }
+    type parameterAttributes operand      { ($3 $1, rev $2) }
 
 argumentList :: { RevList (A.Operand, [A.ParameterAttribute]) }
 argumentList :
@@ -382,6 +461,9 @@ instruction :
                                             { A.Store $2 $5 $3 Nothing $6 [] }
   | 'getelementptr' inBounds tOperand indices
                                             { A.GetElementPtr $2 $3 (rev $4) [] }
+  | 'fence' atomicity                       { A.Fence $2 [] }
+  | 'atomicrmw' rmwOperation tOperand ',' tOperand atomicity
+                                            { A.AtomicRMW False $2 $3 $5 $6 [] }
   | 'trunc' tOperand 'to' type              { A.Trunc $2 $4 [] }
   | 'zext' tOperand 'to' type               { A.ZExt $2 $4 [] }
   | 'sext' tOperand 'to' type               { A.SExt $2 $4 [] }
@@ -411,6 +493,8 @@ instruction :
   | 'extractvalue' tOperand ',' idxs        { A.ExtractValue $2 (rev $4) [] }
   | 'insertvalue' tOperand ',' tOperand ',' idxs
                                             { A.InsertValue $2 $4 (rev $6) [] }
+  | 'landingpad' type 'personality' tOperand cleanup clauses
+                                            { A.LandingPad $2 $4 $5 (rev $6) [] }
   | ANTI_INSTR                              { A.AntiInstruction $1 }
 
 name :: { A.Name }
@@ -463,6 +547,8 @@ terminator :
                           { A.Switch ($3 $2) $6 (rev $8) [] }
   | 'indirectbr' tOperand ',' '[' labels ']'
                           { A.IndirectBr $2 (rev $5) [] }
+  | 'invoke' tOperand '(' argumentList ')' 'to' 'label' name 'unwind' 'label' name
+                          { A.Invoke A.C [] (Right $2) (rev $4) [] $8 $11 [] }
   | 'resume' tOperand     { A.Resume $2 [] }
   | 'unreachable'         { A.Unreachable [] }
 

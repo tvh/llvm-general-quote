@@ -66,7 +66,7 @@ $whitechar = [\ \t\n\r\f\v]
 @jumpLabel = @idText ":"
 
 @integerType = "i" $nonzerodigit $digit*
-@keyword = [a-z]+ ($nonzerodigit $digit*)?
+@keyword = [a-z \_]+ ($nonzerodigit $digit*)?
 
 tokens :-
 

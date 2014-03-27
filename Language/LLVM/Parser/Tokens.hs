@@ -45,6 +45,24 @@ data Token
   | Tglobal
   | Tconstant
   | Talias
+  | Tunwind
+  | Tunordered
+  | Tmonotonic
+  | Tacquire
+  | Trelease
+  | Tacq_rel
+  | Tseq_cst
+  | Tsinglethread
+  | Txchg
+  | Tnand
+  | Tmax
+  | Tmin
+  | Tumax
+  | Tumin
+  | Tcleanup
+  | Tcatch
+  | Tfilter
+  | Tpersonality
   -- Finalizer
   | Tret
   | Tbr
@@ -333,6 +351,24 @@ keywords = [("define",            Tdefine,          Nothing),
             ("global",            Tglobal,          Nothing),
             ("constant",          Tconstant,        Nothing),
             ("alias",             Talias,           Nothing),
+            ("unwind",            Tunwind,          Nothing),
+            ("unordered",         Tunordered,       Nothing),
+            ("monotonic",         Tmonotonic,       Nothing),
+            ("acquire",           Tacquire,         Nothing),
+            ("release",           Trelease,         Nothing),
+            ("acq_rel",           Tacq_rel,         Nothing),
+            ("seq_cst",           Tseq_cst,         Nothing),
+            ("singlethread",      Tsinglethread,    Nothing),
+            ("xchg",              Txchg,            Nothing),
+            ("nand",              Tnand,            Nothing),
+            ("max",               Tmax,             Nothing),
+            ("min",               Tmin,             Nothing),
+            ("umax",              Tumax,            Nothing),
+            ("umin",              Tumin,            Nothing),
+            ("cleanup",           Tcleanup,         Nothing),
+            ("catch",             Tcatch,           Nothing),
+            ("filter",            Tfilter,          Nothing),
+            ("personality",       Tpersonality,     Nothing),
             ("for",               Tfor,             Just [Loops]),
             ("in",                Tin,              Just [Loops]),
             ("with",              Twith,            Just [Loops]),
