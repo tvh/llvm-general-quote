@@ -63,6 +63,24 @@ data Token
   | Tcatch
   | Tfilter
   | Tpersonality
+  | Tprivate
+  | Tinternal
+  | Tavailable_externally
+  | Tlinkonce
+  | Tweak
+  | Tcommon
+  | Tappending
+  | Textern_weak
+  | Tlinkonce_odr
+  | Tweak_odr
+  | Texternal
+  | Tdefault
+  | Thidden
+  | Tprotected
+  | Tccc
+  | Tfastcc
+  | Tcoldcc
+  | Tcc
   -- Finalizer
   | Tret
   | Tbr
@@ -369,6 +387,26 @@ keywords = [("define",            Tdefine,          Nothing),
             ("catch",             Tcatch,           Nothing),
             ("filter",            Tfilter,          Nothing),
             ("personality",       Tpersonality,     Nothing),
+            ("private",           Tprivate,         Nothing),
+            ("internal",          Tinternal,        Nothing),
+            ("available_externally",
+                                  Tavailable_externally,
+                                                    Nothing),
+            ("linkonce",          Tlinkonce,        Nothing),
+            ("weak",              Tweak,            Nothing),
+            ("common",            Tcommon,          Nothing),
+            ("appending",         Tappending,       Nothing),
+            ("extern_weak",       Textern_weak,     Nothing),
+            ("linkonce_odr",      Tlinkonce_odr,    Nothing),
+            ("weak_odr",          Tweak_odr,        Nothing),
+            ("external",          Texternal,        Nothing),
+            ("default",           Tdefault,         Nothing),
+            ("hidden",            Thidden,          Nothing),
+            ("protected",         Tprotected,       Nothing),
+            ("ccc",               Tccc,             Nothing),
+            ("fastcc",            Tfastcc,          Nothing),
+            ("coldcc",            Tcoldcc,          Nothing),
+            ("cc",                Tcc,              Nothing),
             ("for",               Tfor,             Just [Loops]),
             ("in",                Tin,              Just [Loops]),
             ("with",              Twith,            Just [Loops]),

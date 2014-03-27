@@ -198,6 +198,25 @@ import qualified LLVM.General.AST.RMWOperation as AR
  'catch'            { L _ T.Tcatch }
  'filter'           { L _ T.Tfilter }
  'personality'      { L _ T.Tpersonality }
+ 'private'          { L _ T.Tprivate }
+ 'internal'         { L _ T.Tinternal }
+ 'available_externally'
+                    { L _ T.Tavailable_externally }
+ 'linkonce'         { L _ T.Tlinkonce }
+ 'weak'             { L _ T.Tweak }
+ 'common'           { L _ T.Tcommon }
+ 'appending'        { L _ T.Tappending }
+ 'extern_weak'      { L _ T.Textern_weak }
+ 'linkonce_odr'     { L _ T.Tlinkonce_odr }
+ 'weak_odr'         { L _ T.Tweak_odr }
+ 'external'         { L _ T.Texternal }
+ 'default'          { L _ T.Tdefault }
+ 'hidden'           { L _ T.Thidden }
+ 'protected'        { L _ T.Tprotected }
+ 'ccc'              { L _ T.Tccc }
+ 'fastcc'           { L _ T.Tfastcc }
+ 'coldcc'           { L _ T.Tcoldcc }
+ 'cc'               { L _ T.Tcc }
 
 
  'for'              { L _ T.Tfor }
@@ -607,6 +626,36 @@ typeList :
   | type                             { RCons $1 RNil }
   | typeList ',' type                { RCons $3 $1 }
 
+linkage :: { A.Linkage }
+linkage :
+    {- empty -}                { A.External }
+  | 'private'                  { A.Private }
+  | 'internal'                 { A.Internal }
+  | 'available_externally'     { A.AvailableExternally }
+  | 'linkonce'                 { A.LinkOnce }
+  | 'weak'                     { A.Weak }
+  | 'common'                   { A.Common }
+  | 'appending'                { A.Appending }
+  | 'extern_weak'              { A.ExternWeak }
+  | 'linkonce_odr'             { A.LinkOnceODR }
+  | 'weak_odr'                 { A.WeakODR }
+  | 'external'                 { A.External }
+
+visibility :: { A.Visibility }
+visibility :
+    {- empty -}                { A.Default }
+  | 'default'                  { A.Default }
+  | 'hidden'                   { A.Hidden }
+  | 'protected'                { A.Protected }
+
+cconv :: { A.CallingConvention }
+cconv :
+    {- empty -}                { A.C }
+  | 'ccc'                      { A.C }
+  | 'fastcc'                   { A.Fast }
+  | 'coldcc'                   { A.Cold }
+  | 'cc' INT                   { if $2 == 10 then A.GHC else A.Numbered (fromInteger $2) }
+
 pAttribute :: { A.ParameterAttribute }
 pAttribute :
     'nocapture'         { A.NoCapture }
@@ -659,12 +708,12 @@ isConstant :
 
 global :: { A.Global }
 global :
-    'define' type globalName '(' parameterList ')' fAttributes '{' basicBlocks '}'
-      { A.Function A.External A.Default A.C [] $2 $3 (rev $5, False) [] Nothing 0 Nothing (rev $9) }
-  | globalName '=' isConstant type alignment
-      { A.GlobalVariable $1 A.External A.Default False (A.AddrSpace 0) False $3 $4 Nothing Nothing $5 }
-  | globalName '=' 'alias' type constant
-      { A.GlobalAlias $1 A.External A.Default $4 ($5 $4) }
+    'define' linkage visibility cconv type globalName '(' parameterList ')' fAttributes alignment '{' basicBlocks '}'
+      { A.Function $2 $3 $4 [] $5 $6 (rev $8, False) [] Nothing $11 Nothing (rev $13) }
+  | globalName '=' linkage visibility isConstant type alignment
+      { A.GlobalVariable $1 $3 $4 False (A.AddrSpace 0) False $5 $6 Nothing Nothing $7 }
+  | globalName '=' visibility 'alias' linkage type constant
+      { A.GlobalAlias $1 $5 $3 $6 ($7 $6) }
 
 {------------------------------------------------------------------------------
  -
