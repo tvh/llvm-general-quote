@@ -467,74 +467,82 @@ idxs :
     idx            { RCons $1 RNil }
   | idxs ',' idx   { RCons $3 $1 }
 
-instruction :: { A.Instruction }
-instruction :
-    'add' nuw nsw type operand ',' operand  { A.Add $2 $3 ($5 $4) ($7 $4) [] }
-  | 'fadd' fmflags type operand ',' operand { A.FAdd ($4 $3) ($6 $3) [] }
-  | 'sub' nuw nsw type operand ',' operand  { A.Sub $2 $3 ($5 $4) ($7 $4) [] }
-  | 'fsub' fmflags type operand ',' operand { A.FSub ($4 $3) ($6 $3) [] }
-  | 'mul' nuw nsw type operand ',' operand  { A.Mul $2 $3 ($5 $4) ($7 $4) [] }
-  | 'fmul' fmflags type operand ',' operand { A.FMul ($4 $3) ($6 $3) [] }
-  | 'udiv' type operand ',' operand         { A.UDiv False ($3 $2) ($5 $2) [] }
-  | 'sdiv' type operand ',' operand         { A.SDiv False ($3 $2) ($5 $2) [] }
-  | 'fdiv' fmflags type operand ',' operand { A.FDiv ($4 $3) ($6 $3) [] }
-  | 'urem' type operand ',' operand         { A.URem ($3 $2) ($5 $2) [] }
-  | 'srem' type operand ',' operand         { A.SRem ($3 $2) ($5 $2) [] }
-  | 'frem' fmflags type operand ',' operand { A.FRem ($4 $3) ($6 $3) [] }
-  | 'shl' nuw nsw type operand ',' operand  { A.Shl $2 $3 ($5 $4) ($7 $4) [] }
-  | 'lshr' type operand ',' operand         { A.LShr False ($3 $2) ($5 $2) [] }
-  | 'ashr' type operand ',' operand         { A.AShr False ($3 $2) ($5 $2) [] }
-  | 'and' type operand ',' operand          { A.And ($3 $2) ($5 $2) [] }
-  | 'or' type operand ',' operand           { A.Or ($3 $2) ($5 $2) [] }
-  | 'xor' type operand ',' operand          { A.Xor ($3 $2) ($5 $2) [] }
-  | 'alloca' type mOperand alignment        { A.Alloca $2 ($3 $2) $4 [] }
-  | 'load' volatile tOperand alignment      { A.Load $2 $3 Nothing $4 [] }
-  | 'load' 'atomic' volatile tOperand atomicity alignment      { A.Load $3 $4 (Just $5) $6 [] }
+instructionMetaData :: { A.InstructionMetadata }
+instructionMetaData :
+    {- empty -}     { [] }
+
+instruction_ :: { A.InstructionMetadata -> A.Instruction }
+instruction_ :
+    'add' nuw nsw type operand ',' operand  { A.Add $2 $3 ($5 $4) ($7 $4) }
+  | 'fadd' fmflags type operand ',' operand { A.FAdd ($4 $3) ($6 $3) }
+  | 'sub' nuw nsw type operand ',' operand  { A.Sub $2 $3 ($5 $4) ($7 $4) }
+  | 'fsub' fmflags type operand ',' operand { A.FSub ($4 $3) ($6 $3) }
+  | 'mul' nuw nsw type operand ',' operand  { A.Mul $2 $3 ($5 $4) ($7 $4) }
+  | 'fmul' fmflags type operand ',' operand { A.FMul ($4 $3) ($6 $3) }
+  | 'udiv' type operand ',' operand         { A.UDiv False ($3 $2) ($5 $2) }
+  | 'sdiv' type operand ',' operand         { A.SDiv False ($3 $2) ($5 $2) }
+  | 'fdiv' fmflags type operand ',' operand { A.FDiv ($4 $3) ($6 $3) }
+  | 'urem' type operand ',' operand         { A.URem ($3 $2) ($5 $2) }
+  | 'srem' type operand ',' operand         { A.SRem ($3 $2) ($5 $2) }
+  | 'frem' fmflags type operand ',' operand { A.FRem ($4 $3) ($6 $3) }
+  | 'shl' nuw nsw type operand ',' operand  { A.Shl $2 $3 ($5 $4) ($7 $4) }
+  | 'lshr' type operand ',' operand         { A.LShr False ($3 $2) ($5 $2) }
+  | 'ashr' type operand ',' operand         { A.AShr False ($3 $2) ($5 $2) }
+  | 'and' type operand ',' operand          { A.And ($3 $2) ($5 $2) }
+  | 'or' type operand ',' operand           { A.Or ($3 $2) ($5 $2) }
+  | 'xor' type operand ',' operand          { A.Xor ($3 $2) ($5 $2) }
+  | 'alloca' type mOperand alignment        { A.Alloca $2 ($3 $2) $4 }
+  | 'load' volatile tOperand alignment      { A.Load $2 $3 Nothing $4 }
+  | 'load' 'atomic' volatile tOperand atomicity alignment      { A.Load $3 $4 (Just $5) $6 }
   | 'store' volatile tOperand ',' tOperand alignment 
-                                            { A.Store $2 $5 $3 Nothing $6 [] }
+                                            { A.Store $2 $5 $3 Nothing $6 }
   | 'store' 'atomic' volatile tOperand ',' tOperand atomicity alignment 
-                                            { A.Store $3 $6 $4 (Just $7) $8 [] }
+                                            { A.Store $3 $6 $4 (Just $7) $8 }
   | 'getelementptr' inBounds tOperand indices
-                                            { A.GetElementPtr $2 $3 (rev $4) [] }
-  | 'fence' atomicity                       { A.Fence $2 [] }
+                                            { A.GetElementPtr $2 $3 (rev $4) }
+  | 'fence' atomicity                       { A.Fence $2 }
   | 'cmpxchg' volatile tOperand ',' tOperand ',' tOperand atomicity
-                                            { A.CmpXchg $2 $3 $5 $7 $8 [] }
+                                            { A.CmpXchg $2 $3 $5 $7 $8 }
   | 'cmpxchg' volatile tOperand ',' tOperand ',' tOperand atomicity memoryOrdering
                                             {% fail "cmpxchg has only one ordering in this implementation, sry." }
   | 'atomicrmw' volatile rmwOperation tOperand ',' tOperand atomicity
-                                            { A.AtomicRMW $2 $3 $4 $6 $7 [] }
-  | 'trunc' tOperand 'to' type              { A.Trunc $2 $4 [] }
-  | 'zext' tOperand 'to' type               { A.ZExt $2 $4 [] }
-  | 'sext' tOperand 'to' type               { A.SExt $2 $4 [] }
-  | 'fptoui' tOperand 'to' type             { A.FPToUI $2 $4 [] }
-  | 'fptosi' tOperand 'to' type             { A.FPToSI $2 $4 [] }
-  | 'uitofp' tOperand 'to' type             { A.UIToFP $2 $4 [] }
-  | 'sitofp' tOperand 'to' type             { A.SIToFP $2 $4 [] }
-  | 'fptrunc' tOperand 'to' type            { A.FPTrunc $2 $4 [] }
-  | 'fpext' tOperand 'to' type              { A.FPExt $2 $4 [] }
-  | 'ptrtoint' tOperand 'to' type           { A.PtrToInt $2 $4 [] }
-  | 'inttoptr' tOperand 'to' type           { A.IntToPtr $2 $4 [] }
-  | 'bitcast' tOperand 'to' type            { A.BitCast $2 $4 [] }
-  | 'addrspacecast' tOperand 'to' type      { A.AddrSpaceCast $2 $4 [] }
-  | 'icmp' intP type operand ',' operand    { A.ICmp $2 ($4 $3) ($6 $3) [] }
-  | 'fcmp' fpP type operand ',' operand     { A.FCmp $2 ($4 $3) ($6 $3) [] }
-  | 'phi' type phiList                      { A.Phi $2 (rev ($3 $2)) [] }
+                                            { A.AtomicRMW $2 $3 $4 $6 $7 }
+  | 'trunc' tOperand 'to' type              { A.Trunc $2 $4 }
+  | 'zext' tOperand 'to' type               { A.ZExt $2 $4 }
+  | 'sext' tOperand 'to' type               { A.SExt $2 $4 }
+  | 'fptoui' tOperand 'to' type             { A.FPToUI $2 $4 }
+  | 'fptosi' tOperand 'to' type             { A.FPToSI $2 $4 }
+  | 'uitofp' tOperand 'to' type             { A.UIToFP $2 $4 }
+  | 'sitofp' tOperand 'to' type             { A.SIToFP $2 $4 }
+  | 'fptrunc' tOperand 'to' type            { A.FPTrunc $2 $4 }
+  | 'fpext' tOperand 'to' type              { A.FPExt $2 $4 }
+  | 'ptrtoint' tOperand 'to' type           { A.PtrToInt $2 $4 }
+  | 'inttoptr' tOperand 'to' type           { A.IntToPtr $2 $4 }
+  | 'bitcast' tOperand 'to' type            { A.BitCast $2 $4 }
+  | 'addrspacecast' tOperand 'to' type      { A.AddrSpaceCast $2 $4 }
+  | 'icmp' intP type operand ',' operand    { A.ICmp $2 ($4 $3) ($6 $3) }
+  | 'fcmp' fpP type operand ',' operand     { A.FCmp $2 ($4 $3) ($6 $3) }
+  | 'phi' type phiList                      { A.Phi $2 (rev ($3 $2)) }
   | 'call' pAttributes type operand '(' argumentList ')'
-                                            { A.Call False A.C (rev $2) (Right ($4 $3)) (rev $6) [] [] }
+                                            { A.Call False A.C (rev $2) (Right ($4 $3)) (rev $6) [] }
   | 'select' tOperand ',' tOperand ',' tOperand
-                                            { A.Select $2 $4 $6 [] }
-  | 'va_arg' tOperand ',' type              { A.VAArg $2 $4 [] }
-  | 'extractelement' tOperand ',' tOperand  { A.ExtractElement $2 $4 [] }
+                                            { A.Select $2 $4 $6 }
+  | 'va_arg' tOperand ',' type              { A.VAArg $2 $4 }
+  | 'extractelement' tOperand ',' tOperand  { A.ExtractElement $2 $4 }
   | 'insertelement' tOperand ',' tOperand ',' tOperand
-                                            { A.InsertElement $2 $4 $6 [] }
+                                            { A.InsertElement $2 $4 $6 }
   | 'shufflevector' tOperand ',' tOperand ',' type constant
-                                            { A.ShuffleVector $2 $4 ($7 $6) [] }
-  | 'extractvalue' tOperand ',' idxs        { A.ExtractValue $2 (rev $4) [] }
+                                            { A.ShuffleVector $2 $4 ($7 $6) }
+  | 'extractvalue' tOperand ',' idxs        { A.ExtractValue $2 (rev $4) }
   | 'insertvalue' tOperand ',' tOperand ',' idxs
-                                            { A.InsertValue $2 $4 (rev $6) [] }
+                                            { A.InsertValue $2 $4 (rev $6) }
   | 'landingpad' type 'personality' tOperand cleanup clauses
-                                            { A.LandingPad $2 $4 $5 (rev $6) [] }
-  | ANTI_INSTR                              { A.AntiInstruction $1 }
+                                            { A.LandingPad $2 $4 $5 (rev $6) }
+  | ANTI_INSTR                              {\[] -> A.AntiInstruction $1 }
+
+instruction :: { A.Instruction }
+instruction :
+  instruction_ instructionMetaData   { $1 $2 }
 
 name :: { A.Name }
 name :
@@ -575,21 +583,25 @@ namedT :
     terminator                      { A.Do $1 }
   | name   '=' terminator           { $1 A.:= $3 }
 
+terminator_ :: { A.InstructionMetadata -> A.Terminator }
+terminator_ :
+    'ret'                 { A.Ret Nothing }
+  | 'ret' type operand    { A.Ret (Just ($3 $2)) }
+  | 'br' 'label' name     { A.Br $3 }
+  | 'br' type operand ',' 'label' name ',' 'label' name
+                          { A.CondBr ($3 $2) $6 $9 }
+  | 'switch' type operand ',' 'label' name '[' destinations ']'
+                          { A.Switch ($3 $2) $6 (rev $8) }
+  | 'indirectbr' tOperand ',' '[' labels ']'
+                          { A.IndirectBr $2 (rev $5) }
+  | 'invoke' tOperand '(' argumentList ')' 'to' 'label' name 'unwind' 'label' name
+                          { A.Invoke A.C [] (Right $2) (rev $4) [] $8 $11 }
+  | 'resume' tOperand     { A.Resume $2 }
+  | 'unreachable'         { A.Unreachable }
+
 terminator :: { A.Terminator }
 terminator :
-    'ret'                 { A.Ret Nothing [] }
-  | 'ret' type operand    { A.Ret (Just ($3 $2)) [] }
-  | 'br' 'label' name     { A.Br $3 [] }
-  | 'br' type operand ',' 'label' name ',' 'label' name
-                          { A.CondBr ($3 $2) $6 $9 [] }
-  | 'switch' type operand ',' 'label' name '[' destinations ']'
-                          { A.Switch ($3 $2) $6 (rev $8) [] }
-  | 'indirectbr' tOperand ',' '[' labels ']'
-                          { A.IndirectBr $2 (rev $5) [] }
-  | 'invoke' tOperand '(' argumentList ')' 'to' 'label' name 'unwind' 'label' name
-                          { A.Invoke A.C [] (Right $2) (rev $4) [] $8 $11 [] }
-  | 'resume' tOperand     { A.Resume $2 [] }
-  | 'unreachable'         { A.Unreachable [] }
+  terminator_ instructionMetaData   { $1 $2 }
 
 {------------------------------------------------------------------------------
  -
