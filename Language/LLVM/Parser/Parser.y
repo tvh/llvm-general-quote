@@ -640,14 +640,18 @@ terminator :
  -
  -----------------------------------------------------------------------------}
 
+mLabel :: { Maybe A.Name }
+mLabel :
+    ',' 'label' name     { Just $3 }
+
 basicBlock :: { A.BasicBlock }
 basicBlock :
     JUMPLABEL instructions namedT
       { A.BasicBlock (A.Name $1) (rev $2) $3 }
   | instructions namedT
-      { A.BasicBlock (A.UnName 0) (rev $1) $2 }
-  | JUMPLABEL 'for' type name 'in' operand 'to' operand 'with' type phiList 'as' name '{' instructions 'retfor' tOperand ',' 'label' name '}'
-      { A.ForLoop (A.Name $1) $3 $4 ($6 $3) ($8 $3) $10 (rev ($11 $10)) $13 (rev $15) $17 $20 } 
+      {% fail "BasicBlocks must always have names, sry" }
+  | JUMPLABEL 'for' type name 'in' operand 'to' operand 'with' type phiList 'as' name mLabel '{' basicBlocks '}'
+      { A.ForLoop (A.Name $1) $3 $4 ($6 $3) ($8 $3) $10 (rev ($11 $10)) $13 (rev $16) $14 } 
   | ANTI_BB
       { A.AntiBasicBlock $1 }
   | ANTI_BBS

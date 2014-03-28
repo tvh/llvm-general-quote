@@ -107,7 +107,11 @@ data Parameter
 -- LLVM code in a function is a sequence of 'BasicBlock's each with a label,
 -- some instructions, and a terminator.
 data BasicBlock
-  = BasicBlock Name [Named Instruction] (Named Terminator)
+  = BasicBlock {
+    label :: Name,
+    instructions :: [Named Instruction],
+    terminator :: (Named Terminator)
+  }
   | ForLoop {
     label :: Name,
     iterType :: Type,
@@ -117,9 +121,8 @@ data BasicBlock
     _elementType :: Type,
     _element :: [(Operand,Name)],
     _elementName :: Name,
-    body :: [Named Instruction],
-    result :: Operand,
-    next :: Name}
+    body :: [BasicBlock],
+    next :: Maybe Name}
   | AntiBasicBlock String
   | AntiBasicBlockList String
   deriving (Eq, Read, Show, Typeable, Data)
