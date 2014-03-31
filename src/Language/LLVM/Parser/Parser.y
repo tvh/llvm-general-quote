@@ -903,18 +903,22 @@ dataLayout s = A.DataLayout endianness stackAlignment pointerLayouts typeLayouts
     ('p':s@(x:_)) <- infos
     let parts = splitOn ":" s
     (n,size,abi,pref) <- case parts of
-      [s,size,abi,pref] -> do
+      ("":size:abi:pref) -> return (0,size,abi,pref)
+      (s:size:abi:pref) -> do
         (n,"") <- reads s
         return (n,size,abi,pref)
-      [size,abi,pref] -> return (0,size,abi,pref)
       _ -> []
     (size',"") <- reads size
     (abi',"") <- reads abi
-    (pref',"") <- reads pref
-    return (A.AddrSpace n, (size', A.AlignmentInfo abi' (Just pref')))
+    pref' <- case pref of
+      [p] -> do
+        (pref',"") <- reads p
+        return $ Just pref'
+      _ -> return Nothing
+    return (A.AddrSpace n, (size', A.AlignmentInfo abi' pref'))
   typeLayouts :: M.Map (A.AlignType, Word32) A.AlignmentInfo
   typeLayouts = M.fromList $ do
-    [(t:size),abi,pref] <- map (splitOn ":") infos
+    ((t:size):abi:pref) <- map (splitOn ":") infos
     k <- case t of
       'i' -> reads size >>= \(size,"") -> return (A.IntegerAlign, size)
       'v' -> reads size >>= \(size,"") -> return (A.VectorAlign, size)
@@ -923,14 +927,21 @@ dataLayout s = A.DataLayout endianness stackAlignment pointerLayouts typeLayouts
       'a' -> return (A.AggregateAlign, 0)
       _ -> []
     (abi',"") <- reads abi
-    (pref',"") <- reads pref
-    return (k, A.AlignmentInfo abi' (Just pref'))
+    pref' <- case pref of
+      [p] -> do
+        (pref',"") <- reads p
+        return $ Just pref'
+    return (k, A.AlignmentInfo abi' pref')
   nativeSizes :: Maybe (S.Set Word32)
-  nativeSizes = Just $ S.fromList $ do
-    ('n':s) <- infos
-    size <- splitOn ":" s
-    (size',"") <- reads size
-    return size'
+  nativeSizes = do
+    let sizes = do
+          ('n':s) <- infos
+          size <- splitOn ":" s
+          (size',"") <- reads size
+          return size'
+    case sizes of
+      [] -> Nothing
+      xs -> Just $ S.fromList xs
 
 
 happyError :: L T.Token -> P a

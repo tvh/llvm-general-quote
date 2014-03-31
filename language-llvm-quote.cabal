@@ -66,3 +66,5 @@ Test-suite test
     , HUnit
     , language-llvm-quote
     , llvm-general-pure
+    , containers
+
