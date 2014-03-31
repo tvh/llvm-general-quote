@@ -553,7 +553,9 @@ instruction_ :
   | 'cmpxchg' volatile tOperand ',' tOperand ',' tOperand atomicity
                                             { A.CmpXchg $2 $3 $5 $7 $8 }
   | 'cmpxchg' volatile tOperand ',' tOperand ',' tOperand atomicity memoryOrdering
-                                            {% fail "cmpxchg has only one ordering in this implementation, sry." }
+                                            {% if A.memoryOrdering $8 == $9 
+                                                 then return (A.CmpXchg $2 $3 $5 $7 $8)
+                                                 else fail "cmpxchg: both orderings must be the same at this point, sry" }
   | 'atomicrmw' volatile rmwOperation tOperand ',' tOperand atomicity
                                             { A.AtomicRMW $2 $3 $4 $6 $7 }
   | 'trunc' tOperand 'to' type              { A.Trunc $2 $4 }
