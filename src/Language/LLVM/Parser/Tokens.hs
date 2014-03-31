@@ -85,6 +85,8 @@ data Token
   | Tcc
   | Tatomic
   | Tnull
+  | Texact
+  | Taddrspace
   -- Finalizer
   | Tret
   | Tbr
@@ -186,6 +188,7 @@ data Token
   | Ttriple
   | Tdefine
   -- Types
+  | Thalf
   | Tfloat
   | Tdouble
   | TintegerType Word32
@@ -354,6 +357,7 @@ keywords = [("define",            Tdefine,          Nothing),
             ("nocapture",         Tnocapture,       Nothing),
             ("double",            Tdouble,          Nothing),
             ("float",             Tfloat,           Nothing),
+            ("half",              Thalf,            Nothing),
             ("void",              Tvoid,            Nothing),
             ("metadata",          Tmetadata,        Nothing),
             ("alignstack",        Talignstack,      Nothing),
@@ -415,6 +419,8 @@ keywords = [("define",            Tdefine,          Nothing),
             ("cc",                Tcc,              Nothing),
             ("atomic",            Tatomic,          Nothing),
             ("null",              Tnull,            Nothing),
+            ("exact",             Texact,           Nothing),
+            ("addrspace",         Taddrspace,       Nothing),
             ("for",               Tfor,             Just [Loops]),
             ("in",                Tin,              Just [Loops]),
             ("with",              Twith,            Just [Loops]),

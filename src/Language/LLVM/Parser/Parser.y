@@ -153,6 +153,7 @@ import qualified LLVM.General.AST.RMWOperation as AR
  'triple'           { L _ T.Ttriple }
  'define'           { L _ T.Tdefine }
  'void'             { L _ T.Tvoid }
+ 'half'             { L _ T.Thalf }
  'float'            { L _ T.Tfloat }
  'double'           { L _ T.Tdouble }
  INTEGERTYPE        { L _ (T.TintegerType $$) }
@@ -223,6 +224,8 @@ import qualified LLVM.General.AST.RMWOperation as AR
  'cc'               { L _ T.Tcc }
  'atomic'           { L _ T.Tatomic }
  'null'             { L _ T.Tnull }
+ 'exact'            { L _ T.Texact }
+ 'addrspace'        { L _ T.Taddrspace }
 
  'for'              { L _ T.Tfor }
  'in'               { L _ T.Tin }
@@ -298,10 +301,10 @@ operand :
   | '!' STRING          { \A.MetadataType -> A.MetadataStringOperand $2 }
   | metadataNode        { \A.MetadataType -> A.MetadataNodeOperand $1 }
 
-mOperand :: { A.Type -> Maybe A.Operand }
+mOperand :: { Maybe A.Operand }
 mOperand :
-    {- empty -}      { \_ -> Nothing }
-  | operand          { Just . $1 }
+    {- empty -}      { Nothing }
+  | ',' tOperand     { Just $2 }
 
 tOperand :: { A.Operand }
 tOperand :
@@ -421,6 +424,11 @@ cleanup :
     {- empty -}        { False }
   | 'cleanup'          { True }
 
+exact :: { Bool }
+exact :
+    {- empty -}        { False }
+  | 'exact'            { True }
+
 clause :: { A.LandingPadClause }
 clause :
     'catch' tConstant     { A.Catch $2 }
@@ -504,25 +512,25 @@ instructionMetadata :
 
 instruction_ :: { A.InstructionMetadata -> A.Instruction }
 instruction_ :
-    'add' nuw nsw type operand ',' operand  { A.Add $2 $3 ($5 $4) ($7 $4) }
+    'add' nuw nsw type operand ',' operand  { A.Add $3 $2 ($5 $4) ($7 $4) }
   | 'fadd' fmflags type operand ',' operand { A.FAdd ($4 $3) ($6 $3) }
-  | 'sub' nuw nsw type operand ',' operand  { A.Sub $2 $3 ($5 $4) ($7 $4) }
+  | 'sub' nuw nsw type operand ',' operand  { A.Sub $3 $2 ($5 $4) ($7 $4) }
   | 'fsub' fmflags type operand ',' operand { A.FSub ($4 $3) ($6 $3) }
-  | 'mul' nuw nsw type operand ',' operand  { A.Mul $2 $3 ($5 $4) ($7 $4) }
+  | 'mul' nuw nsw type operand ',' operand  { A.Mul $3 $2 ($5 $4) ($7 $4) }
   | 'fmul' fmflags type operand ',' operand { A.FMul ($4 $3) ($6 $3) }
-  | 'udiv' type operand ',' operand         { A.UDiv False ($3 $2) ($5 $2) }
-  | 'sdiv' type operand ',' operand         { A.SDiv False ($3 $2) ($5 $2) }
+  | 'udiv' exact type operand ',' operand   { A.UDiv $2 ($4 $3) ($6 $3) }
+  | 'sdiv' exact type operand ',' operand   { A.SDiv $2 ($4 $3) ($6 $3) }
   | 'fdiv' fmflags type operand ',' operand { A.FDiv ($4 $3) ($6 $3) }
   | 'urem' type operand ',' operand         { A.URem ($3 $2) ($5 $2) }
   | 'srem' type operand ',' operand         { A.SRem ($3 $2) ($5 $2) }
   | 'frem' fmflags type operand ',' operand { A.FRem ($4 $3) ($6 $3) }
-  | 'shl' nuw nsw type operand ',' operand  { A.Shl $2 $3 ($5 $4) ($7 $4) }
-  | 'lshr' type operand ',' operand         { A.LShr False ($3 $2) ($5 $2) }
-  | 'ashr' type operand ',' operand         { A.AShr False ($3 $2) ($5 $2) }
+  | 'shl' nuw nsw type operand ',' operand  { A.Shl $3 $2 ($5 $4) ($7 $4) }
+  | 'lshr' exact type operand ',' operand   { A.LShr $2 ($4 $3) ($6 $3) }
+  | 'ashr' exact type operand ',' operand   { A.AShr $2 ($4 $3) ($6 $3) }
   | 'and' type operand ',' operand          { A.And ($3 $2) ($5 $2) }
   | 'or' type operand ',' operand           { A.Or ($3 $2) ($5 $2) }
   | 'xor' type operand ',' operand          { A.Xor ($3 $2) ($5 $2) }
-  | 'alloca' type mOperand alignment        { A.Alloca $2 ($3 $2) $4 }
+  | 'alloca' type mOperand alignment        { A.Alloca $2 $3 $4 }
   | 'load' volatile tOperand alignment      { A.Load $2 $3 Nothing $4 }
   | 'load' 'atomic' volatile tOperand atomicity alignment      { A.Load $3 $4 (Just $5) $6 }
   | 'store' volatile tOperand ',' tOperand alignment 
@@ -674,13 +682,19 @@ globalName :
   | UNNAMED_GLOBAL   { A.UnName $1 }
   | ANTI_GID         { A.AntiName $1 }
 
+addrSpace :: { A.AddrSpace }
+addrSpace :
+    {- empty -}                { A.AddrSpace 0 }
+  | 'addrspace' '(' INT ')'    { A.AddrSpace (fromIntegral $3) }
+
 type :: { A.Type }
 type :
     'void'                    { A.VoidType }
   | INTEGERTYPE               { A.IntegerType $1 }
-  | 'double'                  { A.FloatingPointType 64 A.IEEE }
+  | 'half'                    { A.FloatingPointType 16 A.IEEE }
   | 'float'                   { A.FloatingPointType 32 A.IEEE }
-  | type '*'                  { A.PointerType $1 (A.AddrSpace 0) }
+  | 'double'                  { A.FloatingPointType 64 A.IEEE }
+  | type addrSpace '*'        { A.PointerType $1 $2 }
   | type '(' typeList ')'     { A.FunctionType $1 (rev $3) False }
   | '<' INT 'x' type '>'      { A.VectorType (fromIntegral $2) $4 }
   | '{' typeList '}'          { A.StructureType False (rev $2) }

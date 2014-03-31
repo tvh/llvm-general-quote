@@ -2,4 +2,8 @@ module Language.LLVM.Test.Tests where
 
 import Test.Tasty
 
-tests = testGroup "language-llvm-quote" []
+import qualified Language.LLVM.Test.Instructions as Instructions
+
+tests = testGroup "language-llvm-quote" 
+  [ Instructions.tests
+  ]
