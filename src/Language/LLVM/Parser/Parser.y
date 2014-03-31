@@ -273,7 +273,7 @@ constant :
   | 'false'               { intConstant 0 }
   | FLOAT                 { floatConstant $1 }
   | '-' FLOAT             { floatConstant (-$2) }
-  | 'zeroinitializer'     {% fail "'zeroinitializer' is not supported at the moment" }
+  | 'zeroinitializer'     { A.Null }
   | 'null'                { A.Null }
   | '{' constantList '}'  { \_ -> A.Struct Nothing False (rev $2) }
   | '[' constantList ']'  { \t -> A.Array t (rev $2) }
