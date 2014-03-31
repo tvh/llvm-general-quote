@@ -276,7 +276,7 @@ constant :
   | 'zeroinitializer'     { A.Null }
   | 'null'                { A.Null }
   | '{' constantList '}'  { \_ -> A.Struct Nothing False (rev $2) }
-  | '[' constantList ']'  { \t -> A.Array t (rev $2) }
+  | '[' constantList ']'  { \t -> A.Array (A.elementType t) (rev $2) }
   | '<' constantList '>'  { \_ -> A.Vector (rev $2) }
   | 'blockaddress' '(' globalName ',' name ')'
                           { \_ -> A.BlockAddress $3 $5 }
@@ -878,8 +878,8 @@ intConstant :: Integer -> A.Type -> A.Constant
 intConstant n (A.IntegerType bs) = A.Int bs n
 
 floatConstant :: Rational -> A.Type -> A.Constant
-floatConstant x (A.FloatingPointType 32 _) = A.Float (A.Single (fromRational $2))
-floatConstant x (A.FloatingPointType 64 _) = A.Float (A.Double (fromRational $2))
+floatConstant x (A.FloatingPointType 32 _) = A.Float (A.Single (fromRational x))
+floatConstant x (A.FloatingPointType 64 _) = A.Float (A.Double (fromRational x))
 
 dataLayout :: String -> A.DataLayout
 dataLayout s = A.DataLayout endianness stackAlignment pointerLayouts typeLayouts nativeSizes

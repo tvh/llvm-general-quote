@@ -45,20 +45,12 @@ $whitechar = [\ \t\n\r\f\v]
                     | $digit+ "."
 @exponentPart       = [eE] [\+\-]? $digit+
 
-@floatingSuffix     = [fF]
-                    | [lL]
-
-@floatingConstant   = @fractionalConstant @exponentPart? @floatingSuffix?
-                    | $digit+ @exponentPart @floatingSuffix?
+@floatingConstant   = @fractionalConstant @exponentPart?
+                    | $digit+ @exponentPart
 
 @decimalConstant     = $nonzerodigit $digit* | "0"
 @octalConstant       = "0" $octalDigit*
 @hexadecimalConstant = "0" [xX] $hexadecimalDigit+
-
-@integerSuffix = [uU] [lL]?
-               | [lL] [uU]?
-               | [lL] [lL] [uU]?
-               | [uU] [lL] [lL]
 
 @idText = [a-z A-Z \. \_] [a-z A-Z \. \_ 0-9]*
 @identifier = [@\%\!] ( @decimalConstant
@@ -95,9 +87,9 @@ tokens :-
  @keyword { keyword }
 
  @floatingConstant                    { lexFloat }
- @decimalConstant @integerSuffix?     { lexInteger 0 decimal }
- @octalConstant @integerSuffix?       { lexInteger 1 octal }
- @hexadecimalConstant @integerSuffix? { lexInteger 2 hexadecimal }
+ @decimalConstant                     { lexInteger 0 decimal }
+ @octalConstant                       { lexInteger 1 octal }
+ @hexadecimalConstant                 { lexInteger 2 hexadecimal }
 
  \" { lexStringTok }
 
@@ -276,20 +268,12 @@ lexFloat beg end =
     s :: String
     s = inputString beg end
 
-    suffix :: String
-    suffix = (map toLower . takeWhile isSuffix . reverse) s
-
-    isSuffix :: Char -> Bool
-    isSuffix = (`elem` ['l', 'L', 'f', 'F'])
-
     i :: [Rational]
     i = do  (n, _) <- readRational s
             return n
 
     toToken :: Rational -> Token
-    toToken n =
-        case suffix of
-          ""  -> TfloatConst n
+    toToken n = TfloatConst n
 
 type Radix = (Integer, Char -> Bool, Char -> Int)
 
@@ -332,8 +316,8 @@ readDecimal = readInteger decimal
 readRational :: ReadS Rational
 readRational s = do
     (n, d, t)  <- readFix
-    (x, _)     <- readExponent t
-    return ((n % 1) * 10^^(x - toInteger d), t)
+    (x, t')     <- readExponent t
+    return ((n % 1) * 10^^(x - toInteger d), t')
   where
     readFix :: [(Integer, Int, String)]
     readFix =
