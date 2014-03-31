@@ -29,7 +29,7 @@ import qualified LLVM.General.AST.RMWOperation as RMWOp
 
 tests = let a = LocalReference . UnName in testGroup "Instructions" [
   testGroup "regular" [
-    testCase name $ instr @?= instrQ
+    testCase name $ instrQ @?= instr
     | (name, instr, instrQ) <- [
           ("add",
            Add {
@@ -429,5 +429,266 @@ tests = let a = LocalReference . UnName in testGroup "Instructions" [
            },
            [lli|insertvalue { i32, i32 } %6, i32 %0, 0|])
          ]
+   ],
+
+   testGroup "terminators" [
+    testCase name $ mASTQ @?= mAST
+    | (name, mAST, mASTQ) <- [
+     (
+       "ret",
+       Module "<string>" Nothing Nothing [
+        GlobalDefinition $ functionDefaults {
+          G.returnType = VoidType,
+          G.name = UnName 0,
+          G.basicBlocks = [
+            BasicBlock (Name "entry") [
+             ] (
+              Do $ Ret Nothing []
+             )
+           ]
+         }
+        ],
+       [llmod|; ModuleID = '<string>'
+       
+       define void @0() {
+       entry:
+         ret void
+       }|]
+     ), (
+       "br",
+       Module "<string>" Nothing Nothing [
+        GlobalDefinition $ functionDefaults {
+          G.returnType = VoidType,
+          G.name = UnName 0,
+          G.basicBlocks = [
+            BasicBlock (Name "entry") [] (
+              Do $ Br (Name "foo") []
+             ),
+            BasicBlock (Name "foo") [] (
+              Do $ Ret Nothing []
+             )
+           ]
+         }
+        ],
+       [llmod|; ModuleID = '<string>'
+       
+       define void @0() {
+       entry:
+         br label %foo
+       
+       foo:                                              ; preds = %0
+         ret void
+       }|]
+     ), (
+       "condbr",
+       Module "<string>" Nothing Nothing [
+        GlobalDefinition $ functionDefaults {
+          G.returnType = VoidType,
+          G.name = UnName 0,
+          G.basicBlocks = [
+            BasicBlock (Name "bar") [] (
+              Do $ CondBr (ConstantOperand (C.Int 1 1)) (Name "foo") (Name "bar") []
+             ),
+            BasicBlock (Name "foo") [] (
+              Do $ Ret Nothing []
+             )
+           ]
+          }
+        ],
+       [llmod|; ModuleID = '<string>'
+       
+       define void @0() {
+       bar:
+         br i1 true, label %foo, label %bar
+       
+       foo:                                              ; preds = %bar
+         ret void
+       }|]
+     ), (
+       "switch",
+       Module "<string>" Nothing Nothing [
+         GlobalDefinition $ functionDefaults {
+           G.returnType = VoidType,
+           G.name = UnName 0,
+           G.basicBlocks = [
+             BasicBlock (Name "entry") [] (
+               Do $ Switch {
+                 operand0' = ConstantOperand (C.Int 16 2),
+                 defaultDest = Name "foo",
+                 dests = [
+                  (C.Int 16 0, Name "entry"),
+                  (C.Int 16 2, Name "foo"),
+                  (C.Int 16 3, Name "entry")
+                 ],
+                 metadata' = []
+              }
+             ),
+             BasicBlock (Name "foo") [] (
+               Do $ Ret Nothing []
+              )
+            ]
+          }
+        ],
+       [llmod|; ModuleID = '<string>'
+       
+       define void @0() {
+       entry:
+         switch i16 2, label %foo [
+           i16 0, label %entry
+           i16 2, label %foo
+           i16 3, label %entry
+         ]
+       
+       foo:
+         ret void
+       }|]
+     ), (
+       "indirectbr",
+       Module "<string>" Nothing Nothing [
+        GlobalDefinition $ globalVariableDefaults {
+          G.name = UnName 0,
+          G.type' = PointerType (IntegerType 8) (AddrSpace 0),
+          G.initializer = Just (C.BlockAddress (Name "foo") (Name "end"))
+        },
+        GlobalDefinition $ functionDefaults {
+          G.returnType = VoidType,
+          G.name = Name "foo",
+          G.basicBlocks = [
+            BasicBlock (Name "entry") [
+              UnName 0 := Load {
+                       volatile = False,
+                       address = ConstantOperand (C.GlobalReference (UnName 0)),
+                       maybeAtomicity = Nothing,
+                       alignment = 0,
+                       metadata = [] 
+                     }
+            ] (
+              Do $ IndirectBr {
+                operand0' = LocalReference (UnName 0),
+                possibleDests = [Name "end"],
+                metadata' = []
+             }
+            ),
+            BasicBlock (Name "end") [] (
+              Do $ Ret Nothing []
+             )
+           ]
+         }
+        ],
+--       \  indirectbr i8* null, [label %foo]\n\
+       [llmod|; ModuleID = '<string>'
+       
+       @0 = global i8* blockaddress(@foo, %end)
+       
+       define void @foo() {
+       entry:
+         %0 = load i8** @0
+         indirectbr i8* %0, [label %end]
+       
+       end:
+         ret void
+       }|]
+     ), (
+       "invoke",
+       Module "<string>" Nothing Nothing [
+        GlobalDefinition $ functionDefaults {
+          G.returnType = VoidType,
+          G.name = UnName 0,
+          G.parameters = ([
+            Parameter (IntegerType 32) (Name "a") [],
+            Parameter (IntegerType 16) (Name "b") []
+           ], False),
+          G.basicBlocks = [
+            BasicBlock (Name "entry") [] (
+              Do $ Invoke {
+               callingConvention' = CC.C,
+               returnAttributes' = [],
+               function' = Right (ConstantOperand (C.GlobalReference (UnName 0))),
+               arguments' = [
+                (ConstantOperand (C.Int 32 4), []),
+                (ConstantOperand (C.Int 16 8), [])
+               ],
+               functionAttributes' = [],
+               returnDest = Name "foo",
+               exceptionDest = Name "bar",
+               metadata' = []
+              }
+             ),
+            BasicBlock (Name "foo") [] (
+              Do $ Ret Nothing []
+             ),
+            BasicBlock (Name "bar") [
+             UnName 0 := LandingPad {
+               type' = StructureType False [ 
+                  PointerType (IntegerType 8) (AddrSpace 0),
+                  IntegerType 32
+                 ],
+               personalityFunction = ConstantOperand (C.GlobalReference (UnName 0)),
+               cleanup = True,
+               clauses = [Catch (C.Null (PointerType (IntegerType 8) (AddrSpace 0)))],
+               metadata = []
+             }
+             ] (
+              Do $ Ret Nothing []
+             )
+           ]
+         }
+        ],
+       [llmod|; ModuleID = '<string>'
+       
+       define void @0(i32 %a, i16 %b) {
+       entry:
+         invoke void @0(i32 4, i16 8)
+                 to label %foo unwind label %bar
+       
+       foo:                                       
+         ret void
+       
+       bar:                                       
+         %0 = landingpad { i8*, i32 } personality void (i32, i16)* @0
+                 cleanup
+                 catch i8* null
+         ret void
+       }|]
+     ), (
+       "resume",
+       Module "<string>" Nothing Nothing [
+         GlobalDefinition $ functionDefaults {
+           G.returnType = VoidType,
+           G.name = UnName 0,
+           G.basicBlocks = [
+             BasicBlock (Name "entry") [] (
+               Do $ Resume (ConstantOperand (C.Int 32 1)) []
+              )
+            ]
+          }
+        ],
+       [llmod|; ModuleID = '<string>'
+       
+       define void @0() {
+       entry:
+         resume i32 1
+       }|]
+     ), (
+       "unreachable",
+       Module "<string>" Nothing Nothing [
+        GlobalDefinition $ functionDefaults {
+          G.returnType = VoidType,
+          G.name = UnName 0,
+          G.basicBlocks = [
+            BasicBlock (Name "entry") [] (
+              Do $ Unreachable []
+             )
+           ]
+         }
+        ],
+       [llmod|; ModuleID = '<string>'
+       
+       define void @0() {
+       entry:
+         unreachable
+       }|]
+     )
+    ]
    ]
  ]

@@ -87,6 +87,7 @@ data Token
   | Tnull
   | Texact
   | Taddrspace
+  | Tblockaddress
   -- Finalizer
   | Tret
   | Tbr
@@ -421,6 +422,7 @@ keywords = [("define",            Tdefine,          Nothing),
             ("null",              Tnull,            Nothing),
             ("exact",             Texact,           Nothing),
             ("addrspace",         Taddrspace,       Nothing),
+            ("blockaddress",      Tblockaddress,    Nothing),
             ("for",               Tfor,             Just [Loops]),
             ("in",                Tin,              Just [Loops]),
             ("with",              Twith,            Just [Loops]),

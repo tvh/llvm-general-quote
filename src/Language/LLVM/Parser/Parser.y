@@ -226,6 +226,7 @@ import qualified LLVM.General.AST.RMWOperation as AR
  'null'             { L _ T.Tnull }
  'exact'            { L _ T.Texact }
  'addrspace'        { L _ T.Taddrspace }
+ 'blockaddress'     { L _ T.Tblockaddress }
 
  'for'              { L _ T.Tfor }
  'in'               { L _ T.Tin }
@@ -268,6 +269,8 @@ constant :: { A.Type -> A.Constant }
 constant :
     INT                   { intConstant $1 }
   | '-' INT               { intConstant (-$2) }
+  | 'true'                { intConstant 1 }
+  | 'false'               { intConstant 0 }
   | FLOAT                 { floatConstant $1 }
   | '-' FLOAT             { floatConstant (-$2) }
   | 'zeroinitializer'     {% fail "'zeroinitializer' is not supported at the moment" }
@@ -275,6 +278,8 @@ constant :
   | '{' constantList '}'  { \_ -> A.Struct Nothing False (rev $2) }
   | '[' constantList ']'  { \t -> A.Array t (rev $2) }
   | '<' constantList '>'  { \_ -> A.Vector (rev $2) }
+  | 'blockaddress' '(' globalName ',' name ')'
+                          { \_ -> A.BlockAddress $3 $5 }
   | 'undef'               { A.Undef }
   | globalName            { \_ -> A.GlobalReference $1 }
   | ANTI_CONST            { \_ -> A.AntiConstant $1 }
@@ -282,6 +287,11 @@ constant :
 tConstant :: { A.Constant }
 tConstant :
     type constant         { $2 $1 }
+
+mConstant :: { A.Type -> Maybe A.Constant }
+mConstant :
+    {- empty -}            { \_ -> Nothing }
+  | constant               { Just . $1 }
 
 constantList :: { RevList A.Constant }
 constantList :
@@ -624,7 +634,7 @@ namedT :
 
 terminator_ :: { A.InstructionMetadata -> A.Terminator }
 terminator_ :
-    'ret'                 { A.Ret Nothing }
+    'ret' 'void'          { A.Ret Nothing }
   | 'ret' type operand    { A.Ret (Just ($3 $2)) }
   | 'br' 'label' name     { A.Br $3 }
   | 'br' type operand ',' 'label' name ',' 'label' name
@@ -800,8 +810,8 @@ global :: { A.Global }
 global :
     'define' linkage visibility cconv type globalName '(' parameterList ')' fAttributes alignment '{' basicBlocks '}'
       { A.Function $2 $3 $4 [] $5 $6 (rev $8, False) [] Nothing $11 Nothing (rev $13) }
-  | globalName '=' linkage visibility isConstant type alignment
-      { A.GlobalVariable $1 $3 $4 False (A.AddrSpace 0) False $5 $6 Nothing Nothing $7 }
+  | globalName '=' linkage visibility isConstant type mConstant alignment
+      { A.GlobalVariable $1 $3 $4 False (A.AddrSpace 0) False $5 $6 ($7 $6) Nothing $8 }
   | globalName '=' visibility 'alias' linkage type constant
       { A.GlobalAlias $1 $5 $3 $6 ($7 $6) }
 
@@ -861,7 +871,7 @@ targetTriple :
 
 module :: { A.Module }
 module :
-    dataLayout targetTriple definitions  { A.Module "" $1 $2 (rev $3) }
+    dataLayout targetTriple definitions  { A.Module "<string>" $1 $2 (rev $3) }
 
 {
 intConstant :: Integer -> A.Type -> A.Constant
