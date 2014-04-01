@@ -508,7 +508,8 @@ metadataNodeIDs :
 
 metadataNode :: { A.MetadataNode }
 metadataNode :
-    metadataNodeID      { A.MetadataNodeReference $1 }
+    metadataNodeID         { A.MetadataNodeReference $1 }
+  | '!' '{' metadataList '}'   { A.MetadataNode (rev $3) }
 
 instructionMetaDataItem :: { (String, A.MetadataNode) }
 instructionMetaDataItem :

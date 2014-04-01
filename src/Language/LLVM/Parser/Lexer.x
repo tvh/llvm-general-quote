@@ -52,7 +52,7 @@ $whitechar = [\ \t\n\r\f\v]
 @octalConstant       = "0" $octalDigit*
 @hexadecimalConstant = "0" [xX] $hexadecimalDigit+
 
-@idText = [a-z A-Z \. \_] [a-z A-Z \. \_ 0-9]*
+@idText = [a-z A-Z \. \_ \-] [a-z A-Z \. \_ \- 0-9]*
 @identifier = [@\%\!] ( @decimalConstant
                       | @idText)
 @jumpLabel = @idText ":"
