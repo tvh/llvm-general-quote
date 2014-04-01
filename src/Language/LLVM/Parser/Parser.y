@@ -241,7 +241,6 @@ import qualified LLVM.General.AST.RMWOperation as AR
  'for'              { L _ T.Tfor }
  'in'               { L _ T.Tin }
  'with'             { L _ T.Twith }
- 'retfor'           { L _ T.Tretfor }
  'as'               { L _ T.Tas }
 
  ANTI_DL            { L _ (T.Tanti_dl $$) }

@@ -235,7 +235,6 @@ data Token
   | Tfor
   | Tin
   | Twith
-  | Tretfor
   | Tas
   -- Anti-Quotation
   | Tanti_dl String
@@ -445,7 +444,6 @@ keywords = [("define",            Tdefine,          Nothing),
             ("for",               Tfor,             Just [Loops]),
             ("in",                Tin,              Just [Loops]),
             ("with",              Twith,            Just [Loops]),
-            ("retfor",            Tretfor,          Just [Loops]),
             ("as",                Tas,              Just [Loops])
            ]
 
