@@ -674,7 +674,8 @@ namedT :
 terminator_ :: { A.InstructionMetadata -> A.Terminator }
 terminator_ :
     'ret' 'void'          { A.Ret Nothing }
-  | 'ret' type operand    { A.Ret (Just ($3 $2)) }
+  | 'ret' typeNoVoid operand
+                          { A.Ret (Just ($3 $2)) }
   | 'br' 'label' name     { A.Br $3 }
   | 'br' type operand ',' 'label' name ',' 'label' name
                           { A.CondBr ($3 $2) $6 $9 }
@@ -736,10 +737,9 @@ addrSpace :
     {- empty -}                { A.AddrSpace 0 }
   | 'addrspace' '(' INT ')'    { A.AddrSpace (fromIntegral $3) }
 
-type :: { A.Type }
-type :
-    'void'                    { A.VoidType }
-  | INTEGERTYPE               { A.IntegerType $1 }
+typeNoVoid :: { A.Type }
+typeNoVoid :
+    INTEGERTYPE               { A.IntegerType $1 }
   | 'half'                    { A.FloatingPointType 16 A.IEEE }
   | 'float'                   { A.FloatingPointType 32 A.IEEE }
   | 'double'                  { A.FloatingPointType 64 A.IEEE }
@@ -751,6 +751,11 @@ type :
   | '[' INT 'x' type ']'      { A.ArrayType (fromIntegral $2) $4 }
   | name                      { A.NamedTypeReference $1 }
   | 'metadata'                { A.MetadataType }
+
+type :: { A.Type }
+type :
+    'void'                    { A.VoidType }
+  | typeNoVoid                { $1 }
 
 mType :: { Maybe A.Type }
 mType :
