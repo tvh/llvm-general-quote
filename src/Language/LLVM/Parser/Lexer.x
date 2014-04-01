@@ -370,7 +370,7 @@ lexToken = do
       AlexError end        -> lexerError end (text rest)
                                 where
                                   rest :: String
-                                  rest = B.unpack $ B.take 80 (alexInput end)
+                                  rest = B.unpack $ B.take 80 (alexInput beg)
       AlexSkip end _       -> setInput end >> lexToken
       AlexToken end _len t  -> setInput end >> t beg end
 }
