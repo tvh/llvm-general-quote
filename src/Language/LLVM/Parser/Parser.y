@@ -54,6 +54,7 @@ import qualified LLVM.General.AST.RMWOperation as AR
  '*'    { L _ T.Tstar }
  '-'    { L _ T.Tminus }
  '!'    { L _ T.Tbang }
+ '...'  { L _ T.Tpoints }
  'x'    { L _ T.Tx }
  'zeroinitializer'  { L _ T.Tzeroinitializer }
  'undef'            { L _ T.Tundef }
@@ -233,6 +234,10 @@ import qualified LLVM.General.AST.RMWOperation as AR
  'opaque'           { L _ T.Topaque }
  'sideeffect'       { L _ T.Tsideeffect }
  'inteldialect'     { L _ T.Tinteldialect }
+ 'section'          { L _ T.Tsection }
+ 'gc'               { L _ T.Tgc }
+ 'tail'             { L _ T.Ttail }
+
  'for'              { L _ T.Tfor }
  'in'               { L _ T.Tin }
  'with'             { L _ T.Twith }
@@ -514,6 +519,11 @@ callableOperand :
   | type 'asm' sideeffect alignstack dialect STRING ',' STRING  
                        { \ts -> Left (A.InlineAssembly (A.FunctionType $1 ts False) $6 $8 $3 $4 $5) }
 
+tail :: { Bool }
+tail :
+    {- empty -}          { False }
+  | 'tail'               { True }
+
 idx :: { Word32 }
 idx :
     INT               { fromIntegral $1 }
@@ -601,8 +611,8 @@ instruction_ :
   | 'icmp' intP type operand ',' operand    { A.ICmp $2 ($4 $3) ($6 $3) }
   | 'fcmp' fpP type operand ',' operand     { A.FCmp $2 ($4 $3) ($6 $3) }
   | 'phi' type phiList                      { A.Phi $2 (rev ($3 $2)) }
-  | 'call' pAttributes callableOperand '(' argumentList ')'
-                                            { A.Call False A.C (rev $2) ($3 (map fst (rev $5))) (map snd (rev $5)) [] }
+  | tail 'call' cconv pAttributes callableOperand '(' argumentList ')' fAttributes
+                                            { A.Call $1 $3 (rev $4) ($5 (map fst (rev $7))) (map snd (rev $7)) (rev $9) }
   | 'select' tOperand ',' tOperand ',' tOperand
                                             { A.Select $2 $4 $6 }
   | 'va_arg' tOperand ',' type              { A.VAArg $2 $4 }
@@ -672,8 +682,8 @@ terminator_ :
                           { A.Switch ($3 $2) $6 (rev $8) }
   | 'indirectbr' tOperand ',' '[' labels ']'
                           { A.IndirectBr $2 (rev $5) }
-  | 'invoke' callableOperand '(' argumentList ')' 'to' 'label' name 'unwind' 'label' name
-                          { A.Invoke A.C [] ($2 (map fst (rev $4))) (map snd (rev $4)) [] $8 $11 }
+  | 'invoke' cconv pAttributes callableOperand '(' argumentList ')' fAttributes 'to' 'label' name 'unwind' 'label' name
+                          { A.Invoke $2 (rev $3) ($4 (map fst (rev $6))) (map snd (rev $6)) (rev $8) $11 $14 }
   | 'resume' tOperand     { A.Resume $2 }
   | 'unreachable'         { A.Unreachable }
 
@@ -734,7 +744,7 @@ type :
   | 'float'                   { A.FloatingPointType 32 A.IEEE }
   | 'double'                  { A.FloatingPointType 64 A.IEEE }
   | type addrSpace '*'        { A.PointerType $1 $2 }
-  | type '(' typeList ')'     { A.FunctionType $1 (rev $3) False }
+  | type '(' typeListVar ')'  { A.FunctionType $1 (fst $3) (snd $3) }
   | '<' INT 'x' type '>'      { A.VectorType (fromIntegral $2) $4 }
   | '{' typeList '}'          { A.StructureType False (rev $2) }
   | '<' '{' typeList '}' '>'  { A.StructureType True (rev $3) }
@@ -756,6 +766,13 @@ typeList :: { RevList A.Type }
 typeList :
     {- empty -}                      { RNil }
   | typeList_                        { $1 }
+
+typeListVar :: { ([A.Type], Bool) }
+typeListVar :
+    {- empty -}                      { ([], False) }
+  | typeList_                        { (rev $1, False) }
+  | '...'                            { ([], True) }
+  | typeList_ ',' '...'              { (rev $1, True) }
 
 linkage :: { A.Linkage }
 linkage :
@@ -807,10 +824,12 @@ parameterList_ :
     parameter                        { RCons $1 RNil }
   | parameterList_ ',' parameter     { RCons $3 $1 }
 
-parameterList :: { RevList A.Parameter }
+parameterList :: { ([A.Parameter], Bool) }
 parameterList :
-    {- empty -}                      { RNil }
-  | parameterList_                   { $1 }
+    {- empty -}                      { ([], False) }
+  | parameterList_                   { (rev $1, False) }
+  | '...'                            { ([], True) }
+  | parameterList_ '...'             { (rev $1, True) }
 
 fAttribute :: { A.FunctionAttribute }    
 fAttribute :
@@ -836,6 +855,16 @@ fAttributes :
     {- empty -}                   { RNil }
   | fAttributes fAttribute        { RCons $2 $1 }
 
+section :: { Maybe String }
+section :
+    {- empty -}         { Nothing }
+  | 'section' STRING    { Just $2 }
+
+gc :: { Maybe String }
+gc :
+    {- empty -}         { Nothing }
+  | 'gc' STRING         { Just $2 }
+
 isConstant :: { Bool }
 isConstant :
     'global'        { False }
@@ -843,8 +872,8 @@ isConstant :
 
 global :: { A.Global }
 global :
-    'define' linkage visibility cconv type globalName '(' parameterList ')' fAttributes alignment '{' basicBlocks '}'
-      { A.Function $2 $3 $4 [] $5 $6 (rev $8, False) [] Nothing $11 Nothing (rev $13) }
+    'define' linkage visibility cconv pAttributes type globalName '(' parameterList ')' fAttributes section alignment gc '{' basicBlocks '}'
+      { A.Function $2 $3 $4 (rev $5) $6 $7 $9 (rev $11) $12 $13 $14 (rev $16) }
   | globalName '=' linkage visibility isConstant type mConstant alignment
       { A.GlobalVariable $1 $3 $4 False (A.AddrSpace 0) False $5 $6 ($7 $6) Nothing $8 }
   | globalName '=' visibility 'alias' linkage type constant

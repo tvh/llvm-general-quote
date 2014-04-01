@@ -41,6 +41,7 @@ data Token
   | Tstar
   | Tminus
   | Tbang
+  | Tpoints
   | Tx
   | Tzeroinitializer
   | Tundef
@@ -94,6 +95,9 @@ data Token
   | Topaque
   | Tsideeffect
   | Tinteldialect
+  | Tsection
+  | Tgc
+  | Ttail
   -- Finalizer
   | Tret
   | Tbr
@@ -435,6 +439,9 @@ keywords = [("define",            Tdefine,          Nothing),
             ("opaque",            Topaque,          Nothing),
             ("sideeffect",        Tsideeffect,      Nothing),
             ("inteldialect",      Tinteldialect,    Nothing),
+            ("section",           Tsection,         Nothing),
+            ("gc",                Tgc,              Nothing),
+            ("tail",              Ttail,            Nothing),
             ("for",               Tfor,             Just [Loops]),
             ("in",                Tin,              Just [Loops]),
             ("with",              Twith,            Just [Loops]),
