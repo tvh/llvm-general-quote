@@ -479,16 +479,16 @@ parameterAttributes :
     {- empty -}                                { RNil }
   | parameterAttributes parameterAttribute     { RCons $2 $1 }
 
-argument :: { (A.Operand, [A.ParameterAttribute]) }
+argument :: { (A.Type, (A.Operand, [A.ParameterAttribute])) }
 argument :
-    type parameterAttributes operand      { ($3 $1, rev $2) }
+    type parameterAttributes operand      { ($1, ($3 $1, rev $2)) }
 
-argumentList_ :: { RevList (A.Operand, [A.ParameterAttribute]) }
+argumentList_ :: { RevList (A.Type, (A.Operand, [A.ParameterAttribute])) }
 argumentList_ :
     argument                          { RCons $1 RNil }
   | argumentList_ ',' argument        { RCons $3 $1 }
 
-argumentList :: { RevList (A.Operand, [A.ParameterAttribute]) }
+argumentList :: { RevList (A.Type, (A.Operand, [A.ParameterAttribute])) }
 argumentList :
     {- empty -}                      { RNil }
   | argumentList_                    { $1 }
@@ -508,11 +508,11 @@ dialect :
     {- empty -}       { A.ATTDialect }
   | 'inteldialect'    { A.IntelDialect }
 
-callableOperand :: { A.CallableOperand }
+callableOperand :: { [A.Type] -> A.CallableOperand }
 callableOperand :
-    tOperand           { Right $1 }
+    type operand       { \ts -> Right ($2 (A.FunctionType $1 ts False)) }
   | type 'asm' sideeffect alignstack dialect STRING ',' STRING  
-                       { Left (A.InlineAssembly $1 $6 $8 $3 $4 $5) }
+                       { \ts -> Left (A.InlineAssembly (A.FunctionType $1 ts False) $6 $8 $3 $4 $5) }
 
 idx :: { Word32 }
 idx :
@@ -602,7 +602,7 @@ instruction_ :
   | 'fcmp' fpP type operand ',' operand     { A.FCmp $2 ($4 $3) ($6 $3) }
   | 'phi' type phiList                      { A.Phi $2 (rev ($3 $2)) }
   | 'call' pAttributes callableOperand '(' argumentList ')'
-                                            { A.Call False A.C (rev $2) $3 (rev $5) [] }
+                                            { A.Call False A.C (rev $2) ($3 (map fst (rev $5))) (map snd (rev $5)) [] }
   | 'select' tOperand ',' tOperand ',' tOperand
                                             { A.Select $2 $4 $6 }
   | 'va_arg' tOperand ',' type              { A.VAArg $2 $4 }
@@ -672,8 +672,8 @@ terminator_ :
                           { A.Switch ($3 $2) $6 (rev $8) }
   | 'indirectbr' tOperand ',' '[' labels ']'
                           { A.IndirectBr $2 (rev $5) }
-  | 'invoke' tOperand '(' argumentList ')' 'to' 'label' name 'unwind' 'label' name
-                          { A.Invoke A.C [] (Right $2) (rev $4) [] $8 $11 }
+  | 'invoke' callableOperand '(' argumentList ')' 'to' 'label' name 'unwind' 'label' name
+                          { A.Invoke A.C [] ($2 (map fst (rev $4))) (map snd (rev $4)) [] $8 $11 }
   | 'resume' tOperand     { A.Resume $2 }
   | 'unreachable'         { A.Unreachable }
 
