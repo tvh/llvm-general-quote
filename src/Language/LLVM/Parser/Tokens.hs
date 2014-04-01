@@ -88,6 +88,12 @@ data Token
   | Texact
   | Taddrspace
   | Tblockaddress
+  | Tmodule
+  | Tasm
+  | Ttype
+  | Topaque
+  | Tsideeffect
+  | Tinteldialect
   -- Finalizer
   | Tret
   | Tbr
@@ -423,6 +429,12 @@ keywords = [("define",            Tdefine,          Nothing),
             ("exact",             Texact,           Nothing),
             ("addrspace",         Taddrspace,       Nothing),
             ("blockaddress",      Tblockaddress,    Nothing),
+            ("module",            Tmodule,          Nothing),
+            ("asm",               Tasm,             Nothing),
+            ("type",              Ttype,            Nothing),
+            ("opaque",            Topaque,          Nothing),
+            ("sideeffect",        Tsideeffect,      Nothing),
+            ("inteldialect",      Tinteldialect,    Nothing),
             ("for",               Tfor,             Just [Loops]),
             ("in",                Tin,              Just [Loops]),
             ("with",              Twith,            Just [Loops]),

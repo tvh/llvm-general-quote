@@ -227,7 +227,12 @@ import qualified LLVM.General.AST.RMWOperation as AR
  'exact'            { L _ T.Texact }
  'addrspace'        { L _ T.Taddrspace }
  'blockaddress'     { L _ T.Tblockaddress }
-
+ 'module'           { L _ T.Tmodule }
+ 'asm'              { L _ T.Tasm }
+ 'type'             { L _ T.Ttype }
+ 'opaque'           { L _ T.Topaque }
+ 'sideeffect'       { L _ T.Tsideeffect }
+ 'inteldialect'     { L _ T.Tinteldialect }
  'for'              { L _ T.Tfor }
  'in'               { L _ T.Tin }
  'with'             { L _ T.Twith }
@@ -488,6 +493,27 @@ argumentList :
     {- empty -}                      { RNil }
   | argumentList_                    { $1 }
 
+sideeffect :: { Bool }
+sideeffect :
+    {- empty -}       { False }
+  | 'sideeffect'      { True }
+
+alignstack :: { Bool }
+alignstack :
+    {- empty -}       { False }
+  | 'alignstack'      { True }
+
+dialect :: { A.Dialect }
+dialect :
+    {- empty -}       { A.ATTDialect }
+  | 'inteldialect'    { A.IntelDialect }
+
+callableOperand :: { A.CallableOperand }
+callableOperand :
+    tOperand           { Right $1 }
+  | type 'asm' sideeffect alignstack dialect STRING ',' STRING  
+                       { Left (A.InlineAssembly $1 $6 $8 $3 $4 $5) }
+
 idx :: { Word32 }
 idx :
     INT               { fromIntegral $1 }
@@ -575,8 +601,8 @@ instruction_ :
   | 'icmp' intP type operand ',' operand    { A.ICmp $2 ($4 $3) ($6 $3) }
   | 'fcmp' fpP type operand ',' operand     { A.FCmp $2 ($4 $3) ($6 $3) }
   | 'phi' type phiList                      { A.Phi $2 (rev ($3 $2)) }
-  | 'call' pAttributes type operand '(' argumentList ')'
-                                            { A.Call False A.C (rev $2) (Right ($4 $3)) (rev $6) [] }
+  | 'call' pAttributes callableOperand '(' argumentList ')'
+                                            { A.Call False A.C (rev $2) $3 (rev $5) [] }
   | 'select' tOperand ',' tOperand ',' tOperand
                                             { A.Select $2 $4 $6 }
   | 'va_arg' tOperand ',' type              { A.VAArg $2 $4 }
@@ -713,7 +739,13 @@ type :
   | '{' typeList '}'          { A.StructureType False (rev $2) }
   | '<' '{' typeList '}' '>'  { A.StructureType True (rev $3) }
   | '[' INT 'x' type ']'      { A.ArrayType (fromIntegral $2) $4 }
+  | name                      { A.NamedTypeReference $1 }
   | 'metadata'                { A.MetadataType }
+
+mType :: { Maybe A.Type }
+mType :
+    type                 { Just $1 }
+  | 'opaque'             { Nothing }
 
 typeList_ :: { RevList A.Type }
 typeList_ :
@@ -842,10 +874,14 @@ metadataList :
 definition :: { A.Definition }
 definition :
     global         { A.GlobalDefinition $1 }
+  | name '=' 'type' mType
+                   { A.TypeDefinition $1 $4 }
   | metadataNodeID '=' 'metadata' '!' '{' metadataList '}'
                    { A.MetadataNodeDefinition $1 (rev $6) }
   | NAMED_META '=' '!' '{' metadataNodeIDs '}'
                    { A.NamedMetadataDefinition $1 (rev $5) }
+  | 'module' 'asm' STRING
+                   { A.ModuleInlineAssembly $3 }
   | ANTI_DEF       { A.AntiDefinition $1 }
   | ANTI_DEFS      { A.AntiDefinitionList $1 }
 
