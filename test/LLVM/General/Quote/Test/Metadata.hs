@@ -1,11 +1,11 @@
 {-# LANGUAGE  QuasiQuotes #-}
-module Language.LLVM.Test.Metadata where
+module LLVM.General.Quote.Test.Metadata where
 
 import Test.Tasty
 import Test.Tasty.HUnit
 import Test.HUnit
 
-import Language.LLVM.Quote.LLVM
+import LLVM.General.Quote.LLVM
 
 import LLVM.General.AST as A
 import qualified LLVM.General.AST.Linkage as L

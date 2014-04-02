@@ -1,4 +1,4 @@
 import Test.Tasty
-import qualified Language.LLVM.Test.Tests as Language.LLVM
+import qualified LLVM.General.Quote.Test.Tests as Quote
 
-main = defaultMain Language.LLVM.tests
+main = defaultMain Quote.tests

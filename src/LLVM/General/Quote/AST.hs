@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-module Language.LLVM.AST (
+module LLVM.General.Quote.AST (
   Module(..),
   Definition(..),
   Global(..),

@@ -1,4 +1,4 @@
-module Language.LLVM.Parser.Tokens (
+module LLVM.General.Quote.Parser.Tokens (
     Token(..),
     Visibility(..),
     Extensions(..),
@@ -11,7 +11,7 @@ import qualified Data.Map as Map
 import Data.Bits
 import Data.Word
 import Text.PrettyPrint.Mainland
-import Language.LLVM.AST
+import LLVM.General.Quote.AST
 import Data.List (foldl')
 
 data Visibility

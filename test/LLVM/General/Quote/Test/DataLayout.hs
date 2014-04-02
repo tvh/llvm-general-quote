@@ -1,5 +1,5 @@
 {-# LANGUAGE  QuasiQuotes #-}
-module Language.LLVM.Test.DataLayout where
+module LLVM.General.Quote.Test.DataLayout where
 
 import Test.Tasty
 import Test.Tasty.HUnit
@@ -9,7 +9,7 @@ import Data.Maybe
 import qualified Data.Set as Set
 import qualified Data.Map as Map
 
-import Language.LLVM.Quote.LLVM
+import LLVM.General.Quote.LLVM
 
 import LLVM.General.AST
 import LLVM.General.AST.DataLayout

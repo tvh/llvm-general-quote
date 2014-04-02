@@ -1,5 +1,5 @@
 {
-module Language.LLVM.Parser.Parser where
+module LLVM.General.Quote.Parser.Parser where
 
 import Control.Monad (forM_,
                       when,
@@ -15,10 +15,10 @@ import Data.Maybe (fromMaybe, catMaybes, listToMaybe)
 import Data.Word
 import Text.PrettyPrint.Mainland
 
-import Language.LLVM.Parser.Lexer
-import Language.LLVM.Parser.Monad
-import qualified Language.LLVM.Parser.Tokens as T
-import qualified Language.LLVM.AST as A
+import LLVM.General.Quote.Parser.Lexer
+import LLVM.General.Quote.Parser.Monad
+import qualified LLVM.General.Quote.Parser.Tokens as T
+import qualified LLVM.General.Quote.AST as A
 import qualified LLVM.General.AST.Float as A
 import qualified LLVM.General.AST.Linkage as A
 import qualified LLVM.General.AST.Visibility as A

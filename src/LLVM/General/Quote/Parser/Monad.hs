@@ -10,7 +10,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
-module Language.LLVM.Parser.Monad (
+module LLVM.General.Quote.Parser.Monad (
     P,
     runP,
     evalP,
@@ -70,7 +70,7 @@ import Data.Typeable (Typeable)
 import Data.Word
 import Text.PrettyPrint.Mainland
 
-import Language.LLVM.Parser.Tokens
+import LLVM.General.Quote.Parser.Tokens
 
 data PState = PState
     { input      :: !AlexInput

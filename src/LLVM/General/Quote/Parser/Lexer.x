@@ -10,7 +10,7 @@
 
 {-# OPTIONS_GHC -w #-}
 
-module Language.LLVM.Parser.Lexer (
+module LLVM.General.Quote.Parser.Lexer (
     lexToken
   ) where
 
@@ -30,8 +30,8 @@ import Data.Loc
 import Data.Ratio ((%))
 import Text.PrettyPrint.Mainland
 
-import Language.LLVM.Parser.Tokens
-import Language.LLVM.Parser.Monad
+import LLVM.General.Quote.Parser.Tokens
+import LLVM.General.Quote.Parser.Monad
 }
 
 $nondigit         = [a-z A-Z \_ \.]

@@ -1,5 +1,5 @@
 {-# LANGUAGE  QuasiQuotes #-}
-module Language.LLVM.Test.Instructions where
+module LLVM.General.Quote.Test.Instructions where
 
 import Test.Tasty
 import Test.Tasty.HUnit
@@ -11,7 +11,7 @@ import Data.Maybe
 import Foreign.Ptr
 import Data.Word
 
-import Language.LLVM.Quote.LLVM
+import LLVM.General.Quote.LLVM
 
 import LLVM.General.AST
 import LLVM.General.AST.Type

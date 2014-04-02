@@ -1,11 +1,11 @@
 {-# LANGUAGE  QuasiQuotes #-}
-module Language.LLVM.Test.InlineAssembly where
+module LLVM.General.Quote.Test.InlineAssembly where
 
 import Test.Tasty
 import Test.Tasty.HUnit
 import Test.HUnit
 
-import Language.LLVM.Quote.LLVM
+import LLVM.General.Quote.LLVM
 
 import LLVM.General.AST
 import LLVM.General.AST.InlineAssembly as IA

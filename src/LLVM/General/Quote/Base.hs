@@ -6,7 +6,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# OPTIONS_GHC -fno-warn-unused-matches #-}
 
-module Language.LLVM.Quote.Base (
+module LLVM.General.Quote.Base (
     ToDefintions(..),
     quasiquote,
     parse
@@ -25,8 +25,8 @@ import Language.Haskell.TH.Quote (QuasiQuoter(..),
                                   dataToExpQ,
                                   dataToPatQ)
 
-import qualified Language.LLVM.Parser as P
-import qualified Language.LLVM.AST as A
+import qualified LLVM.General.Quote.Parser as P
+import qualified LLVM.General.Quote.AST as A
 import qualified LLVM.General.AST.IntegerPredicate as AI
 import qualified LLVM.General.AST as L
 import qualified LLVM.General.AST.Constant as L
