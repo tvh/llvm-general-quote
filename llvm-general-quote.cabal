@@ -1,18 +1,23 @@
 name:                llvm-general-quote
 version:             0.1.0.0
 synopsis:            QuasiQuoting llvm code for llvm-general
+homepage:            https://github.com/tvh/llvm-general-quote
 description:
   This package provides a QuasiQuotation for llvm-general.
-homepage:            https://github.com/tvh/llvm-general-quote
+
 license:             BSD3
 license-file:        LICENSE
-author:              Timo von Holtz
-maintainer:          tvh@tvholtz.de
+author:              Timo von Holtz <tvh@tvholtz.de>
+maintainer:          Timo von Holtz <tvh@tvholtz.de>
 copyright:           Timo von Holtz 2014
 category:            Compilers/Interpreters, Code Generation
 build-type:          Simple
 extra-source-files:  README.md
 cabal-version:       >=1.10
+
+source-repository head
+  type: git
+  location: git://github.com/tvh/llvm-general-quote.git
 
 library
   exposed-modules:
@@ -26,7 +31,7 @@ library
     LLVM.General.Quote.AST,
     LLVM.General.Quote.Base
   other-extensions:    CPP
-  ghc-options:     -Wall -Werror
+  ghc-options:     -Wall
   build-depends:
     base >=4.7 && <4.8,
     array >=0.5 && <0.6,
