@@ -8,28 +8,30 @@ module LLVM.General.Quote.LLVM (
 
 import qualified LLVM.General.Quote.Parser.Parser as P
 import qualified LLVM.General.Quote.AST as A
-import LLVM.General.Quote.Base (quasiquote)
+import LLVM.General.Quote.Base (quasiquote, TQuasiQuoter(unTQuasiQuoter))
 import Language.Haskell.TH.Quote (QuasiQuoter)
+
+import qualified LLVM.General.AST as L
 
 exts :: [A.Extensions]
 exts = [A.Loops]
 
 -- |Quasiquoter for 'LLVM.General.AST.Module'
 llmod :: QuasiQuoter
-llmod = quasiquote exts P.parseModule
+llmod = unTQuasiQuoter (quasiquote exts P.parseModule :: TQuasiQuoter L.Module)
 
 -- |Quasiquoter for 'LLVM.General.AST.Definition'
 lldef :: QuasiQuoter
-lldef = quasiquote exts P.parseDefinition
+lldef = unTQuasiQuoter (quasiquote exts P.parseDefinition :: TQuasiQuoter L.Definition)
 
 -- |Quasiquoter for 'LLVM.General.AST.Global'
 llg :: QuasiQuoter
-llg = quasiquote exts P.parseGlobal
+llg = unTQuasiQuoter (quasiquote exts P.parseGlobal :: TQuasiQuoter L.Global)
 
 -- |Quasiquoter for 'LLVM.General.AST.BasicBlock'
 llbb :: QuasiQuoter
-llbb = quasiquote exts P.parseBasicBlock
+llbb = unTQuasiQuoter (quasiquote exts P.parseBasicBlock :: TQuasiQuoter L.BasicBlock)
 
 -- |Quasiquoter for 'LLVM.General.AST.Instruction.Instruction'
 lli :: QuasiQuoter
-lli = quasiquote exts P.parseInstruction
+lli = unTQuasiQuoter (quasiquote exts P.parseInstruction :: TQuasiQuoter L.Instruction)

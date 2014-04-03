@@ -4,11 +4,15 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE TemplateHaskell #-}
-{-# OPTIONS_GHC -fno-warn-unused-matches -Werror #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE OverlappingInstances #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# OPTIONS_GHC -fno-warn-unused-matches #-}
 
 module LLVM.General.Quote.Base (
     ToDefintions(..),
     quasiquote,
+    TQuasiQuoter(..),
     parse
   ) where
 
@@ -21,20 +25,27 @@ import Data.Loc
 import Data.Typeable (Typeable)
 import Language.Haskell.Meta (parseExp, parsePat)
 import Language.Haskell.TH
+import Language.Haskell.TH.Lib
+import Language.Haskell.TH.Syntax
 import Language.Haskell.TH.Quote (QuasiQuoter(..),
-                                  dataToExpQ,
                                   dataToPatQ)
 
 import qualified LLVM.General.Quote.Parser as P
 import qualified LLVM.General.Quote.AST as A
-import qualified LLVM.General.AST.IntegerPredicate as AI
+import qualified LLVM.General.AST.IntegerPredicate as LI
 import qualified LLVM.General.AST as L
 import qualified LLVM.General.AST.Constant as L
   (Constant(Int, Float, Null, Struct, Array, Vector, Undef, BlockAddress, GlobalReference))
 import qualified LLVM.General.AST.Float as L
 import qualified LLVM.General.AST.InlineAssembly as L
 import qualified LLVM.General.AST.DataLayout as L
-import qualified LLVM.General.AST.AddrSpace as A
+import qualified LLVM.General.AST.AddrSpace as L
+import qualified LLVM.General.AST.Linkage as L
+import qualified LLVM.General.AST.Visibility as L
+import qualified LLVM.General.AST.CallingConvention as L
+import qualified LLVM.General.AST.Attribute as L
+import qualified LLVM.General.AST.RMWOperation as LR
+import qualified LLVM.General.AST.FloatingPointPredicate as LF
 
 import qualified Data.Map as M
 import qualified Data.Set as S
@@ -83,71 +94,260 @@ instance ToTargetTriple String where
 instance ToTargetTriple (Maybe String) where
   toTargetTriple = id
 
-antiVarE :: String -> ExpQ
-antiVarE = either fail return . parseExp
+antiVarE :: String -> TExpQ a
+antiVarE = unsafeTExpCoerce . either fail return . parseExp
 
-qqDefinitionListE :: [A.Definition] -> Maybe (Q Exp)
-qqDefinitionListE [] = Just [|[]|]
+class QQExp a b where
+  qqExp :: a -> TExpQ b
+
+--instance (Lift a) => QQExp a a where
+--  qqExp x = [||x||]
+instance QQExp String String where
+  qqExp x = [||x||]
+instance QQExp L.Linkage L.Linkage where
+  qqExp x = [||x||]
+instance QQExp L.Visibility L.Visibility where
+  qqExp x = [||x||]
+instance QQExp L.AddrSpace L.AddrSpace where
+  qqExp x = [||x||]
+instance QQExp L.CallingConvention L.CallingConvention where
+  qqExp x = [||x||]
+instance QQExp L.ParameterAttribute L.ParameterAttribute where
+  qqExp x = [||x||]
+instance QQExp L.FunctionAttribute L.FunctionAttribute where
+  qqExp x = [||x||]
+instance QQExp LR.RMWOperation LR.RMWOperation where
+  qqExp x = [||x||]
+instance QQExp LI.IntegerPredicate LI.IntegerPredicate where
+  qqExp x = [||x||]
+instance QQExp LF.FloatingPointPredicate LF.FloatingPointPredicate where
+  qqExp x = [||x||]
+instance QQExp Bool Bool where
+  qqExp x = [||x||]
+instance QQExp Word Word where
+  qqExp x = [||x||]
+instance QQExp Word16 Word16 where
+  qqExp x = [||x||]
+instance QQExp Word32 Word32 where
+  qqExp x = [||x||]
+instance QQExp Word64 Word64 where
+  qqExp x = [||x||]
+instance QQExp Integer Integer where
+  qqExp x = [||x||]
+instance QQExp L.SomeFloat L.SomeFloat where
+  qqExp x = [||x||]
+instance QQExp [L.ParameterAttribute] [L.ParameterAttribute] where
+  qqExp x = [||x||]
+instance QQExp [L.FunctionAttribute] [L.FunctionAttribute] where
+  qqExp x = [||x||]
+instance QQExp [Word32] [Word32] where
+  qqExp x = [||x||]
+
+--instance (QQExp a b) => QQExp [a] [b] where
+--  qqExp (x:xs) = [||$$(qqExp x) : $$(qqExp xs)||]
+--  qqExp []     = [||[]||]
+
+instance QQExp [A.MetadataNodeID] [L.MetadataNodeID] where
+  qqExp (x:xs) = [||$$(qqExp x) : $$(qqExp xs)||]
+  qqExp []     = [||[]||]
+
+instance QQExp [A.Named A.Instruction] [L.Named L.Instruction] where
+  qqExp (x:xs) = [||$$(qqExp x) : $$(qqExp xs)||]
+  qqExp []     = [||[]||]
+
+instance QQExp A.InstructionMetadata L.InstructionMetadata where
+  qqExp (x:xs) = [||$$(qqExp x) : $$(qqExp xs)||]
+  qqExp []     = [||[]||]
+
+instance QQExp [(A.Constant, A.Name)] [(L.Constant, L.Name)] where
+  qqExp (x:xs) = [||$$(qqExp x) : $$(qqExp xs)||]
+  qqExp []     = [||[]||]
+
+instance QQExp [A.Name] [L.Name] where
+  qqExp (x:xs) = [||$$(qqExp x) : $$(qqExp xs)||]
+  qqExp []     = [||[]||]
+
+instance QQExp [(A.Operand, [L.ParameterAttribute])] [(L.Operand, [L.ParameterAttribute])] where
+  qqExp (x:xs) = [||$$(qqExp x) : $$(qqExp xs)||]
+  qqExp []     = [||[]||]
+
+instance QQExp [A.Operand] [L.Operand] where
+  qqExp (x:xs) = [||$$(qqExp x) : $$(qqExp xs)||]
+  qqExp []     = [||[]||]
+
+instance QQExp [(A.Operand, A.Name)] [(L.Operand, L.Name)] where
+  qqExp (x:xs) = [||$$(qqExp x) : $$(qqExp xs)||]
+  qqExp []     = [||[]||]
+
+instance QQExp [A.LandingPadClause] [L.LandingPadClause] where
+  qqExp (x:xs) = [||$$(qqExp x) : $$(qqExp xs)||]
+  qqExp []     = [||[]||]
+
+instance QQExp [Maybe A.Operand] [Maybe L.Operand] where
+  qqExp (x:xs) = [||$$(qqExp x) : $$(qqExp xs)||]
+  qqExp []     = [||[]||]
+
+instance QQExp [A.Constant] [L.Constant] where
+  qqExp (x:xs) = [||$$(qqExp x) : $$(qqExp xs)||]
+  qqExp []     = [||[]||]
+
+instance QQExp [A.Type] [L.Type] where
+  qqExp (x:xs) = [||$$(qqExp x) : $$(qqExp xs)||]
+  qqExp []     = [||[]||]
+
+instance QQExp [(L.AddrSpace, (Word32, A.AlignmentInfo))] [(L.AddrSpace, (Word32, L.AlignmentInfo))] where
+  qqExp (x:xs) = [||$$(qqExp x) : $$(qqExp xs)||]
+  qqExp []     = [||[]||]
+
+instance QQExp [((A.AlignType, Word32), A.AlignmentInfo)] [((L.AlignType, Word32), L.AlignmentInfo)] where
+  qqExp (x:xs) = [||$$(qqExp x) : $$(qqExp xs)||]
+  qqExp []     = [||[]||]
+
+instance (QQExp a b) => QQExp (Maybe a) (Maybe b) where
+  qqExp Nothing  = [||Nothing||]
+  qqExp (Just x) = [||Just $$(qqExp x)||]
+
+instance (QQExp a c, QQExp b d) => QQExp (Either a b) (Either c d) where
+  qqExp (Left x)  = [||Left $$(qqExp x)||]
+  qqExp (Right x) = [||Right $$(qqExp x)||]
+
+instance (QQExp a c, QQExp b d) => QQExp (a,b) (c,d) where
+  qqExp (x,y) = [||($$(qqExp x), $$(qqExp y))||]
+
+--instance (QQExp a c, QQExp b d, Ord c) => QQExp (M.Map a b) (M.Map c d) where
+--  qqExp = qqMapE
+
+instance QQExp (M.Map L.AddrSpace (Word32, A.AlignmentInfo)) (M.Map L.AddrSpace (Word32, L.AlignmentInfo)) where
+  qqExp = qqMapE
+
+instance QQExp (M.Map (A.AlignType, Word32) A.AlignmentInfo) (M.Map (L.AlignType, Word32) L.AlignmentInfo) where
+  qqExp = qqMapE
+
+--instance (QQExp a b, Ord b) => QQExp (S.Set a) (S.Set b) where
+--  qqExp = qqSetE
+
+instance QQExp (S.Set Word32) (S.Set Word32) where
+  qqExp = qqSetE
+
+instance QQExp A.Definition L.Definition where
+  qqExp = qqDefinitionE
+instance QQExp [A.Definition] [L.Definition] where
+  qqExp = qqDefinitionListE
+instance QQExp A.Module L.Module where
+  qqExp = qqModuleE
+instance QQExp A.Global L.Global where
+  qqExp = qqGlobalE
+instance QQExp [A.Parameter] [L.Parameter] where
+  qqExp = qqParameterListE
+instance QQExp A.Parameter L.Parameter where
+  qqExp = qqParameterE
+instance QQExp A.BasicBlock L.BasicBlock where
+  qqExp = qqBasicBlockE
+instance QQExp [A.BasicBlock] [L.BasicBlock] where
+  qqExp = qqBasicBlockListE
+instance QQExp A.Terminator L.Terminator where
+  qqExp = qqTerminatorE
+instance QQExp A.MemoryOrdering L.MemoryOrdering where
+  qqExp = qqMemoryOrderingE
+instance QQExp A.Atomicity L.Atomicity where
+  qqExp = qqAtomicityE
+instance QQExp A.LandingPadClause L.LandingPadClause where
+  qqExp = qqLandingPadClauseE
+instance QQExp A.Instruction L.Instruction where
+  qqExp = qqInstructionE
+instance (QQExp a b) => QQExp (A.Named a) (L.Named b) where
+  qqExp = qqNamedE
+instance QQExp A.MetadataNodeID L.MetadataNodeID where
+  qqExp = qqMetadataNodeIDE
+instance QQExp A.MetadataNode L.MetadataNode where
+  qqExp = qqMetadataNodeE
+instance QQExp A.Operand L.Operand where
+  qqExp = qqOperandE
+instance QQExp A.Constant L.Constant where
+  qqExp = qqConstantE
+instance QQExp A.Name L.Name where
+  qqExp = qqNameE
+instance QQExp A.FloatingPointFormat L.FloatingPointFormat where
+  qqExp = qqFloatingPointFormatE
+instance QQExp A.Type L.Type where
+  qqExp = qqTypeE
+instance QQExp A.Dialect L.Dialect where
+  qqExp = qqDialectE
+instance QQExp A.InlineAssembly L.InlineAssembly where
+  qqExp = qqInlineAssemblyE
+instance QQExp A.Endianness L.Endianness where
+  qqExp = qqEndiannessE
+instance QQExp A.AlignmentInfo L.AlignmentInfo where
+  qqExp = qqAlignmentInfoE
+instance QQExp A.AlignType L.AlignType where
+  qqExp = qqAlignTypeE
+instance QQExp A.DataLayout L.DataLayout where
+  qqExp = qqDataLayoutE
+instance QQExp A.TargetTriple (Maybe String) where
+  qqExp = qqTargetTripleE
+
+qqDefinitionListE :: [A.Definition] -> TExpQ [L.Definition]
+qqDefinitionListE [] = [||[]||]
 qqDefinitionListE (A.AntiDefinitionList v : defs) =
-    Just [|toDefinitions $(antiVarE v) ++ $(qqE defs)|]
+    unsafeTExpCoerce [|toDefinitions $(unTypeQ $ antiVarE v) ++ $(unTypeQ (qqExp defs :: TExpQ [L.Definition]))|]
 qqDefinitionListE (def : defs) =
-    Just [|$(qqE def) : $(qqE defs)|]
+    [||$$(qqExp def) : $$(qqExp defs)||]
 
-qqDefinitionE :: A.Definition -> Maybe (Q Exp)
+qqDefinitionE :: A.Definition -> TExpQ L.Definition
 qqDefinitionE (A.GlobalDefinition v) =
-    Just [|L.GlobalDefinition $(qqE v) :: L.Definition|]
+    [||L.GlobalDefinition $$(qqExp v) :: L.Definition||]
 qqDefinitionE (A.TypeDefinition n v) =
-    Just [|L.TypeDefinition $(qqE n) $(qqE v) :: L.Definition|]
+    [||L.TypeDefinition $$(qqExp n) $$(qqExp v) :: L.Definition||]
 qqDefinitionE (A.MetadataNodeDefinition i vs) =
-    Just [|L.MetadataNodeDefinition $(qqE i) $(qqE vs) :: L.Definition|]
+    [||L.MetadataNodeDefinition $$(qqExp i) $$(qqExp vs) :: L.Definition||]
 qqDefinitionE (A.NamedMetadataDefinition i vs) =
-    Just [|L.NamedMetadataDefinition $(qqE i) $(qqE vs) :: L.Definition|]
+    [||L.NamedMetadataDefinition $$(qqExp i) $$(qqExp vs) :: L.Definition||]
 qqDefinitionE (A.ModuleInlineAssembly s) =
-    Just [|L.ModuleInlineAssembly $(qqE s) :: L.Definition|]
+    [||L.ModuleInlineAssembly $$(qqExp s) :: L.Definition||]
 qqDefinitionE a@(A.AntiDefinition s) =
-    Just $ antiVarE s
+    antiVarE s
 qqDefinitionE a@(A.AntiDefinitionList _s) =
     error $ "Internal Error: unexpected antiquote " ++ show a
 
-qqModuleE :: A.Module -> Maybe (Q Exp)
+qqModuleE :: A.Module -> TExpQ L.Module
 qqModuleE (A.Module n dl tt ds) = 
-  Just [|L.Module $(qqE n) $(qqE dl) $(qqE tt) $(qqE ds) :: L.Module|]
+  [||L.Module $$(qqExp n) $$(qqExp dl) $$(qqExp tt) $$(qqExp ds) :: L.Module||]
 
-qqGlobalE :: A.Global -> Maybe (Q Exp)
+qqGlobalE :: A.Global -> TExpQ L.Global
 qqGlobalE (A.GlobalVariable x1 x2 x3 x4 x5 x6 x7 x8 x9 xA xB) =
-  Just [|L.GlobalVariable $(qqE x1) $(qqE x2) $(qqE x3) $(qqE x4) $(qqE x5)
-                          $(qqE x6) $(qqE x7) $(qqE x8) $(qqE x9) $(qqE xA)
-                          $(qqE xB)|]
+  [||L.GlobalVariable $$(qqExp x1) $$(qqExp x2) $$(qqExp x3) $$(qqExp x4) $$(qqExp x5)
+                          $$(qqExp x6) $$(qqExp x7) $$(qqExp x8) $$(qqExp x9) $$(qqExp xA)
+                          $$(qqExp xB)||]
 qqGlobalE (A.GlobalAlias x1 x2 x3 x4 x5) =
-  Just [|L.GlobalAlias $(qqE x1) $(qqE x2) $(qqE x3) $(qqE x4) $(qqE x5)|]
+  [||L.GlobalAlias $$(qqExp x1) $$(qqExp x2) $$(qqExp x3) $$(qqExp x4) $$(qqExp x5)||]
 qqGlobalE (A.Function x1 x2 x3 x4 x5 x6 x7 x8 x9 xA xB xC) =
-  Just [|L.Function $(qqE x1) $(qqE x2) $(qqE x3) $(qqE x4) $(qqE x5)
-                    $(qqE x6) $(qqE x7) $(qqE x8) $(qqE x9) $(qqE xA)
-                    $(qqE xB) $(qqE xC)|]
+  [||L.Function $$(qqExp x1) $$(qqExp x2) $$(qqExp x3) $$(qqExp x4) $$(qqExp x5)
+                    $$(qqExp x6) $$(qqExp x7) $$(qqExp x8) $$(qqExp x9) $$(qqExp xA)
+                    $$(qqExp xB) $$(qqExp xC)||]
 
-qqParameterListE :: [A.Parameter] -> Maybe (Q Exp)
-qqParameterListE [] = Just [|[]|]
+qqParameterListE :: [A.Parameter] -> TExpQ [L.Parameter]
+qqParameterListE [] = [||[]||]
 qqParameterListE (A.AntiParameterList v : defs) =
-    Just [|$(antiVarE v) ++ $(qqE defs)|]
+    [||$$(antiVarE v) ++ $$(qqExp defs)||]
 qqParameterListE (def : defs) =
-    Just [|$(qqE def) : $(qqE defs)|]
+    [||$$(qqExp def) : $$(qqExp defs)||]
 
-qqParameterE :: A.Parameter -> Maybe (Q Exp)
+qqParameterE :: A.Parameter -> TExpQ L.Parameter
 qqParameterE (A.Parameter x1 x2 x3) =
-  Just [|L.Parameter $(qqE x1) $(qqE x2) $(qqE x3)|]
+  [||L.Parameter $$(qqExp x1) $$(qqExp x2) $$(qqExp x3)||]
 qqParameterE (A.AntiParameter s) =
-  Just $ antiVarE s
+  antiVarE s
 qqParameterE a@(A.AntiParameterList _s) =
   error $ "Internal Error: unexpected antiquote " ++ show a
 
-qqBasicBlockListE :: [A.BasicBlock] -> Maybe (Q Exp)
-qqBasicBlockListE [] = Just [|[]|]
+qqBasicBlockListE :: [A.BasicBlock] -> TExpQ [L.BasicBlock]
+qqBasicBlockListE [] = [||[]||]
 qqBasicBlockListE (for@A.ForLoop{} : defs) =
-  Just [|$(qqE $ transform for) ++ $(qqE defs)|]
+  [||$$(qqExp $ transform for) ++ $$(qqExp defs)||]
 qqBasicBlockListE (A.AntiBasicBlockList v : defs) =
-  Just [|$(antiVarE v) ++ $(qqE defs)|]
+  [||$$(antiVarE v) ++ $$(qqExp defs)||]
 qqBasicBlockListE (def : defs) =
-  Just [|$(qqE def) : $(qqE defs)|]
+  [||$$(qqExp def) : $$(qqExp defs)||]
 
 transform :: A.BasicBlock -> [A.BasicBlock]
 transform bb@A.BasicBlock{} = [bb]
@@ -169,7 +369,7 @@ transform (A.ForLoop label iterType iterName from to elementType element element
         preInstrs = 
           [ iterName A.:= A.Phi iterType (map (\(_,l) -> (A.LocalReference iterNameNew,l)) returns ++ map (\(_,s) -> (from,s)) element) []
           , elementName A.:= A.Phi elementType (returns ++ element) []
-          , cond A.:= A.ICmp AI.ULE iter to []
+          , cond A.:= A.ICmp LI.ULE iter to []
           , iterNameNew A.:= A.Add True True iter (A.ConstantOperand $ A.Int iterBits 1) []
           ]
         body' = body >>= transform
@@ -202,350 +402,311 @@ replaceRet label bb@A.BasicBlock{} =
     _                 -> bb
 replaceRet _ x = error $ "Internal Error: only plain BasicBlocks should arrive at function replaceRet. got: " ++ show x
 
-qqBasicBlockE :: A.BasicBlock -> Maybe (Q Exp)
+qqBasicBlockE :: A.BasicBlock -> TExpQ L.BasicBlock
 qqBasicBlockE (A.BasicBlock x1 x2 x3) =
-  Just [|L.BasicBlock $(qqE x1) $(qqE x2) $(qqE x3)|]
+  [||L.BasicBlock $$(qqExp x1) $$(qqExp x2) $$(qqExp x3)||]
 qqBasicBlockE (A.AntiBasicBlock s) =
-  Just $ antiVarE s
+  antiVarE s
 qqBasicBlockE a@A.ForLoop{} =
   error $ "Internal Error: unexpected loop " ++ show a
 qqBasicBlockE a@(A.AntiBasicBlockList _s) =
   error $ "Internal Error: unexpected antiquote " ++ show a
 
-qqTerminatorE :: A.Terminator -> Maybe (Q Exp)
+qqTerminatorE :: A.Terminator -> TExpQ L.Terminator
 qqTerminatorE (A.Ret x1 x2) =
-  Just [|L.Ret $(qqE x1) $(qqE x2)|]
+  [||L.Ret $$(qqExp x1) $$(qqExp x2)||]
 qqTerminatorE (A.CondBr x1 x2 x3 x4) =
-  Just [|L.CondBr $(qqE x1) $(qqE x2) $(qqE x3) $(qqE x4)|]
+  [||L.CondBr $$(qqExp x1) $$(qqExp x2) $$(qqExp x3) $$(qqExp x4)||]
 qqTerminatorE (A.Br x1 x2) =
-  Just [|L.Br $(qqE x1) $(qqE x2)|]
+  [||L.Br $$(qqExp x1) $$(qqExp x2)||]
 qqTerminatorE (A.Switch x1 x2 x3 x4) =
-  Just [|L.Switch $(qqE x1) $(qqE x2) $(qqE x3) $(qqE x4)|]
+  [||L.Switch $$(qqExp x1) $$(qqExp x2) $$(qqExp x3) $$(qqExp x4)||]
 qqTerminatorE (A.IndirectBr x1 x2 x3) =
-  Just [|L.IndirectBr $(qqE x1) $(qqE x2) $(qqE x3)|]
+  [||L.IndirectBr $$(qqExp x1) $$(qqExp x2) $$(qqExp x3)||]
 qqTerminatorE (A.Invoke x1 x2 x3 x4 x5 x6 x7 x8) =
-  Just [|L.Invoke $(qqE x1) $(qqE x2) $(qqE x3) $(qqE x4) $(qqE x5)
-                  $(qqE x6) $(qqE x7) $(qqE x8)|]
+  [||L.Invoke $$(qqExp x1) $$(qqExp x2) $$(qqExp x3) $$(qqExp x4) $$(qqExp x5)
+                  $$(qqExp x6) $$(qqExp x7) $$(qqExp x8)||]
 qqTerminatorE (A.Resume x1 x2) =
-  Just [|L.Resume $(qqE x1) $(qqE x2)|]
+  [||L.Resume $$(qqExp x1) $$(qqExp x2)||]
 qqTerminatorE (A.Unreachable x1) =
-  Just [|L.Unreachable $(qqE x1)|]
+  [||L.Unreachable $$(qqExp x1)||]
 
-qqMemoryOrderingE :: A.MemoryOrdering -> Maybe (Q Exp)
+qqMemoryOrderingE :: A.MemoryOrdering -> TExpQ L.MemoryOrdering
 qqMemoryOrderingE A.Unordered =
-  Just [|L.Unordered|]
+  [||L.Unordered||]
 qqMemoryOrderingE A.Monotonic =
-  Just [|L.Monotonic|]
+  [||L.Monotonic||]
 qqMemoryOrderingE A.Acquire =
-  Just [|L.Acquire|]
+  [||L.Acquire||]
 qqMemoryOrderingE A.Release =
-  Just [|L.Release|]
+  [||L.Release||]
 qqMemoryOrderingE A.AcquireRelease =
-  Just [|L.AcquireRelease|]
+  [||L.AcquireRelease||]
 qqMemoryOrderingE A.SequentiallyConsistent =
-  Just [|L.SequentiallyConsistent|]
+  [||L.SequentiallyConsistent||]
 
-qqAtomicityE :: A.Atomicity -> Maybe (Q Exp)
+qqAtomicityE :: A.Atomicity -> TExpQ L.Atomicity
 qqAtomicityE (A.Atomicity x1 x2) =
-  Just [|L.Atomicity $(qqE x1) $(qqE x2)|]
+  [||L.Atomicity $$(qqExp x1) $$(qqExp x2)||]
 
-qqLandingPadClauseE :: A.LandingPadClause -> Maybe (Q Exp)
+qqLandingPadClauseE :: A.LandingPadClause -> TExpQ L.LandingPadClause
 qqLandingPadClauseE (A.Catch x1) =
-  Just [|L.Catch $(qqE x1)|]
+  [||L.Catch $$(qqExp x1)||]
 qqLandingPadClauseE (A.Filter x1) =
-  Just [|L.Filter $(qqE x1)|]
+  [||L.Filter $$(qqExp x1)||]
 
-qqInstructionE :: A.Instruction -> Maybe (Q Exp)
+qqInstructionE :: A.Instruction -> TExpQ L.Instruction
 qqInstructionE (A.Add x1 x2 x3 x4 x5) =
-  Just [|L.Add $(qqE x1) $(qqE x2) $(qqE x3) $(qqE x4) $(qqE x5)|]
+  [||L.Add $$(qqExp x1) $$(qqExp x2) $$(qqExp x3) $$(qqExp x4) $$(qqExp x5)||]
 qqInstructionE (A.FAdd x1 x2 x3) =
-  Just [|L.FAdd $(qqE x1) $(qqE x2) $(qqE x3)|]
+  [||L.FAdd $$(qqExp x1) $$(qqExp x2) $$(qqExp x3)||]
 qqInstructionE (A.Sub x1 x2 x3 x4 x5) =
-  Just [|L.Sub $(qqE x1) $(qqE x2) $(qqE x3) $(qqE x4) $(qqE x5)|]
+  [||L.Sub $$(qqExp x1) $$(qqExp x2) $$(qqExp x3) $$(qqExp x4) $$(qqExp x5)||]
 qqInstructionE (A.FSub x1 x2 x3) =
-  Just [|L.FSub $(qqE x1) $(qqE x2) $(qqE x3)|]
+  [||L.FSub $$(qqExp x1) $$(qqExp x2) $$(qqExp x3)||]
 qqInstructionE (A.Mul x1 x2 x3 x4 x5) =
-  Just [|L.Mul $(qqE x1) $(qqE x2) $(qqE x3) $(qqE x4) $(qqE x5)|]
+  [||L.Mul $$(qqExp x1) $$(qqExp x2) $$(qqExp x3) $$(qqExp x4) $$(qqExp x5)||]
 qqInstructionE (A.FMul x1 x2 x3) =
-  Just [|L.FMul $(qqE x1) $(qqE x2) $(qqE x3)|]
+  [||L.FMul $$(qqExp x1) $$(qqExp x2) $$(qqExp x3)||]
 qqInstructionE (A.UDiv x1 x2 x3 x4) =
-  Just [|L.UDiv $(qqE x1) $(qqE x2) $(qqE x3) $(qqE x4)|]
+  [||L.UDiv $$(qqExp x1) $$(qqExp x2) $$(qqExp x3) $$(qqExp x4)||]
 qqInstructionE (A.SDiv x1 x2 x3 x4) =
-  Just [|L.SDiv $(qqE x1) $(qqE x2) $(qqE x3) $(qqE x4)|]
+  [||L.SDiv $$(qqExp x1) $$(qqExp x2) $$(qqExp x3) $$(qqExp x4)||]
 qqInstructionE (A.FDiv x1 x2 x3) =
-  Just [|L.FDiv $(qqE x1) $(qqE x2) $(qqE x3)|]
+  [||L.FDiv $$(qqExp x1) $$(qqExp x2) $$(qqExp x3)||]
 qqInstructionE (A.URem x1 x2 x3) =
-  Just [|L.URem $(qqE x1) $(qqE x2) $(qqE x3)|]
+  [||L.URem $$(qqExp x1) $$(qqExp x2) $$(qqExp x3)||]
 qqInstructionE (A.SRem x1 x2 x3) =
-  Just [|L.SRem $(qqE x1) $(qqE x2) $(qqE x3)|]
+  [||L.SRem $$(qqExp x1) $$(qqExp x2) $$(qqExp x3)||]
 qqInstructionE (A.FRem x1 x2 x3) =
-  Just [|L.FRem $(qqE x1) $(qqE x2) $(qqE x3)|]
+  [||L.FRem $$(qqExp x1) $$(qqExp x2) $$(qqExp x3)||]
 qqInstructionE (A.Shl x1 x2 x3 x4 x5) =
-  Just [|L.Shl $(qqE x1) $(qqE x2) $(qqE x3) $(qqE x4) $(qqE x5)|]
+  [||L.Shl $$(qqExp x1) $$(qqExp x2) $$(qqExp x3) $$(qqExp x4) $$(qqExp x5)||]
 qqInstructionE (A.LShr x1 x2 x3 x4) =
-  Just [|L.LShr $(qqE x1) $(qqE x2) $(qqE x3) $(qqE x4)|]
+  [||L.LShr $$(qqExp x1) $$(qqExp x2) $$(qqExp x3) $$(qqExp x4)||]
 qqInstructionE (A.AShr x1 x2 x3 x4) =
-  Just [|L.AShr $(qqE x1) $(qqE x2) $(qqE x3) $(qqE x4)|]
+  [||L.AShr $$(qqExp x1) $$(qqExp x2) $$(qqExp x3) $$(qqExp x4)||]
 qqInstructionE (A.And x1 x2 x3) =
-  Just [|L.And $(qqE x1) $(qqE x2) $(qqE x3)|]
+  [||L.And $$(qqExp x1) $$(qqExp x2) $$(qqExp x3)||]
 qqInstructionE (A.Or x1 x2 x3) =
-  Just [|L.Or $(qqE x1) $(qqE x2) $(qqE x3)|]
+  [||L.Or $$(qqExp x1) $$(qqExp x2) $$(qqExp x3)||]
 qqInstructionE (A.Xor x1 x2 x3) =
-  Just [|L.Xor $(qqE x1) $(qqE x2) $(qqE x3)|]
+  [||L.Xor $$(qqExp x1) $$(qqExp x2) $$(qqExp x3)||]
 qqInstructionE (A.Alloca x1 x2 x3 x4) =
-  Just [|L.Alloca $(qqE x1) $(qqE x2) $(qqE x3) $(qqE x4)|]
+  [||L.Alloca $$(qqExp x1) $$(qqExp x2) $$(qqExp x3) $$(qqExp x4)||]
 qqInstructionE (A.Load x1 x2 x3 x4 x5) =
-  Just [|L.Load $(qqE x1) $(qqE x2) $(qqE x3) $(qqE x4) $(qqE x5)|]
+  [||L.Load $$(qqExp x1) $$(qqExp x2) $$(qqExp x3) $$(qqExp x4) $$(qqExp x5)||]
 qqInstructionE (A.Store x1 x2 x3 x4 x5 x6) =
-  Just [|L.Store $(qqE x1) $(qqE x2) $(qqE x3) $(qqE x4) $(qqE x5)
-                 $(qqE x6)|]
+  [||L.Store $$(qqExp x1) $$(qqExp x2) $$(qqExp x3) $$(qqExp x4) $$(qqExp x5)
+                 $$(qqExp x6)||]
 qqInstructionE (A.GetElementPtr x1 x2 x3 x4) =
-  Just [|L.GetElementPtr $(qqE x1) $(qqE x2) $(qqE x3) $(qqE x4)|]
+  [||L.GetElementPtr $$(qqExp x1) $$(qqExp x2) $$(qqExp x3) $$(qqExp x4)||]
 qqInstructionE (A.Fence x1 x2) =
-  Just [|L.Fence $(qqE x1) $(qqE x2)|]
+  [||L.Fence $$(qqExp x1) $$(qqExp x2)||]
 qqInstructionE (A.CmpXchg x1 x2 x3 x4 x5 x6) =
-  Just [|L.CmpXchg $(qqE x1) $(qqE x2) $(qqE x3) $(qqE x4) $(qqE x5)
-                  $(qqE x6)|]
+  [||L.CmpXchg $$(qqExp x1) $$(qqExp x2) $$(qqExp x3) $$(qqExp x4) $$(qqExp x5)
+                  $$(qqExp x6)||]
 qqInstructionE (A.AtomicRMW x1 x2 x3 x4 x5 x6) =
-  Just [|L.AtomicRMW $(qqE x1) $(qqE x2) $(qqE x3) $(qqE x4) $(qqE x5)
-                     $(qqE x6)|]
+  [||L.AtomicRMW $$(qqExp x1) $$(qqExp x2) $$(qqExp x3) $$(qqExp x4) $$(qqExp x5)
+                     $$(qqExp x6)||]
 qqInstructionE (A.Trunc x1 x2 x3) =
-  Just [|L.Trunc $(qqE x1) $(qqE x2) $(qqE x3)|]
+  [||L.Trunc $$(qqExp x1) $$(qqExp x2) $$(qqExp x3)||]
 qqInstructionE (A.ZExt x1 x2 x3) =
-  Just [|L.ZExt $(qqE x1) $(qqE x2) $(qqE x3)|]
+  [||L.ZExt $$(qqExp x1) $$(qqExp x2) $$(qqExp x3)||]
 qqInstructionE (A.SExt x1 x2 x3) =
-  Just [|L.SExt $(qqE x1) $(qqE x2) $(qqE x3)|]
+  [||L.SExt $$(qqExp x1) $$(qqExp x2) $$(qqExp x3)||]
 qqInstructionE (A.FPToUI x1 x2 x3) =
-  Just [|L.FPToUI $(qqE x1) $(qqE x2) $(qqE x3)|]
+  [||L.FPToUI $$(qqExp x1) $$(qqExp x2) $$(qqExp x3)||]
 qqInstructionE (A.FPToSI x1 x2 x3) =
-  Just [|L.FPToSI $(qqE x1) $(qqE x2) $(qqE x3)|]
+  [||L.FPToSI $$(qqExp x1) $$(qqExp x2) $$(qqExp x3)||]
 qqInstructionE (A.UIToFP x1 x2 x3) =
-  Just [|L.UIToFP $(qqE x1) $(qqE x2) $(qqE x3)|]
+  [||L.UIToFP $$(qqExp x1) $$(qqExp x2) $$(qqExp x3)||]
 qqInstructionE (A.SIToFP x1 x2 x3) =
-  Just [|L.SIToFP $(qqE x1) $(qqE x2) $(qqE x3)|]
+  [||L.SIToFP $$(qqExp x1) $$(qqExp x2) $$(qqExp x3)||]
 qqInstructionE (A.FPTrunc x1 x2 x3) =
-  Just [|L.FPTrunc $(qqE x1) $(qqE x2) $(qqE x3)|]
+  [||L.FPTrunc $$(qqExp x1) $$(qqExp x2) $$(qqExp x3)||]
 qqInstructionE (A.FPExt x1 x2 x3) =
-  Just [|L.FPExt $(qqE x1) $(qqE x2) $(qqE x3)|]
+  [||L.FPExt $$(qqExp x1) $$(qqExp x2) $$(qqExp x3)||]
 qqInstructionE (A.PtrToInt x1 x2 x3) =
-  Just [|L.PtrToInt $(qqE x1) $(qqE x2) $(qqE x3)|]
+  [||L.PtrToInt $$(qqExp x1) $$(qqExp x2) $$(qqExp x3)||]
 qqInstructionE (A.IntToPtr x1 x2 x3) =
-  Just [|L.IntToPtr $(qqE x1) $(qqE x2) $(qqE x3)|]
+  [||L.IntToPtr $$(qqExp x1) $$(qqExp x2) $$(qqExp x3)||]
 qqInstructionE (A.BitCast x1 x2 x3) =
-  Just [|L.BitCast $(qqE x1) $(qqE x2) $(qqE x3)|]
+  [||L.BitCast $$(qqExp x1) $$(qqExp x2) $$(qqExp x3)||]
 qqInstructionE (A.AddrSpaceCast x1 x2 x3) =
-  Just [|L.AddrSpaceCast $(qqE x1) $(qqE x2) $(qqE x3)|]
+  [||L.AddrSpaceCast $$(qqExp x1) $$(qqExp x2) $$(qqExp x3)||]
 qqInstructionE (A.ICmp x1 x2 x3 x4) =
-  Just [|L.ICmp $(qqE x1) $(qqE x2) $(qqE x3) $(qqE x4)|]
+  [||L.ICmp $$(qqExp x1) $$(qqExp x2) $$(qqExp x3) $$(qqExp x4)||]
 qqInstructionE (A.FCmp x1 x2 x3 x4) =
-  Just [|L.FCmp $(qqE x1) $(qqE x2) $(qqE x3) $(qqE x4)|]
+  [||L.FCmp $$(qqExp x1) $$(qqExp x2) $$(qqExp x3) $$(qqExp x4)||]
 qqInstructionE (A.Phi x1 x2 x3) =
-  Just [|L.Phi $(qqE x1) $(qqE x2) $(qqE x3)|]
+  [||L.Phi $$(qqExp x1) $$(qqExp x2) $$(qqExp x3)||]
 qqInstructionE (A.Call x1 x2 x3 x4 x5 x6 x7) =
-  Just [|L.Call $(qqE x1) $(qqE x2) $(qqE x3) $(qqE x4) $(qqE x5)
-                $(qqE x6) $(qqE x7)|]
+  [||L.Call $$(qqExp x1) $$(qqExp x2) $$(qqExp x3) $$(qqExp x4) $$(qqExp x5)
+                $$(qqExp x6) $$(qqExp x7)||]
 qqInstructionE (A.Select x1 x2 x3 x4) =
-  Just [|L.Select $(qqE x1) $(qqE x2) $(qqE x3) $(qqE x4)|]
+  [||L.Select $$(qqExp x1) $$(qqExp x2) $$(qqExp x3) $$(qqExp x4)||]
 qqInstructionE (A.VAArg x1 x2 x3) =
-  Just [|L.VAArg $(qqE x1) $(qqE x2) $(qqE x3)|]
+  [||L.VAArg $$(qqExp x1) $$(qqExp x2) $$(qqExp x3)||]
 qqInstructionE (A.ExtractElement x1 x2 x3) =
-  Just [|L.ExtractElement $(qqE x1) $(qqE x2) $(qqE x3)|]
+  [||L.ExtractElement $$(qqExp x1) $$(qqExp x2) $$(qqExp x3)||]
 qqInstructionE (A.InsertElement x1 x2 x3 x4) =
-  Just [|L.InsertElement $(qqE x1) $(qqE x2) $(qqE x3) $(qqE x4)|]
+  [||L.InsertElement $$(qqExp x1) $$(qqExp x2) $$(qqExp x3) $$(qqExp x4)||]
 qqInstructionE (A.ShuffleVector x1 x2 x3 x4) =
-  Just [|L.ShuffleVector $(qqE x1) $(qqE x2) $(qqE x3) $(qqE x4)|]
+  [||L.ShuffleVector $$(qqExp x1) $$(qqExp x2) $$(qqExp x3) $$(qqExp x4)||]
 qqInstructionE (A.ExtractValue x1 x2 x3) =
-  Just [|L.ExtractValue $(qqE x1) $(qqE x2) $(qqE x3)|]
+  [||L.ExtractValue $$(qqExp x1) $$(qqExp x2) $$(qqExp x3)||]
 qqInstructionE (A.InsertValue x1 x2 x3 x4) =
-  Just [|L.InsertValue $(qqE x1) $(qqE x2) $(qqE x3) $(qqE x4)|]
+  [||L.InsertValue $$(qqExp x1) $$(qqExp x2) $$(qqExp x3) $$(qqExp x4)||]
 qqInstructionE (A.LandingPad x1 x2 x3 x4 x5) =
-  Just [|L.LandingPad $(qqE x1) $(qqE x2) $(qqE x3) $(qqE x4) $(qqE x5)|]
+  [||L.LandingPad $$(qqExp x1) $$(qqExp x2) $$(qqExp x3) $$(qqExp x4) $$(qqExp x5)||]
 qqInstructionE (A.AntiInstruction s) =
-  Just $ antiVarE s
+  antiVarE s
 
-qqNamedE :: (Typeable a, Data a) => A.Named a -> Maybe (Q Exp)
+qqNamedE :: (QQExp a b) => A.Named a -> TExpQ (L.Named b)
 qqNamedE ((A.:=) x1 x2) =
-  Just [|(L.:=) $(qqE x1) $(qqE x2)|]
+  [||(L.:=) $$(qqExp x1) $$(qqExp x2)||]
 qqNamedE (A.Do x1) =
-  Just [|L.Do $(qqE x1)|]
+  [||L.Do $$(qqExp x1)||]
 
-qqMetadataNodeIDE :: A.MetadataNodeID -> Maybe (Q Exp)
+qqMetadataNodeIDE :: A.MetadataNodeID -> TExpQ L.MetadataNodeID
 qqMetadataNodeIDE (A.MetadataNodeID x1) =
-  Just [|L.MetadataNodeID $(qqE x1)|]
+  [||L.MetadataNodeID $$(qqExp x1)||]
 
-qqMetadataNodeE :: A.MetadataNode -> Maybe (Q Exp)
+qqMetadataNodeE :: A.MetadataNode -> TExpQ L.MetadataNode
 qqMetadataNodeE (A.MetadataNode x1) =
-  Just [|L.MetadataNode $(qqE x1)|]
+  [||L.MetadataNode $$(qqExp x1)||]
 qqMetadataNodeE (A.MetadataNodeReference x1) =
-  Just [|L.MetadataNodeReference $(qqE x1)|]
+  [||L.MetadataNodeReference $$(qqExp x1)||]
 
-qqOperandE :: A.Operand -> Maybe (Q Exp)
+qqOperandE :: A.Operand -> TExpQ L.Operand
 qqOperandE (A.LocalReference x1) =
-  Just [|L.LocalReference $(qqE x1)|]
+  [||L.LocalReference $$(qqExp x1)||]
 qqOperandE (A.ConstantOperand x1) =
-  Just [|L.ConstantOperand $(qqE x1)|]
+  [||L.ConstantOperand $$(qqExp x1)||]
 qqOperandE (A.MetadataStringOperand x1) =
-  Just [|L.MetadataStringOperand $(qqE x1)|]
+  [||L.MetadataStringOperand $$(qqExp x1)||]
 qqOperandE (A.MetadataNodeOperand x1) =
-  Just [|L.MetadataNodeOperand $(qqE x1)|]
+  [||L.MetadataNodeOperand $$(qqExp x1)||]
 qqOperandE (A.AntiOperand s) =
-  Just $ antiVarE s
+  antiVarE s
 
-qqConstantE :: A.Constant -> Maybe (Q Exp)
+qqConstantE :: A.Constant -> TExpQ L.Constant
 qqConstantE (A.Int x1 x2) =
-  Just [|L.Int $(qqE x1) $(qqE x2)|]
+  [||L.Int $$(qqExp x1) $$(qqExp x2)||]
 qqConstantE (A.Float x1) =
-  Just [|L.Float $(qqE x1)|]
+  [||L.Float $$(qqExp x1)||]
 qqConstantE (A.Null x1) =
-  Just [|L.Null $(qqE x1)|]
+  [||L.Null $$(qqExp x1)||]
 qqConstantE (A.Struct x1 x2 x3) =
-  Just [|L.Struct $(qqE x1) $(qqE x2) $(qqE x3)|]
+  [||L.Struct $$(qqExp x1) $$(qqExp x2) $$(qqExp x3)||]
 qqConstantE (A.Array x1 x2) =
-  Just [|L.Array $(qqE x1) $(qqE x2)|]
+  [||L.Array $$(qqExp x1) $$(qqExp x2)||]
 qqConstantE (A.Vector x1) =
-  Just [|L.Vector $(qqE x1)|]
+  [||L.Vector $$(qqExp x1)||]
 qqConstantE (A.Undef x1) =
-  Just [|L.Undef $(qqE x1)|]
+  [||L.Undef $$(qqExp x1)||]
 qqConstantE (A.BlockAddress x1 x2) =
-  Just [|L.BlockAddress $(qqE x1) $(qqE x2)|]
+  [||L.BlockAddress $$(qqExp x1) $$(qqExp x2)||]
 qqConstantE (A.GlobalReference x1) =
-  Just [|L.GlobalReference $(qqE x1)|]
+  [||L.GlobalReference $$(qqExp x1)||]
 qqConstantE (A.AntiConstant s) =
-  Just [|toConstant $(antiVarE s)|]
+  unsafeTExpCoerce [|toConstant $(unTypeQ $ antiVarE s)|]
 
-qqNameE :: A.Name -> Maybe (Q Exp)
+qqNameE :: A.Name -> TExpQ L.Name
 qqNameE (A.Name x1) =
-  Just [|L.Name $(qqE x1)|]
+  [||L.Name $$(qqExp x1)||]
 qqNameE (A.UnName x1) =
-  Just [|L.UnName $(qqE x1)|]
+  [||L.UnName $$(qqExp x1)||]
 qqNameE (A.AntiName s) =
-  Just [|toName $(antiVarE s)|]
+  unsafeTExpCoerce [|toName $(unTypeQ $ antiVarE s)|]
 
-qqFloatingPointFormatE :: A.FloatingPointFormat -> Maybe (Q Exp)
+qqFloatingPointFormatE :: A.FloatingPointFormat -> TExpQ L.FloatingPointFormat
 qqFloatingPointFormatE A.IEEE =
-  Just [|L.IEEE|]
+  [||L.IEEE||]
 qqFloatingPointFormatE A.DoubleExtended =
-  Just [|L.DoubleExtended|]
+  [||L.DoubleExtended||]
 qqFloatingPointFormatE A.PairOfFloats =
-  Just [|L.PairOfFloats|]
+  [||L.PairOfFloats||]
 
-qqTypeE :: A.Type -> Maybe (Q Exp)
+qqTypeE :: A.Type -> TExpQ L.Type
 qqTypeE A.VoidType =
-  Just [|L.VoidType|]
+  [||L.VoidType||]
 qqTypeE (A.IntegerType x1) =
-  Just [|L.IntegerType $(qqE x1)|]
+  [||L.IntegerType $$(qqExp x1)||]
 qqTypeE (A.PointerType x1 x2) =
-  Just [|L.PointerType $(qqE x1) $(qqE x2)|]
+  [||L.PointerType $$(qqExp x1) $$(qqExp x2)||]
 qqTypeE (A.FloatingPointType x1 x2) =
-  Just [|L.FloatingPointType $(qqE x1) $(qqE x2)|]
+  [||L.FloatingPointType $$(qqExp x1) $$(qqExp x2)||]
 qqTypeE (A.FunctionType x1 x2 x3) =
-  Just [|L.FunctionType $(qqE x1) $(qqE x2) $(qqE x3)|]
+  [||L.FunctionType $$(qqExp x1) $$(qqExp x2) $$(qqExp x3)||]
 qqTypeE (A.VectorType x1 x2) =
-  Just [|L.VectorType $(qqE x1) $(qqE x2)|]
+  [||L.VectorType $$(qqExp x1) $$(qqExp x2)||]
 qqTypeE (A.StructureType x1 x2) =
-  Just [|L.StructureType $(qqE x1) $(qqE x2)|]
+  [||L.StructureType $$(qqExp x1) $$(qqExp x2)||]
 qqTypeE (A.ArrayType x1 x2) =
-  Just [|L.ArrayType $(qqE x1) $(qqE x2)|]
+  [||L.ArrayType $$(qqExp x1) $$(qqExp x2)||]
 qqTypeE (A.NamedTypeReference x1) =
-  Just [|L.NamedTypeReference $(qqE x1)|]
+  [||L.NamedTypeReference $$(qqExp x1)||]
 qqTypeE A.MetadataType =
-  Just [|L.MetadataType|]
+  [||L.MetadataType||]
 qqTypeE (A.AntiType s) =
-  Just $ antiVarE s
+  antiVarE s
 
-qqDialectE :: A.Dialect -> Maybe (Q Exp)
+qqDialectE :: A.Dialect -> TExpQ L.Dialect
 qqDialectE A.ATTDialect =
-  Just [|L.ATTDialect|]
+  [||L.ATTDialect||]
 qqDialectE A.IntelDialect =
-  Just [|L.IntelDialect|]
+  [||L.IntelDialect||]
 
-qqInlineAssemblyE :: A.InlineAssembly -> Maybe (Q Exp)
+qqInlineAssemblyE :: A.InlineAssembly -> TExpQ L.InlineAssembly
 qqInlineAssemblyE (A.InlineAssembly x1 x2 x3 x4 x5 x6) =
-  Just [|L.InlineAssembly $(qqE x1) $(qqE x2) $(qqE x3) $(qqE x4) $(qqE x5)
-                          $(qqE x6)|]
+  [||L.InlineAssembly $$(qqExp x1) $$(qqExp x2) $$(qqExp x3) $$(qqExp x4) $$(qqExp x5)
+                          $$(qqExp x6)||]
 
-qqMapE :: (Data a, Data b) => M.Map a b -> Maybe (Q Exp)
+qqMapE :: (QQExp [(a, b)] [(c, d)], Ord c) => M.Map a b -> TExpQ (M.Map c d)
 qqMapE m =
-  Just [|M.fromList $(qqE (M.toList m))|]
+  [||M.fromList $$(qqExp (M.toList m))||]
 
-qqSetE :: Data a => S.Set a -> Maybe (Q Exp)
+qqSetE :: (QQExp [a] [b], Ord b) => S.Set a -> TExpQ (S.Set b)
 qqSetE m =
-  Just [|S.fromList $(qqE (S.toList m))|]
+  [||S.fromList $$(qqExp (S.toList m))||]
 
-qqEndiannessE :: A.Endianness -> Maybe (Q Exp)
+qqEndiannessE :: A.Endianness -> TExpQ L.Endianness
 qqEndiannessE A.LittleEndian =
-  Just [|L.LittleEndian|]
+  [||L.LittleEndian||]
 qqEndiannessE A.BigEndian =
-  Just [|L.BigEndian|]
+  [||L.BigEndian||]
 
-qqAlignmentInfoE :: A.AlignmentInfo -> Maybe (Q Exp)
+qqAlignmentInfoE :: A.AlignmentInfo -> TExpQ L.AlignmentInfo
 qqAlignmentInfoE (A.AlignmentInfo x1 x2) =
-  Just [|L.AlignmentInfo $(qqE x1) $(qqE x2)|]
+  [||L.AlignmentInfo $$(qqExp x1) $$(qqExp x2)||]
 
-qqAlignTypeE :: A.AlignType -> Maybe (Q Exp)
+qqAlignTypeE :: A.AlignType -> TExpQ L.AlignType
 qqAlignTypeE A.IntegerAlign =
-  Just [|L.IntegerAlign|]
+  [||L.IntegerAlign||]
 qqAlignTypeE A.VectorAlign =
-  Just [|L.VectorAlign|]
+  [||L.VectorAlign||]
 qqAlignTypeE A.FloatAlign =
-  Just [|L.FloatAlign|]
+  [||L.FloatAlign||]
 qqAlignTypeE A.AggregateAlign =
-  Just [|L.AggregateAlign|]
+  [||L.AggregateAlign||]
 qqAlignTypeE A.StackAlign =
-  Just [|L.StackAlign|]
+  [||L.StackAlign||]
 
-qqDataLayoutE :: A.DataLayout -> Maybe (Q Exp)
+qqDataLayoutE :: A.DataLayout -> TExpQ L.DataLayout
 qqDataLayoutE (A.DataLayout x1 x2 x3 x4 x5) =
-  Just [|L.DataLayout $(qqE x1) $(qqE x2) $(qqE x3) $(qqE x4) $(qqE x5)|]
+  [||L.DataLayout $$(qqExp x1) $$(qqExp x2) $$(qqExp x3) $$(qqExp x4) $$(qqExp x5)||]
 qqDataLayoutE (A.AntiDataLayout s) =
-  Just $ antiVarE s
+  antiVarE s
 
-qqTargetTripleE :: A.TargetTriple -> Maybe (Q Exp)
+qqTargetTripleE :: A.TargetTriple -> TExpQ (Maybe String)
 qqTargetTripleE A.NoTargetTriple =
-  Just [|Nothing|]
+  [||Nothing||]
 qqTargetTripleE (A.TargetTriple v) =
-  Just [|Just $(qqE v)|]
+  [||Just $$(qqExp v)||]
 qqTargetTripleE (A.AntiTargetTriple v) =
-  Just [|toTargetTriple $(antiVarE v)|]
-
-
-qqE :: Data a => a -> Q Exp
-qqE x = dataToExpQ qqExp x
-
-qqExp :: Typeable a => a -> Maybe (Q Exp)
-qqExp = const Nothing `extQ` qqDefinitionE
-                      `extQ` qqDefinitionListE
-                      `extQ` qqModuleE
-                      `extQ` qqGlobalE
-                      `extQ` qqParameterListE
-                      `extQ` qqParameterE
-                      `extQ` qqBasicBlockE
-                      `extQ` qqBasicBlockListE
-                      `extQ` qqTerminatorE
-                      `extQ` qqMemoryOrderingE
-                      `extQ` qqAtomicityE
-                      `extQ` qqLandingPadClauseE
-                      `extQ` qqInstructionE
-                      `extQ` (qqNamedE :: A.Named A.Instruction -> Maybe (Q Exp))
-                      `extQ` (qqNamedE :: A.Named A.Terminator -> Maybe (Q Exp))
-                      `extQ` qqMetadataNodeIDE
-                      `extQ` qqMetadataNodeE
-                      `extQ` qqOperandE
-                      `extQ` qqConstantE
-                      `extQ` qqNameE
-                      `extQ` qqFloatingPointFormatE
-                      `extQ` qqTypeE
-                      `extQ` qqDialectE
-                      `extQ` qqInlineAssemblyE
-                      `extQ` (qqMapE :: M.Map A.AddrSpace (Word32, A.AlignmentInfo) -> Maybe (Q Exp))
-                      `extQ` (qqMapE :: M.Map (A.AlignType, Word32) A.AlignmentInfo -> Maybe (Q Exp))
-                      `extQ` (qqSetE :: S.Set Word32 -> Maybe (Q Exp))
-                      `extQ` qqEndiannessE
-                      `extQ` qqAlignmentInfoE
-                      `extQ` qqAlignTypeE
-                      `extQ` qqDataLayoutE
-                      `extQ` qqTargetTripleE
-
+  unsafeTExpCoerce [|toTargetTriple $(unTypeQ $ antiVarE v)|]
 
 antiVarP :: String -> PatQ
 antiVarP = either fail return . parsePat
@@ -965,12 +1126,14 @@ parse exts p s = do
                        ((snd . loc_start) loc)
                        0
 
-quasiquote :: Data a
+newtype TQuasiQuoter a = TQuasiQuoter { unTQuasiQuoter :: QuasiQuoter }
+
+quasiquote :: forall a b. (Data a, QQExp a b)
            => [A.Extensions]
            -> P.P a
-           -> QuasiQuoter
-quasiquote exts p =
-    QuasiQuoter { quoteExp  = parse exts p >=> qqE
+           -> TQuasiQuoter b
+quasiquote exts p = TQuasiQuoter $
+    QuasiQuoter { quoteExp  = parse exts p >=> unTypeQ . (qqExp :: a -> TExpQ b)
                 , quotePat  = parse exts p >=> qqP
                 , quoteType = fail "LLVM type quasiquoter undefined"
                 , quoteDec  = fail "LLVM declaration quasiquoter undefined"
