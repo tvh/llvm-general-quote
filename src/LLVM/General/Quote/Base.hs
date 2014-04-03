@@ -341,65 +341,74 @@ qqParameterE a@(A.AntiParameterList _s) =
 
 qqBasicBlockListE :: [A.BasicBlock] -> TExpQ [L.BasicBlock]
 qqBasicBlockListE [] = [||[]||]
-qqBasicBlockListE (for@A.ForLoop{} : defs) =
-  [||$$(qqExp $ transform for) ++ $$(qqExp defs)||]
-qqBasicBlockListE (A.AntiBasicBlockList v : defs) =
-  [||$$(antiVarE v) ++ $$(qqExp defs)||]
 qqBasicBlockListE (def : defs) =
-  [||$$(qqExp def) : $$(qqExp defs)||]
+  [||$$(transform def) ++ $$(qqExp defs)||]
 
-transform :: A.BasicBlock -> [A.BasicBlock]
-transform bb@A.BasicBlock{} = [bb]
+transform :: A.BasicBlock -> TExpQ [L.BasicBlock]
+transform bb@A.BasicBlock{} = [||[$$(qqExp bb)]||]
 transform (A.ForLoop label iterType iterName from to elementType element elementName body next) =
-    let labelString = case label of
+  [||
+    let ret :: L.BasicBlock -> Maybe (L.Operand, L.Name)
+        ret (L.BasicBlock l _ t') = do
+          let t = case t' of
+                    _ L.:= t'' -> t''
+                    L.Do t''   -> t''
+          L.Ret (Just x) _ <- return t
+          return (x,l)
+        ret x = error $ "Internal Error: only plain BasicBlocks should arrive at function ret. got: " ++ show x
+
+        replaceRets :: L.Name -> [L.BasicBlock] -> [L.BasicBlock]
+        replaceRets n [] = []
+        replaceRets n (x:xs) = replaceRet n x : replaceRets n xs
+
+        replaceRet :: L.Name -> L.BasicBlock -> L.BasicBlock
+        replaceRet label bb@(L.BasicBlock bbn is t) =
+          case t of
+            n L.:= L.Ret _ md -> L.BasicBlock bbn is (n L.:= L.Br label md)
+            L.Do (L.Ret _ md) -> L.BasicBlock bbn is (L.Do (L.Br label md))
+            _                 -> bb
+        replaceRet _ x = error $ "Internal Error: only plain BasicBlocks should arrive at function replaceRet. got: " ++ show x
+        
+        iterName' = $$(qqExp iterName) :: L.Name
+        iterType' = $$(qqExp iterType) :: L.Type
+        from' = $$(qqExp from) :: L.Operand
+        element' = $$(qqExp element) :: [(L.Operand, L.Name)]
+        elementName' = $$(qqExp elementName) :: L.Name
+        elementType' = $$(qqExp elementType) :: L.Type
+        label' = $$(qqExp label) :: L.Name
+        labelString = case label of
                         A.Name s -> s
                         A.UnName n -> "num"++show n
                         A.AntiName s -> error $ "Error: antiquotation for names not legal in for-header " ++ s
-        cond = A.Name $ labelString ++ ".cond"
-        iterNameNew = A.Name $ case iterName of
+        cond = L.Name $ labelString ++ ".cond"
+        iterNameNew = L.Name $ case iterName of
                         A.Name s -> s ++ ".new"
                         A.UnName n -> "num"++show n++".new"
                         A.AntiName s -> error $ "Error: antiquotation for names not legal in for-header " ++ s
-        iterBits = case iterType of
-                     A.IntegerType n -> n
+        iterBits = case iterType' of
+                     L.IntegerType n -> n
                      t -> error $ "Internal Error: unexpected type " ++ show t
-        iter = (A.LocalReference iterName)
+        iter = (L.LocalReference $$(qqExp iterName))
         --labels = map A.label body
         preInstrs = 
-          [ iterName A.:= A.Phi iterType (map (\(_,l) -> (A.LocalReference iterNameNew,l)) returns ++ map (\(_,s) -> (from,s)) element) []
-          , elementName A.:= A.Phi elementType (returns ++ element) []
-          , cond A.:= A.ICmp LI.ULE iter to []
-          , iterNameNew A.:= A.Add True True iter (A.ConstantOperand $ A.Int iterBits 1) []
+          [ iterName' L.:= L.Phi iterType' (map (\(_,l) -> (L.LocalReference iterNameNew,l)) returns ++ map (\(_,s) -> (from',s)) element') []
+          , elementName' L.:= L.Phi elementType' (returns ++ element') []
+          , cond L.:= L.ICmp LI.ULE iter $$(qqExp to) []
+          , iterNameNew L.:= L.Add True True iter (L.ConstantOperand $ L.Int iterBits 1) []
           ]
-        body' = body >>= transform
-        bodyLabel = A.label $ head body'
-        returns = body' >>= maybeToList . ret
-        pre  = case next of
-                 Just next' -> A.BasicBlock label preInstrs (A.Do $ A.CondBr (A.LocalReference cond) bodyLabel next' [])
-                 Nothing    -> A.BasicBlock label preInstrs (A.Do $ A.Ret (Just $ A.LocalReference elementName) [])
-        main = map (replaceRet label) body'
+        body' = $$(qqExp body) :: [L.BasicBlock]
+        bodyLabel = $$(qqExp (A.label $ head body)) :: L.Name
+        returns = (body' >>= maybeToList . ret)
+        pre  = case $$(qqExp next) of
+                 Just next' -> L.BasicBlock label' preInstrs (L.Do $ L.CondBr (L.LocalReference cond) bodyLabel next' [])
+                 Nothing    -> L.BasicBlock label' preInstrs (L.Do $ L.Ret (Just $ L.LocalReference elementName') [])
+        main = replaceRets label' body'
     in (pre:main)
-transform A.AntiBasicBlock{}
-  = error $ "Error: antiquotation of BasicBlocks not allowed inside a loop"
-transform A.AntiBasicBlockList{}
-  = error $ "Error: antiquotation of BasicBlocks not allowed inside a loop"
-
-ret :: A.BasicBlock -> Maybe (A.Operand, A.Name)
-ret (A.BasicBlock l _ t') = do
-  let t = case t' of
-            _ A.:= t'' -> t''
-            A.Do t''   -> t''
-  A.Ret (Just x) _ <- return t
-  return (x,l)
-ret x = error $ "Internal Error: only plain BasicBlocks should arrive at function ret. got: " ++ show x
-
-replaceRet :: A.Name -> A.BasicBlock -> A.BasicBlock
-replaceRet label bb@A.BasicBlock{} =
-  case A.terminator bb of
-    n A.:= A.Ret _ md -> bb{ A.terminator = n A.:= A.Br label md }
-    A.Do (A.Ret _ md) -> bb{ A.terminator = A.Do (A.Br label md) }
-    _                 -> bb
-replaceRet _ x = error $ "Internal Error: only plain BasicBlocks should arrive at function replaceRet. got: " ++ show x
+  ||]
+transform (A.AntiBasicBlock v)
+  = [||[$$(antiVarE v)]||]
+transform (A.AntiBasicBlockList v)
+  = antiVarE v
 
 qqBasicBlockE :: A.BasicBlock -> TExpQ L.BasicBlock
 qqBasicBlockE (A.BasicBlock x1 x2 x3) =
