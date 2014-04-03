@@ -545,6 +545,7 @@ data Operand
   | ConstantOperand Constant
   | MetadataStringOperand String
   | MetadataNodeOperand MetadataNode
+  | AntiOperand String
   deriving (Eq, Ord, Read, Show, Typeable, Data)
 
 -- | The 'LLVM.General.AST.Instruction.Call' instruction is special: the callee can be inline assembly
@@ -631,6 +632,7 @@ data Type
   | NamedTypeReference Name
   -- | <http://llvm.org/docs/LangRef.html#metadata-type>
   | MetadataType -- only to be used as a parameter type for a few intrinsics
+  | AntiType String
   deriving (Eq, Ord, Read, Show, Typeable, Data)
 
 -- | the dialect of assembly used in an inline assembly string

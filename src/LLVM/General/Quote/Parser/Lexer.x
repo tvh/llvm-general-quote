@@ -70,6 +70,8 @@ tokens :-
  "$bb:"           / { allowAnti } { lexAnti Tanti_bb }
  "$bbs:"          / { allowAnti } { lexAnti Tanti_bbs }
  "$instr:"        / { allowAnti } { lexAnti Tanti_instr }
+ "$type:"         / { allowAnti } { lexAnti Tanti_type }
+ "$opr:"          / { allowAnti } { lexAnti Tanti_opr }
  "$const:"        / { allowAnti } { lexAnti Tanti_const }
  "$id:"           / { allowAnti } { lexAnti Tanti_id }
  "$gid:"          / { allowAnti } { lexAnti Tanti_gid }

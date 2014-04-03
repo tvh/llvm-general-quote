@@ -1,6 +1,7 @@
 module LLVM.General.Quote.LLVM (
     llmod,
     lldef,
+    llg,
     llbb,
     lli
   ) where
@@ -20,6 +21,10 @@ llmod = quasiquote exts P.parseModule
 -- |Quasiquoter for 'LLVM.General.AST.Definition'
 lldef :: QuasiQuoter
 lldef = quasiquote exts P.parseDefinition
+
+-- |Quasiquoter for 'LLVM.General.AST.Global'
+llg :: QuasiQuoter
+llg = quasiquote exts P.parseGlobal
 
 -- |Quasiquoter for 'LLVM.General.AST.BasicBlock'
 llbb :: QuasiQuoter

@@ -4,7 +4,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE TemplateHaskell #-}
-{-# OPTIONS_GHC -fno-warn-unused-matches #-}
+{-# OPTIONS_GHC -fno-warn-unused-matches -Werror #-}
 
 module LLVM.General.Quote.Base (
     ToDefintions(..),
@@ -388,6 +388,8 @@ qqOperandE (A.MetadataStringOperand x1) =
   Just [|L.MetadataStringOperand $(qqE x1)|]
 qqOperandE (A.MetadataNodeOperand x1) =
   Just [|L.MetadataNodeOperand $(qqE x1)|]
+qqOperandE (A.AntiOperand s) =
+  Just $ antiVarE s
 
 qqConstantE :: A.Constant -> Maybe (Q Exp)
 qqConstantE (A.Int x1 x2) =
@@ -448,6 +450,8 @@ qqTypeE (A.NamedTypeReference x1) =
   Just [|L.NamedTypeReference $(qqE x1)|]
 qqTypeE A.MetadataType =
   Just [|L.MetadataType|]
+qqTypeE (A.AntiType s) =
+  Just $ antiVarE s
 
 qqDialectE :: A.Dialect -> Maybe (Q Exp)
 qqDialectE A.ATTDialect =
@@ -799,6 +803,8 @@ qqOperandP (A.MetadataStringOperand x1) =
   Just [p|L.MetadataStringOperand $(qqP x1)|]
 qqOperandP (A.MetadataNodeOperand x1) =
   Just [p|L.MetadataNodeOperand $(qqP x1)|]
+qqOperandP (A.AntiOperand s) =
+  Just $ antiVarP s
 
 qqConstantP :: A.Constant -> Maybe (Q Pat)
 qqConstantP (A.Int x1 x2) =
@@ -859,6 +865,8 @@ qqTypeP (A.NamedTypeReference x1) =
   Just [p|L.NamedTypeReference $(qqP x1)|]
 qqTypeP A.MetadataType =
   Just [p|L.MetadataType|]
+qqTypeP (A.AntiType s) =
+  Just $ antiVarP s
 
 qqDialectP :: A.Dialect -> Maybe (Q Pat)
 qqDialectP A.ATTDialect =

@@ -250,6 +250,8 @@ import qualified LLVM.General.AST.RMWOperation as AR
  ANTI_BB            { L _ (T.Tanti_bb $$) }
  ANTI_BBS           { L _ (T.Tanti_bbs $$) }
  ANTI_INSTR         { L _ (T.Tanti_instr $$) }
+ ANTI_TYPE          { L _ (T.Tanti_type $$) }
+ ANTI_OPR           { L _ (T.Tanti_opr $$) }
  ANTI_CONST         { L _ (T.Tanti_const $$) }
  ANTI_ID            { L _ (T.Tanti_id $$) }
  ANTI_GID           { L _ (T.Tanti_gid $$) }
@@ -263,6 +265,7 @@ import qualified LLVM.General.AST.RMWOperation as AR
 
 %name parseModule       module
 %name parseDefinition   definition
+%name parseGlobal       global
 %name parseBasicBlock   basicBlock
 %name parseInstruction  instruction
 
@@ -319,6 +322,7 @@ operand :
   | name                { \_ -> A.LocalReference $1 }
   | '!' STRING          { \A.MetadataType -> A.MetadataStringOperand $2 }
   | metadataNode        { \A.MetadataType -> A.MetadataNodeOperand $1 }
+  | ANTI_OPR            { \_ -> A.AntiOperand $1 }
 
 mOperand :: { Maybe A.Operand }
 mOperand :
@@ -750,6 +754,7 @@ typeNoVoid :
   | '[' INT 'x' type ']'      { A.ArrayType (fromIntegral $2) $4 }
   | name                      { A.NamedTypeReference $1 }
   | 'metadata'                { A.MetadataType }
+  | ANTI_TYPE                 { A.AntiType $1 }
 
 type :: { A.Type }
 type :
