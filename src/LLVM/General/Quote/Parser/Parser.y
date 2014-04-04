@@ -703,7 +703,8 @@ terminator :
 
 mLabel :: { Maybe A.Name }
 mLabel :
-    ',' 'label' name     { Just $3 }
+    {- empty -}          { Nothing }
+  | ',' 'label' name     { Just $3 }
 
 basicBlock :: { A.BasicBlock }
 basicBlock :

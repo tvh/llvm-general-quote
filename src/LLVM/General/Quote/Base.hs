@@ -376,15 +376,14 @@ transform (A.ForLoop label iterType iterName from to elementType element element
         elementName' = $$(qqExp elementName) :: L.Name
         elementType' = $$(qqExp elementType) :: L.Type
         label' = $$(qqExp label) :: L.Name
-        labelString = case label of
-                        A.Name s -> s
-                        A.UnName n -> "num"++show n
-                        A.AntiName s -> error $ "Error: antiquotation for names not legal in for-header " ++ s
+        labelString = case label' of
+                        L.Name s -> s
+                        L.UnName n -> "num"++show n
         cond = L.Name $ labelString ++ ".cond"
-        iterNameNew = L.Name $ case iterName of
-                        A.Name s -> s ++ ".new"
-                        A.UnName n -> "num"++show n++".new"
-                        A.AntiName s -> error $ "Error: antiquotation for names not legal in for-header " ++ s
+        labelEnd = L.Name $ labelString ++ ".end"
+        iterNameNew = L.Name $ case $$(qqExp iterName) of
+                        L.Name s -> s ++ ".new"
+                        L.UnName n -> "num"++show n++".new"
         iterBits = case iterType' of
                      L.IntegerType n -> n
                      t -> error $ "Internal Error: unexpected type " ++ show t
@@ -400,10 +399,13 @@ transform (A.ForLoop label iterType iterName from to elementType element element
         bodyLabel = $$(qqExp (A.label $ head body)) :: L.Name
         returns = (body' >>= maybeToList . ret)
         pre  = case $$(qqExp next) of
-                 Just next' -> L.BasicBlock label' preInstrs (L.Do $ L.CondBr (L.LocalReference cond) bodyLabel next' [])
-                 Nothing    -> L.BasicBlock label' preInstrs (L.Do $ L.Ret (Just $ L.LocalReference elementName') [])
+                 Just next' -> [L.BasicBlock label' preInstrs (L.Do $ L.CondBr (L.LocalReference cond) bodyLabel next' [])]
+                 Nothing    -> 
+                   [ L.BasicBlock label' preInstrs (L.Do $ L.CondBr (L.LocalReference cond) bodyLabel labelEnd [])
+                   , L.BasicBlock labelEnd [] (L.Do $ L.Ret (Just $ L.LocalReference elementName') [])
+                   ]
         main = replaceRets label' body'
-    in (pre:main)
+    in (pre++main)
   ||]
 transform (A.AntiBasicBlock v)
   = [||[$$(antiVarE v)]||]
