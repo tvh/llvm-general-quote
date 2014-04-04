@@ -303,7 +303,7 @@ qqDefinitionE (A.NamedMetadataDefinition i vs) =
     [||L.NamedMetadataDefinition $$(qqExp i) $$(qqExp vs) :: L.Definition||]
 qqDefinitionE (A.ModuleInlineAssembly s) =
     [||L.ModuleInlineAssembly $$(qqExp s) :: L.Definition||]
-qqDefinitionE a@(A.AntiDefinition s) =
+qqDefinitionE (A.AntiDefinition s) =
     antiVarE s
 qqDefinitionE a@(A.AntiDefinitionList _s) =
     error $ "Internal Error: unexpected antiquote " ++ show a
@@ -355,19 +355,17 @@ transform (A.ForLoop label iterType iterName from to elementType element element
                     L.Do t''   -> t''
           L.Ret (Just x) _ <- return t
           return (x,l)
-        ret x = error $ "Internal Error: only plain BasicBlocks should arrive at function ret. got: " ++ show x
 
         replaceRets :: L.Name -> [L.BasicBlock] -> [L.BasicBlock]
-        replaceRets n [] = []
+        replaceRets _ [] = []
         replaceRets n (x:xs) = replaceRet n x : replaceRets n xs
 
         replaceRet :: L.Name -> L.BasicBlock -> L.BasicBlock
-        replaceRet label bb@(L.BasicBlock bbn is t) =
+        replaceRet labelR bb@(L.BasicBlock bbn is t) =
           case t of
-            n L.:= L.Ret _ md -> L.BasicBlock bbn is (n L.:= L.Br label md)
-            L.Do (L.Ret _ md) -> L.BasicBlock bbn is (L.Do (L.Br label md))
+            n L.:= L.Ret _ md -> L.BasicBlock bbn is (n L.:= L.Br labelR md)
+            L.Do (L.Ret _ md) -> L.BasicBlock bbn is (L.Do (L.Br labelR md))
             _                 -> bb
-        replaceRet _ x = error $ "Internal Error: only plain BasicBlocks should arrive at function replaceRet. got: " ++ show x
         
         iterName' = $$(qqExp iterName) :: L.Name
         iterType' = $$(qqExp iterType) :: L.Type
