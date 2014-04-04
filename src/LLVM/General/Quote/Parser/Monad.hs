@@ -101,7 +101,7 @@ emptyPState exts buf pos = PState
 newtype P a = P { runP :: PState -> Either SomeException (a, PState) }
 
 instance Functor P where
-    fmap f x = x >>= return . f
+    fmap = liftM
 
 instance Applicative P where
     pure  = return
@@ -239,8 +239,10 @@ expected alts after = do
     expectedAt tok alts after
 
 expectedAt :: L Token -> [String] -> Maybe String -> P b
-expectedAt tok@(L loc _) alts after = do
-    parserError (locStart loc) (text "expected" <+> pprAlts alts <+> pprGot tok <> pprAfter after)
+expectedAt tok@(L loc _) alts after =
+    parserError
+      (locStart loc)
+      (text "expected" <+> pprAlts alts <+> pprGot tok <> pprAfter after)
   where
     pprAlts :: [String] -> Doc
     pprAlts []        = empty
@@ -265,13 +267,13 @@ data AlexInput = AlexInput
 
 alexGetChar :: AlexInput -> Maybe (Char, AlexInput)
 alexGetChar inp =
-    case B.uncons (alexInput inp) of
-      Nothing       -> Nothing
-      Just (c, bs)  -> Just (c, inp  {  alexPos       = advancePos (alexPos inp) c
-                                     ,  alexPrevChar  = c
-                                     ,  alexInput     = bs
-                                     ,  alexOff       = alexOff inp + 1
-                                     })
+  case B.uncons (alexInput inp) of
+    Nothing      -> Nothing
+    Just (c, bs) -> Just (c, inp  { alexPos      = advancePos (alexPos inp) c
+                                  , alexPrevChar = c
+                                  , alexInput    = bs
+                                  , alexOff      = alexOff inp + 1
+                                  })
 
 alexGetByte :: AlexInput -> Maybe (Word8, AlexInput)
 alexGetByte inp =

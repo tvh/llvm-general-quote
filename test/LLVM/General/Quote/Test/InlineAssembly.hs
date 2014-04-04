@@ -18,7 +18,7 @@ import qualified LLVM.General.AST.Global as G
 tests = testGroup "InlineAssembly" [
   testCase "expression" $ do
     let ast = Module "<string>" Nothing Nothing [
-                GlobalDefinition $ 
+                GlobalDefinition $
                   functionDefaults {
                     G.returnType = IntegerType 32,
                     G.name = Name "foo",
@@ -51,7 +51,7 @@ tests = testGroup "InlineAssembly" [
 
               ]
         s = [llmod|; ModuleID = '<string>'
-             
+
              define i32 @foo(i32 %x) {
              entry:
                %0 = call i32 asm "bswap $0", "=r,r"(i32 %x)
@@ -69,10 +69,10 @@ tests = testGroup "InlineAssembly" [
                 }
               ]
         s = [llmod|; ModuleID = '<string>'
-             
+
              module asm "foo"
              module asm "bar"
-             
+
              @0 = external global i32|]
     s @?= ast
  ]

@@ -18,11 +18,13 @@ exts = [A.Loops]
 
 -- |Quasiquoter for 'LLVM.General.AST.Module'
 llmod :: QuasiQuoter
-llmod = unTQuasiQuoter (quasiquote exts P.parseModule :: TQuasiQuoter L.Module)
+llmod = unTQuasiQuoter
+          (quasiquote exts P.parseModule :: TQuasiQuoter L.Module)
 
 -- |Quasiquoter for 'LLVM.General.AST.Definition'
 lldef :: QuasiQuoter
-lldef = unTQuasiQuoter (quasiquote exts P.parseDefinition :: TQuasiQuoter L.Definition)
+lldef = unTQuasiQuoter
+          (quasiquote exts P.parseDefinition :: TQuasiQuoter L.Definition)
 
 -- |Quasiquoter for 'LLVM.General.AST.Global'
 llg :: QuasiQuoter
@@ -30,8 +32,10 @@ llg = unTQuasiQuoter (quasiquote exts P.parseGlobal :: TQuasiQuoter L.Global)
 
 -- |Quasiquoter for 'LLVM.General.AST.BasicBlock'
 llbb :: QuasiQuoter
-llbb = unTQuasiQuoter (quasiquote exts P.parseBasicBlock :: TQuasiQuoter L.BasicBlock)
+llbb = unTQuasiQuoter
+         (quasiquote exts P.parseBasicBlock :: TQuasiQuoter L.BasicBlock)
 
 -- |Quasiquoter for 'LLVM.General.AST.Instruction.Instruction'
 lli :: QuasiQuoter
-lli = unTQuasiQuoter (quasiquote exts P.parseInstruction :: TQuasiQuoter L.Instruction)
+lli = unTQuasiQuoter
+        (quasiquote exts P.parseInstruction :: TQuasiQuoter L.Instruction)

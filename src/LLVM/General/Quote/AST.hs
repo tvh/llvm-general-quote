@@ -110,7 +110,7 @@ data BasicBlock
   = BasicBlock {
     label :: Name,
     instructions :: [Named Instruction],
-    terminator :: (Named Terminator)
+    terminator :: Named Terminator
   }
   | ForLoop {
     label :: Name,
@@ -128,7 +128,7 @@ data BasicBlock
   deriving (Eq, Read, Show, Typeable, Data)
 
 -- | Any thing which can be at the top level of a 'Module'
-data Definition 
+data Definition
   = GlobalDefinition Global
   | TypeDefinition Name (Maybe Type)
   | MetadataNodeDefinition MetadataNodeID [Maybe Operand]
@@ -139,14 +139,14 @@ data Definition
     deriving (Eq, Read, Show, Typeable, Data)
 
 -- | <http://llvm.org/docs/LangRef.html#modulestructure>
-data Module = 
+data Module =
   Module {
     moduleName :: String,
     -- | a 'DataLayout', if specified, must match that of the eventual code generator
-    moduleDataLayout :: Maybe DataLayout, 
+    moduleDataLayout :: Maybe DataLayout,
     moduleTargetTriple :: TargetTriple,
     moduleDefinitions :: [Definition]
-  } 
+  }
   deriving (Eq, Read, Show, Typeable, Data)
 
 -- | <http://llvm.org/docs/LangRef.html#metadata-nodes-and-metadata-strings>
@@ -154,18 +154,18 @@ data Module =
 type InstructionMetadata = [(String, MetadataNode)]
 
 -- | <http://llvm.org/docs/LangRef.html#terminators>
-data Terminator 
-  = Ret { 
+data Terminator
+  = Ret {
       returnOperand :: Maybe Operand,
       metadata' :: InstructionMetadata
     }
-  | CondBr { 
-      condition :: Operand, 
-      trueDest :: Name, 
+  | CondBr {
+      condition :: Operand,
+      trueDest :: Name,
       falseDest :: Name,
       metadata' :: InstructionMetadata
     }
-  | Br { 
+  | Br {
       dest :: Name,
       metadata' :: InstructionMetadata
     }
@@ -211,7 +211,7 @@ data MemoryOrdering
   deriving (Eq, Ord, Read, Show, Data, Typeable)
 
 -- | An 'Atomicity' describes constraints on the visibility of effects of an atomic instruction
-data Atomicity = Atomicity { 
+data Atomicity = Atomicity {
   crossThread :: Bool, -- ^ <http://llvm.org/docs/LangRef.html#singlethread>
   memoryOrdering :: MemoryOrdering
  }
@@ -229,7 +229,7 @@ data LandingPadClause
 -- <http://llvm.org/docs/LangRef.html#memoryops>
 -- <http://llvm.org/docs/LangRef.html#otherops>
 data Instruction
-  = Add { 
+  = Add {
       nsw :: Bool,
       nuw :: Bool,
       operand0 :: Operand,
@@ -248,145 +248,145 @@ data Instruction
       operand1 :: Operand,
       metadata :: InstructionMetadata
     }
-  | FSub { 
-      operand0 :: Operand, 
-      operand1 :: Operand, 
+  | FSub {
+      operand0 :: Operand,
+      operand1 :: Operand,
       metadata :: InstructionMetadata
     }
-  | Mul { 
-      nsw :: Bool, 
-      nuw :: Bool, 
-      operand0 :: Operand, 
-      operand1 :: Operand, 
-      metadata :: InstructionMetadata 
-    }
-  | FMul { 
-      operand0 :: Operand, 
-      operand1 :: Operand, 
+  | Mul {
+      nsw :: Bool,
+      nuw :: Bool,
+      operand0 :: Operand,
+      operand1 :: Operand,
       metadata :: InstructionMetadata
     }
-  | UDiv { 
-      exact :: Bool, 
-      operand0 :: Operand, 
-      operand1 :: Operand, 
+  | FMul {
+      operand0 :: Operand,
+      operand1 :: Operand,
       metadata :: InstructionMetadata
     }
-  | SDiv { 
-      exact :: Bool, 
-      operand0 :: Operand, 
-      operand1 :: Operand, 
+  | UDiv {
+      exact :: Bool,
+      operand0 :: Operand,
+      operand1 :: Operand,
       metadata :: InstructionMetadata
     }
-  | FDiv { 
-      operand0 :: Operand, 
-      operand1 :: Operand, 
+  | SDiv {
+      exact :: Bool,
+      operand0 :: Operand,
+      operand1 :: Operand,
       metadata :: InstructionMetadata
     }
-  | URem { 
-      operand0 :: Operand, 
-      operand1 :: Operand, 
+  | FDiv {
+      operand0 :: Operand,
+      operand1 :: Operand,
       metadata :: InstructionMetadata
     }
-  | SRem { 
-      operand0 :: Operand, 
-      operand1 :: Operand, 
+  | URem {
+      operand0 :: Operand,
+      operand1 :: Operand,
       metadata :: InstructionMetadata
     }
-  | FRem { 
-      operand0 :: Operand, 
-      operand1 :: Operand, 
+  | SRem {
+      operand0 :: Operand,
+      operand1 :: Operand,
       metadata :: InstructionMetadata
     }
-  | Shl { 
-      nsw :: Bool, 
-      nuw :: Bool, 
-      operand0 :: Operand, 
-      operand1 :: Operand, 
+  | FRem {
+      operand0 :: Operand,
+      operand1 :: Operand,
       metadata :: InstructionMetadata
     }
-  | LShr { 
-      exact :: Bool, 
-      operand0 :: Operand, 
-      operand1 :: Operand, 
+  | Shl {
+      nsw :: Bool,
+      nuw :: Bool,
+      operand0 :: Operand,
+      operand1 :: Operand,
       metadata :: InstructionMetadata
     }
-  | AShr { 
-      exact :: Bool, 
-      operand0 :: Operand, 
-      operand1 :: Operand, 
+  | LShr {
+      exact :: Bool,
+      operand0 :: Operand,
+      operand1 :: Operand,
       metadata :: InstructionMetadata
     }
-  | And { 
-      operand0 :: Operand, 
-      operand1 :: Operand, 
+  | AShr {
+      exact :: Bool,
+      operand0 :: Operand,
+      operand1 :: Operand,
       metadata :: InstructionMetadata
     }
-  | Or { 
-      operand0 :: Operand, 
-      operand1 :: Operand, 
+  | And {
+      operand0 :: Operand,
+      operand1 :: Operand,
       metadata :: InstructionMetadata
     }
-  | Xor { 
-      operand0 :: Operand, 
-      operand1 :: Operand, 
+  | Or {
+      operand0 :: Operand,
+      operand1 :: Operand,
       metadata :: InstructionMetadata
     }
-  | Alloca { 
+  | Xor {
+      operand0 :: Operand,
+      operand1 :: Operand,
+      metadata :: InstructionMetadata
+    }
+  | Alloca {
       allocatedType :: Type,
       numElements :: Maybe Operand,
       alignmentI :: Word32,
       metadata :: InstructionMetadata
     }
   | Load {
-      volatile :: Bool, 
+      volatile :: Bool,
       address :: Operand,
       maybeAtomicity :: Maybe Atomicity,
       alignmentI :: Word32,
       metadata :: InstructionMetadata
     }
   | Store {
-      volatile :: Bool, 
+      volatile :: Bool,
       address :: Operand,
       value :: Operand,
       maybeAtomicity :: Maybe Atomicity,
       alignmentI :: Word32,
       metadata :: InstructionMetadata
     }
-  | GetElementPtr { 
+  | GetElementPtr {
       inBounds :: Bool,
       address :: Operand,
       indices :: [Operand],
       metadata :: InstructionMetadata
     }
-  | Fence { 
+  | Fence {
       atomicity :: Atomicity,
-      metadata :: InstructionMetadata 
+      metadata :: InstructionMetadata
     }
-  | CmpXchg { 
+  | CmpXchg {
       volatile :: Bool,
       address :: Operand,
       expected :: Operand,
       replacement :: Operand,
       atomicity :: Atomicity,
-      metadata :: InstructionMetadata 
+      metadata :: InstructionMetadata
     }
-  | AtomicRMW { 
+  | AtomicRMW {
       volatile :: Bool,
       rmwOperation :: A.RMWOperation,
       address :: Operand,
       value :: Operand,
       atomicity :: Atomicity,
-      metadata :: InstructionMetadata 
+      metadata :: InstructionMetadata
     }
-  | Trunc { 
+  | Trunc {
       operand0 :: Operand,
       type' :: Type,
-      metadata :: InstructionMetadata 
+      metadata :: InstructionMetadata
     }
   | ZExt {
       operand0 :: Operand,
       type' :: Type,
-      metadata :: InstructionMetadata 
+      metadata :: InstructionMetadata
     }
   | SExt {
       operand0 :: Operand,
@@ -459,7 +459,7 @@ data Instruction
       type' :: Type,
       incomingValues :: [ (Operand, Name) ],
       metadata :: InstructionMetadata
-  } 
+  }
   | Call {
       isTailCall :: Bool,
       callingConvention :: A.CallingConvention,
@@ -469,46 +469,46 @@ data Instruction
       functionAttributes :: [A.FunctionAttribute],
       metadata :: InstructionMetadata
   }
-  | Select { 
+  | Select {
       condition' :: Operand,
       trueValue :: Operand,
       falseValue :: Operand,
       metadata :: InstructionMetadata
     }
-  | VAArg { 
+  | VAArg {
       argList :: Operand,
       type' :: Type,
-      metadata :: InstructionMetadata 
+      metadata :: InstructionMetadata
     }
-  | ExtractElement { 
+  | ExtractElement {
       vector :: Operand,
       index :: Operand,
-      metadata :: InstructionMetadata 
+      metadata :: InstructionMetadata
     }
-  | InsertElement { 
+  | InsertElement {
       vector :: Operand,
       element :: Operand,
       index :: Operand,
       metadata :: InstructionMetadata
     }
-  | ShuffleVector { 
+  | ShuffleVector {
       operand0 :: Operand,
       operand1 :: Operand,
       mask :: Constant,
       metadata :: InstructionMetadata
     }
-  | ExtractValue { 
+  | ExtractValue {
       aggregate :: Operand,
       indices' :: [Word32],
       metadata :: InstructionMetadata
     }
-  | InsertValue { 
+  | InsertValue {
       aggregate :: Operand,
       element :: Operand,
       indices' :: [Word32],
       metadata :: InstructionMetadata
     }
-  | LandingPad { 
+  | LandingPad {
       type' :: Type,
       personalityFunction :: Operand,
       cleanup :: Bool,
@@ -520,7 +520,7 @@ data Instruction
 
 -- | Instances of instructions may be given a name, allowing their results to be referenced as 'Operand's.
 -- Sometimes instructions - e.g. a call to a function returning void - don't need names.
-data Named a 
+data Named a
   = Name := a
   | Do a
   deriving (Eq, Read, Show, Typeable, Data)
@@ -532,13 +532,13 @@ newtype MetadataNodeID = MetadataNodeID Word
   deriving (Eq, Ord, Read, Show, Typeable, Data)
 
 -- | <http://llvm.org/docs/LangRef.html#metadata>
-data MetadataNode 
+data MetadataNode
   = MetadataNode [Maybe Operand]
   | MetadataNodeReference MetadataNodeID
   deriving (Eq, Ord, Read, Show, Typeable, Data)
 
 -- | An 'Operand' is roughly that which is an argument to an 'LLVM.General.AST.Instruction.Instruction'
-data Operand 
+data Operand
   -- | %foo
   = LocalReference Name
   -- | 'Constant's include 'LLVM.General.AST.Constant.GlobalReference', for \@foo
@@ -560,7 +560,7 @@ Although constant expressions and instructions have many similarites, there are 
 differences - so they're represented using different types in this AST. At the cost of making it
 harder to move an code back and forth between being constant and not, this approach embeds more of
 the rules of what IR is legal into the Haskell types.
--} 
+-}
 data Constant
     = Int { integerBits :: Word32, integerValue :: Integer }
     | Float { floatValue :: A.SomeFloat }
@@ -578,7 +578,7 @@ data Constant
 Objects of various sorts in LLVM IR are identified by address in the LLVM C++ API, and
 may be given a string name. When printed to (resp. read from) human-readable LLVM assembly, objects without
 string names are numbered sequentially (resp. must be numbered sequentially). String names may be quoted, and
-are quoted when printed if they would otherwise be misread - e.g. when containing special characters. 
+are quoted when printed if they would otherwise be misread - e.g. when containing special characters.
 
 > 7
 
@@ -595,8 +595,8 @@ printed as assembly or translated into a Haskell AST, unnamed nodes will be renu
 unnamed node numbers should be thought of as having any scope limited to the 'LLVM.General.AST.Module' in
 which they are used.
 -}
-data Name 
-    = Name String -- ^ a string name 
+data Name
+    = Name String -- ^ a string name
     | UnName Word -- ^ a number for a nameless thing
     | AntiName String
    deriving (Eq, Ord, Read, Show, Typeable, Data)

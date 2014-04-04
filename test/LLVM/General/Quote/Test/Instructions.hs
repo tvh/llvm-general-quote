@@ -37,7 +37,7 @@ tests = let a = LocalReference . UnName in testGroup "Instructions" [
              nuw = False,
              operand0 = a 0,
              operand1 = a 0,
-             metadata = [] 
+             metadata = []
            },
            [lli|add i32 %0, %0|]),
           ("nsw",
@@ -46,7 +46,7 @@ tests = let a = LocalReference . UnName in testGroup "Instructions" [
              nuw = False,
              operand0 = a 0,
              operand1 = a 0,
-             metadata = [] 
+             metadata = []
            },
            [lli|add nsw i32 %0, %0|]),
           ("nuw",
@@ -55,14 +55,14 @@ tests = let a = LocalReference . UnName in testGroup "Instructions" [
              nuw = True,
              operand0 = a 0,
              operand1 = a 0,
-             metadata = [] 
+             metadata = []
            },
            [lli|add nuw i32 %0, %0|]),
           ("fadd",
            FAdd {
              operand0 = a 1,
              operand1 = a 1,
-             metadata = [] 
+             metadata = []
            },
            [lli|fadd float %1, %1|]),
           ("sub",
@@ -71,14 +71,14 @@ tests = let a = LocalReference . UnName in testGroup "Instructions" [
              nuw = False,
              operand0 = a 0,
              operand1 = a 0,
-             metadata = [] 
+             metadata = []
            },
            [lli|sub i32 %0, %0|]),
           ("fsub",
            FSub {
              operand0 = a 1,
              operand1 = a 1,
-             metadata = [] 
+             metadata = []
            },
            [lli|fsub float %1, %1|]),
           ("mul",
@@ -87,14 +87,14 @@ tests = let a = LocalReference . UnName in testGroup "Instructions" [
              nuw = False,
              operand0 = a 0,
              operand1 = a 0,
-             metadata = [] 
+             metadata = []
            },
            [lli|mul i32 %0, %0|]),
           ("fmul",
            FMul {
              operand0 = a 1,
              operand1 = a 1,
-             metadata = [] 
+             metadata = []
            },
            [lli|fmul float %1, %1|]),
           ("udiv",
@@ -102,7 +102,7 @@ tests = let a = LocalReference . UnName in testGroup "Instructions" [
              exact = False,
              operand0 = a 0,
              operand1 = a 0,
-             metadata = [] 
+             metadata = []
            },
            [lli|udiv i32 %0, %0|]),
           ("exact",
@@ -110,7 +110,7 @@ tests = let a = LocalReference . UnName in testGroup "Instructions" [
              exact = True,
              operand0 = a 0,
              operand1 = a 0,
-             metadata = [] 
+             metadata = []
            },
            [lli|udiv exact i32 %0, %0|]),
           ("sdiv",
@@ -118,35 +118,35 @@ tests = let a = LocalReference . UnName in testGroup "Instructions" [
              exact = False,
              operand0 = a 0,
              operand1 = a 0,
-             metadata = [] 
+             metadata = []
            },
            [lli|sdiv i32 %0, %0|]),
           ("fdiv",
            FDiv {
              operand0 = a 1,
              operand1 = a 1,
-             metadata = [] 
+             metadata = []
            },
            [lli|fdiv float %1, %1|]),
           ("urem",
            URem {
              operand0 = a 0,
              operand1 = a 0,
-             metadata = [] 
+             metadata = []
            },
            [lli|urem i32 %0, %0|]),
           ("srem",
            SRem {
              operand0 = a 0,
              operand1 = a 0,
-             metadata = [] 
+             metadata = []
            },
            [lli|srem i32 %0, %0|]),
           ("frem",
            FRem {
              operand0 = a 1,
              operand1 = a 1,
-             metadata = [] 
+             metadata = []
            },
            [lli|frem float %1, %1|]),
           ("shl",
@@ -155,7 +155,7 @@ tests = let a = LocalReference . UnName in testGroup "Instructions" [
              nuw = False,
              operand0 = a 0,
              operand1 = a 0,
-             metadata = [] 
+             metadata = []
            },
            [lli|shl i32 %0, %0|]),
           ("ashr",
@@ -163,7 +163,7 @@ tests = let a = LocalReference . UnName in testGroup "Instructions" [
              exact = False,
              operand0 = a 0,
              operand1 = a 0,
-             metadata = [] 
+             metadata = []
            },
            [lli|ashr i32 %0, %0|]),
           ("lshr",
@@ -171,28 +171,28 @@ tests = let a = LocalReference . UnName in testGroup "Instructions" [
              exact = False,
              operand0 = a 0,
              operand1 = a 0,
-             metadata = [] 
+             metadata = []
            },
            [lli|lshr i32 %0, %0|]),
           ("and",
            And {
              operand0 = a 0,
              operand1 = a 0,
-             metadata = [] 
+             metadata = []
            },
            [lli|and i32 %0, %0|]),
           ("or",
            Or {
              operand0 = a 0,
              operand1 = a 0,
-             metadata = [] 
+             metadata = []
            },
            [lli|or i32 %0, %0|]),
           ("xor",
            Xor {
              operand0 = a 0,
              operand1 = a 0,
-             metadata = [] 
+             metadata = []
            },
            [lli|xor i32 %0, %0|]),
           ("alloca",
@@ -200,7 +200,7 @@ tests = let a = LocalReference . UnName in testGroup "Instructions" [
              allocatedType = IntegerType 32,
              numElements = Nothing,
              alignment = 0,
-             metadata = [] 
+             metadata = []
            },
            [lli|alloca i32|]),
           ("alloca tricky",
@@ -208,7 +208,7 @@ tests = let a = LocalReference . UnName in testGroup "Instructions" [
              allocatedType = IntegerType 7,
              numElements = Just (ConstantOperand (C.Int 32 2)),
              alignment = 128,
-             metadata = [] 
+             metadata = []
            },
            [lli|alloca i7, i32 2, align 128|]),
           ("load",
@@ -217,7 +217,7 @@ tests = let a = LocalReference . UnName in testGroup "Instructions" [
              address = a 2,
              maybeAtomicity = Nothing,
              alignment = 0,
-             metadata = [] 
+             metadata = []
            },
            [lli|load i32* %2|]),
           ("volatile",
@@ -226,7 +226,7 @@ tests = let a = LocalReference . UnName in testGroup "Instructions" [
              address = a 2,
              maybeAtomicity = Nothing,
              alignment = 0,
-             metadata = [] 
+             metadata = []
            },
            [lli|load volatile i32* %2|]),
           ("acquire",
@@ -235,7 +235,7 @@ tests = let a = LocalReference . UnName in testGroup "Instructions" [
              address = a 2,
              maybeAtomicity = Just (Atomicity { crossThread = True, memoryOrdering = Acquire }),
              alignment = 1,
-             metadata = [] 
+             metadata = []
            },
            [lli|load atomic i32* %2 acquire, align 1|]),
           ("singlethread",
@@ -244,7 +244,7 @@ tests = let a = LocalReference . UnName in testGroup "Instructions" [
              address = a 2,
              maybeAtomicity = Just (Atomicity { crossThread = False, memoryOrdering = Monotonic }),
              alignment = 1,
-             metadata = [] 
+             metadata = []
            },
            [lli|load atomic i32* %2 singlethread monotonic, align 1|]),
           ("GEP",
@@ -252,7 +252,7 @@ tests = let a = LocalReference . UnName in testGroup "Instructions" [
              inBounds = False,
              address = a 2,
              indices = [ a 0 ],
-             metadata = [] 
+             metadata = []
            },
            [lli|getelementptr i32* %2, i32 %0|]),
           ("inBounds",
@@ -260,7 +260,7 @@ tests = let a = LocalReference . UnName in testGroup "Instructions" [
              inBounds = True,
              address = a 2,
              indices = [ a 0 ],
-             metadata = [] 
+             metadata = []
            },
            [lli|getelementptr inbounds i32* %2, i32 %0|]),
           ("cmpxchg",
@@ -270,7 +270,7 @@ tests = let a = LocalReference . UnName in testGroup "Instructions" [
              expected = a 0,
              replacement = a 0,
              atomicity = Atomicity { crossThread = True, memoryOrdering = Monotonic },
-             metadata = [] 
+             metadata = []
            },
            [lli|cmpxchg i32* %2, i32 %0, i32 %0 monotonic|]),
           ("atomicrmw",
@@ -288,91 +288,91 @@ tests = let a = LocalReference . UnName in testGroup "Instructions" [
            Trunc {
              operand0 = a 0,
              type' = IntegerType 16,
-             metadata = [] 
+             metadata = []
            },
            [lli|trunc i32 %0 to i16|]),
           ("zext",
            ZExt {
              operand0 = a 0,
              type' = IntegerType 64,
-             metadata = [] 
+             metadata = []
            },
            [lli|zext i32 %0 to i64|]),
           ("sext",
            SExt {
              operand0 = a 0,
              type' = IntegerType 64,
-             metadata = [] 
+             metadata = []
            },
            [lli|sext i32 %0 to i64|]),
           ("fptoui",
            FPToUI {
              operand0 = a 1,
              type' = IntegerType 64,
-             metadata = [] 
+             metadata = []
            },
            [lli|fptoui float %1 to i64|]),
           ("fptosi",
            FPToSI {
              operand0 = a 1,
              type' = IntegerType 64,
-             metadata = [] 
+             metadata = []
            },
            [lli|fptosi float %1 to i64|]),
           ("uitofp",
            UIToFP {
              operand0 = a 0,
              type' = FloatingPointType 32 IEEE,
-             metadata = [] 
+             metadata = []
            },
            [lli|uitofp i32 %0 to float|]),
           ("sitofp",
            SIToFP {
              operand0 = a 0,
              type' = FloatingPointType 32 IEEE,
-             metadata = [] 
+             metadata = []
            },
            [lli|sitofp i32 %0 to float|]),
           ("fptrunc",
            FPTrunc {
              operand0 = a 1,
              type' = FloatingPointType 16 IEEE,
-             metadata = [] 
+             metadata = []
            },
            [lli|fptrunc float %1 to half|]),
           ("fpext",
            FPExt {
              operand0 = a 1,
              type' = FloatingPointType 64 IEEE,
-             metadata = [] 
+             metadata = []
            },
            [lli|fpext float %1 to double|]),
           ("ptrtoint",
            PtrToInt {
              operand0 = a 2,
              type' = IntegerType 32,
-             metadata = [] 
+             metadata = []
            },
            [lli|ptrtoint i32* %2 to i32|]),
           ("inttoptr",
            IntToPtr {
              operand0 = a 0,
              type' = PointerType (IntegerType 32) (AddrSpace 0),
-             metadata = [] 
+             metadata = []
            },
            [lli|inttoptr i32 %0 to i32*|]),
           ("bitcast",
            BitCast {
              operand0 = a 0,
              type' = FloatingPointType 32 IEEE,
-             metadata = [] 
+             metadata = []
            },
            [lli|bitcast i32 %0 to float|]),
           ("addrspacecast",
            AddrSpaceCast {
              operand0 = a 2,
              type' = PointerType (IntegerType 32) (AddrSpace 2),
-             metadata = [] 
+             metadata = []
            },
            [lli|addrspacecast i32* %2 to i32 addrspace(2)*|]),
           ("select",
@@ -430,7 +430,7 @@ tests = let a = LocalReference . UnName in testGroup "Instructions" [
            [lli|insertvalue { i32, i32 } %6, i32 %0, 0|]),
           ("landingpad-catch",
            LandingPad {
-             type' = StructureType False [ 
+             type' = StructureType False [
                 PointerType (IntegerType 8) (AddrSpace 0),
                 IntegerType 32
                ],
@@ -443,7 +443,7 @@ tests = let a = LocalReference . UnName in testGroup "Instructions" [
                           catch i8* null|]),
           ("landingpad-filter",
            LandingPad {
-             type' = StructureType False [ 
+             type' = StructureType False [
                 PointerType (IntegerType 8) (AddrSpace 0),
                 IntegerType 32
                ],
@@ -456,7 +456,7 @@ tests = let a = LocalReference . UnName in testGroup "Instructions" [
                           filter [1 x i8*] zeroinitializer|]),
           ("landingpad-catch-cleanup",
            LandingPad {
-             type' = StructureType False [ 
+             type' = StructureType False [
                 PointerType (IntegerType 8) (AddrSpace 0),
                 IntegerType 32
                ],
@@ -469,7 +469,7 @@ tests = let a = LocalReference . UnName in testGroup "Instructions" [
                           cleanup catch i8* null|]),
           ("landingpad-filter-cleanup",
            LandingPad {
-             type' = StructureType False [ 
+             type' = StructureType False [
                 PointerType (IntegerType 8) (AddrSpace 0),
                 IntegerType 32
                ],
@@ -565,13 +565,13 @@ tests = let a = LocalReference . UnName in testGroup "Instructions" [
             value = a 0,
             maybeAtomicity = Nothing,
             alignment = 0,
-            metadata = [] 
+            metadata = []
           },
           [lli|store i32 %0, i32* %2|]),
          ("fence",
           Fence {
             atomicity = Atomicity { crossThread = True, memoryOrdering = Acquire },
-            metadata = [] 
+            metadata = []
           },
           [lli|fence acquire|]),
           ("call",
@@ -606,7 +606,7 @@ tests = let a = LocalReference . UnName in testGroup "Instructions" [
          }
         ],
        [llmod|; ModuleID = '<string>'
-       
+
        define void @0() {
        entry:
          ret void
@@ -628,11 +628,11 @@ tests = let a = LocalReference . UnName in testGroup "Instructions" [
          }
         ],
        [llmod|; ModuleID = '<string>'
-       
+
        define void @0() {
        entry:
          br label %foo
-       
+
        foo:                                              ; preds = %0
          ret void
        }|]
@@ -653,11 +653,11 @@ tests = let a = LocalReference . UnName in testGroup "Instructions" [
           }
         ],
        [llmod|; ModuleID = '<string>'
-       
+
        define void @0() {
        bar:
          br i1 true, label %foo, label %bar
-       
+
        foo:                                              ; preds = %bar
          ret void
        }|]
@@ -687,7 +687,7 @@ tests = let a = LocalReference . UnName in testGroup "Instructions" [
           }
         ],
        [llmod|; ModuleID = '<string>'
-       
+
        define void @0() {
        entry:
          switch i16 2, label %foo [
@@ -695,7 +695,7 @@ tests = let a = LocalReference . UnName in testGroup "Instructions" [
            i16 2, label %foo
            i16 3, label %entry
          ]
-       
+
        foo:
          ret void
        }|]
@@ -717,7 +717,7 @@ tests = let a = LocalReference . UnName in testGroup "Instructions" [
                        address = ConstantOperand (C.GlobalReference (UnName 0)),
                        maybeAtomicity = Nothing,
                        alignment = 0,
-                       metadata = [] 
+                       metadata = []
                      }
             ] (
               Do $ IndirectBr {
@@ -734,14 +734,14 @@ tests = let a = LocalReference . UnName in testGroup "Instructions" [
         ],
 --       \  indirectbr i8* null, [label %foo]\n\
        [llmod|; ModuleID = '<string>'
-       
+
        @0 = global i8* blockaddress(@foo, %end)
-       
+
        define void @foo() {
        entry:
          %0 = load i8** @0
          indirectbr i8* %0, [label %end]
-       
+
        end:
          ret void
        }|]
@@ -776,7 +776,7 @@ tests = let a = LocalReference . UnName in testGroup "Instructions" [
              ),
             BasicBlock (Name "bar") [
              UnName 0 := LandingPad {
-               type' = StructureType False [ 
+               type' = StructureType False [
                   PointerType (IntegerType 8) (AddrSpace 0),
                   IntegerType 32
                  ],
@@ -792,16 +792,16 @@ tests = let a = LocalReference . UnName in testGroup "Instructions" [
          }
         ],
        [llmod|; ModuleID = '<string>'
-       
+
        define void @0(i32 %a, i16 %b) {
        entry:
          invoke void @0(i32 4, i16 8)
                  to label %foo unwind label %bar
-       
-       foo:                                       
+
+       foo:
          ret void
-       
-       bar:                                       
+
+       bar:
          %0 = landingpad { i8*, i32 } personality void (i32, i16)* @0
                  cleanup
                  catch i8* null
@@ -821,7 +821,7 @@ tests = let a = LocalReference . UnName in testGroup "Instructions" [
           }
         ],
        [llmod|; ModuleID = '<string>'
-       
+
        define void @0() {
        entry:
          resume i32 1
@@ -840,7 +840,7 @@ tests = let a = LocalReference . UnName in testGroup "Instructions" [
          }
         ],
        [llmod|; ModuleID = '<string>'
-       
+
        define void @0() {
        entry:
          unreachable

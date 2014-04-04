@@ -481,7 +481,7 @@ instance Show Token where
 
 instance Pretty Token where
     ppr = text . show
-  
+
 keywords :: [(String,             Token,            Maybe [Extensions])]
 keywords = [("define",            Tdefine,          Nothing),
             ("ret",               Tret,             Nothing),

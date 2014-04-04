@@ -397,21 +397,21 @@ intP :
 
 fpP :: { AF.FloatingPointPredicate }
 fpP :
-      'false'          { AF.False }  
-    | 'oeq'            { AF.OEQ }  
-    | 'ogt'            { AF.OGT }  
-    | 'oge'            { AF.OGE }  
-    | 'olt'            { AF.OLT }  
-    | 'ole'            { AF.OLE }  
-    | 'one'            { AF.ONE }  
-    | 'ord'            { AF.ORD }  
-    | 'uno'            { AF.UNO }  
-    | 'ueq'            { AF.UEQ }  
-    | 'ugt'            { AF.UGT }  
-    | 'uge'            { AF.UGE }  
-    | 'ult'            { AF.ULT }  
-    | 'ule'            { AF.ULE }  
-    | 'une'            { AF.UNE }  
+      'false'          { AF.False }
+    | 'oeq'            { AF.OEQ }
+    | 'ogt'            { AF.OGT }
+    | 'oge'            { AF.OGE }
+    | 'olt'            { AF.OLT }
+    | 'ole'            { AF.OLE }
+    | 'one'            { AF.ONE }
+    | 'ord'            { AF.ORD }
+    | 'uno'            { AF.UNO }
+    | 'ueq'            { AF.UEQ }
+    | 'ugt'            { AF.UGT }
+    | 'uge'            { AF.UGE }
+    | 'ult'            { AF.ULT }
+    | 'ule'            { AF.ULE }
+    | 'une'            { AF.UNE }
     | 'true'           { AF.True }
 
 memoryOrdering :: { A.MemoryOrdering }
@@ -519,7 +519,7 @@ dialect :
 callableOperand :: { [A.Type] -> A.CallableOperand }
 callableOperand :
     type operand       { \ts -> Right ($2 (A.FunctionType $1 ts False)) }
-  | type 'asm' sideeffect alignstack dialect STRING ',' STRING  
+  | type 'asm' sideeffect alignstack dialect STRING ',' STRING
                        { \ts -> Left (A.InlineAssembly (A.FunctionType $1 ts False) $6 $8 $3 $4 $5) }
 
 tail :: { Bool }
@@ -583,9 +583,9 @@ instruction_ :
   | 'alloca' type mOperand alignment        { A.Alloca $2 $3 $4 }
   | 'load' volatile tOperand alignment      { A.Load $2 $3 Nothing $4 }
   | 'load' 'atomic' volatile tOperand atomicity alignment      { A.Load $3 $4 (Just $5) $6 }
-  | 'store' volatile tOperand ',' tOperand alignment 
+  | 'store' volatile tOperand ',' tOperand alignment
                                             { A.Store $2 $5 $3 Nothing $6 }
-  | 'store' 'atomic' volatile tOperand ',' tOperand atomicity alignment 
+  | 'store' 'atomic' volatile tOperand ',' tOperand atomicity alignment
                                             { A.Store $3 $6 $4 (Just $7) $8 }
   | 'getelementptr' inBounds tOperand indices
                                             { A.GetElementPtr $2 $3 (rev $4) }
@@ -593,7 +593,7 @@ instruction_ :
   | 'cmpxchg' volatile tOperand ',' tOperand ',' tOperand atomicity
                                             { A.CmpXchg $2 $3 $5 $7 $8 }
   | 'cmpxchg' volatile tOperand ',' tOperand ',' tOperand atomicity memoryOrdering
-                                            {% if A.memoryOrdering $8 == $9 
+                                            {% if A.memoryOrdering $8 == $9
                                                  then return (A.CmpXchg $2 $3 $5 $7 $8)
                                                  else fail "cmpxchg: both orderings must be the same at this point, sry" }
   | 'atomicrmw' volatile rmwOperation tOperand ',' tOperand atomicity
@@ -646,7 +646,7 @@ namedI :
     instruction                     { A.Do $1 }
   | name '=' instruction            { $1 A.:= $3 }
 
-instructions :: { RevList (A.Named A.Instruction) } 
+instructions :: { RevList (A.Named A.Instruction) }
 instructions :
     {- empty -}                   { RNil }
   | instructions namedI           { RCons $2 $1 }
@@ -713,7 +713,7 @@ basicBlock :
   | instructions namedT
       {% fail "BasicBlocks must always have names, sry" }
   | JUMPLABEL 'for' type name 'in' operand 'to' operand 'with' type phiList 'as' name mLabel '{' basicBlocks '}'
-      { A.ForLoop (A.Name $1) $3 $4 ($6 $3) ($8 $3) $10 (rev ($11 $10)) $13 (rev $16) $14 } 
+      { A.ForLoop (A.Name $1) $3 $4 ($6 $3) ($8 $3) $10 (rev ($11 $10)) $13 (rev $16) $14 }
   | ANTI_BB
       { A.AntiBasicBlock $1 }
   | ANTI_BBS
@@ -841,7 +841,7 @@ parameterList :
   | '...'                            { ([], True) }
   | parameterList_ '...'             { (rev $1, True) }
 
-fAttribute :: { A.FunctionAttribute }    
+fAttribute :: { A.FunctionAttribute }
 fAttribute :
     'alignstack' '(' INT ')'         { A.StackAlignment (fromIntegral $3) }
   | 'alwaysinline'                   { A.AlwaysInline }

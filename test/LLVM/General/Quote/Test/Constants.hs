@@ -87,6 +87,6 @@ tests = testGroup "Constants" [
     )
    ],
    let mAST = GlobalDefinition $ globalVariableDefaults {
-                G.name = UnName 0, G.type' = type', G.initializer = Just value 
+                G.name = UnName 0, G.type' = type', G.initializer = Just value
              }
  ]

@@ -33,7 +33,7 @@ tests = testGroup "Metadata" [
                  ] (
                  Do $ Ret (Just (ConstantOperand (C.Int 32 0))) [
                    (
-                     "my-metadatum", 
+                     "my-metadatum",
                      MetadataNode [
                       Just $ LocalReference (UnName 0),
                       Just $ MetadataStringOperand "super hyper",
@@ -46,9 +46,9 @@ tests = testGroup "Metadata" [
            }
          ]
     let s = [llmod|; ModuleID = '<string>'
-            
+
             @0 = external global i32
-            
+
             define i32 @foo() {
             entry:
               %0 = load i32* @0
@@ -73,12 +73,12 @@ tests = testGroup "Metadata" [
           MetadataNodeDefinition (MetadataNodeID 0) [ Just $ ConstantOperand (C.Int 32 1) ]
          ]
     let s = [llmod|; ModuleID = '<string>'
-            
+
             define i32 @foo() {
             entry:
               ret i32 0, !my-metadatum !0
             }
-            
+
             !0 = metadata !{i32 1}|]
     s @?= ast,
 
@@ -88,9 +88,9 @@ tests = testGroup "Metadata" [
           MetadataNodeDefinition (MetadataNodeID 0) [ Just $ ConstantOperand (C.Int 32 1) ]
          ]
     let s = [llmod|; ModuleID = '<string>'
-            
+
             !my-module-metadata = !{!0}
-            
+
             !0 = metadata !{i32 1}|]
     s @?= ast,
 
@@ -100,9 +100,9 @@ tests = testGroup "Metadata" [
           MetadataNodeDefinition (MetadataNodeID 0) [ Nothing ]
          ]
     let s = [llmod|; ModuleID = '<string>'
-            
+
             !my-module-metadata = !{!0}
-            
+
             !0 = metadata !{null}|]
     s @?= ast,
 
@@ -111,16 +111,16 @@ tests = testGroup "Metadata" [
       let ast = Module "<string>" Nothing Nothing [
             NamedMetadataDefinition "my-module-metadata" [MetadataNodeID 0],
             MetadataNodeDefinition (MetadataNodeID 0) [
-              Just $ MetadataNodeOperand (MetadataNodeReference (MetadataNodeID 1)) 
+              Just $ MetadataNodeOperand (MetadataNodeReference (MetadataNodeID 1))
              ],
             MetadataNodeDefinition (MetadataNodeID 1) [
-              Just $ MetadataNodeOperand (MetadataNodeReference (MetadataNodeID 0)) 
+              Just $ MetadataNodeOperand (MetadataNodeReference (MetadataNodeID 0))
              ]
            ]
       let s = [llmod|; ModuleID = '<string>'
-              
+
               !my-module-metadata = !{!0}
-              
+
               !0 = metadata !{metadata !1}
               !1 = metadata !{metadata !0}|]
       s @?= ast,
@@ -142,12 +142,12 @@ tests = testGroup "Metadata" [
              ]
            ]
       let s = [llmod|; ModuleID = '<string>'
-              
+
               define void @foo() {
               entry:
                 ret void, !my-metadatum !0
               }
-              
+
               !0 = metadata !{void ()* @foo}|]
       s @?= ast
    ]

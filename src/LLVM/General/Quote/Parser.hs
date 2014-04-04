@@ -1,7 +1,5 @@
 module LLVM.General.Quote.Parser (
-    module LLVM.General.Quote.Parser.Lexer,
-    module LLVM.General.Quote.Parser.Tokens,
-    module LLVM.General.Quote.Parser.Monad,
+    module P,
     parse
   ) where
 
@@ -10,9 +8,9 @@ import Control.Exception
 import qualified Data.ByteString.Char8 as B
 import Data.Loc
 
-import LLVM.General.Quote.Parser.Lexer
-import LLVM.General.Quote.Parser.Tokens
-import LLVM.General.Quote.Parser.Monad
+import LLVM.General.Quote.Parser.Lexer as P
+import LLVM.General.Quote.Parser.Tokens as P
+import LLVM.General.Quote.Parser.Monad as P
 
 parse :: [Extensions]
       -> P a

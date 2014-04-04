@@ -81,7 +81,7 @@ tokens :-
 
 <0> {
  ";" .* ;
- $whitechar+          ; 
+ $whitechar+          ;
 
  @identifier { identifier }
  @jumpLabel { jumpLabel }
@@ -376,4 +376,3 @@ lexToken = do
       AlexSkip end _       -> setInput end >> lexToken
       AlexToken end _len t  -> setInput end >> t beg end
 }
-  

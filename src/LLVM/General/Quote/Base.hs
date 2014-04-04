@@ -34,7 +34,8 @@ import qualified LLVM.General.Quote.AST as A
 import qualified LLVM.General.AST.IntegerPredicate as LI
 import qualified LLVM.General.AST as L
 import qualified LLVM.General.AST.Constant as L
-  (Constant(Int, Float, Null, Struct, Array, Vector, Undef, BlockAddress, GlobalReference))
+  (Constant(Int, Float, Null, Struct, Array, Vector,
+            Undef, BlockAddress, GlobalReference))
 import qualified LLVM.General.AST.Float as L
 import qualified LLVM.General.AST.InlineAssembly as L
 import qualified LLVM.General.AST.DataLayout as L
@@ -166,7 +167,8 @@ instance QQExp [A.Name] [L.Name] where
   qqExp (x:xs) = [||$$(qqExp x) : $$(qqExp xs)||]
   qqExp []     = [||[]||]
 
-instance QQExp [(A.Operand, [L.ParameterAttribute])] [(L.Operand, [L.ParameterAttribute])] where
+instance QQExp [(A.Operand, [L.ParameterAttribute])]
+               [(L.Operand, [L.ParameterAttribute])] where
   qqExp (x:xs) = [||$$(qqExp x) : $$(qqExp xs)||]
   qqExp []     = [||[]||]
 
@@ -194,11 +196,13 @@ instance QQExp [A.Type] [L.Type] where
   qqExp (x:xs) = [||$$(qqExp x) : $$(qqExp xs)||]
   qqExp []     = [||[]||]
 
-instance QQExp [(L.AddrSpace, (Word32, A.AlignmentInfo))] [(L.AddrSpace, (Word32, L.AlignmentInfo))] where
+instance QQExp [(L.AddrSpace, (Word32, A.AlignmentInfo))]
+               [(L.AddrSpace, (Word32, L.AlignmentInfo))] where
   qqExp (x:xs) = [||$$(qqExp x) : $$(qqExp xs)||]
   qqExp []     = [||[]||]
 
-instance QQExp [((A.AlignType, Word32), A.AlignmentInfo)] [((L.AlignType, Word32), L.AlignmentInfo)] where
+instance QQExp [((A.AlignType, Word32), A.AlignmentInfo)]
+               [((L.AlignType, Word32), L.AlignmentInfo)] where
   qqExp (x:xs) = [||$$(qqExp x) : $$(qqExp xs)||]
   qqExp []     = [||[]||]
 
@@ -216,10 +220,12 @@ instance (QQExp a c, QQExp b d) => QQExp (a,b) (c,d) where
 --instance (QQExp a c, QQExp b d, Ord c) => QQExp (M.Map a b) (M.Map c d) where
 --  qqExp = qqMapE
 
-instance QQExp (M.Map L.AddrSpace (Word32, A.AlignmentInfo)) (M.Map L.AddrSpace (Word32, L.AlignmentInfo)) where
+instance QQExp (M.Map L.AddrSpace (Word32, A.AlignmentInfo))
+               (M.Map L.AddrSpace (Word32, L.AlignmentInfo)) where
   qqExp = qqMapE
 
-instance QQExp (M.Map (A.AlignType, Word32) A.AlignmentInfo) (M.Map (L.AlignType, Word32) L.AlignmentInfo) where
+instance QQExp (M.Map (A.AlignType, Word32) A.AlignmentInfo)
+               (M.Map (L.AlignType, Word32) L.AlignmentInfo) where
   qqExp = qqMapE
 
 --instance (QQExp a b, Ord b) => QQExp (S.Set a) (S.Set b) where
@@ -288,41 +294,43 @@ instance QQExp A.TargetTriple (Maybe String) where
 qqDefinitionListE :: [A.Definition] -> TExpQ [L.Definition]
 qqDefinitionListE [] = [||[]||]
 qqDefinitionListE (A.AntiDefinitionList v : defs) =
-    unsafeTExpCoerce [|toDefinitions $(unTypeQ $ antiVarE v) ++ $(unTypeQ (qqExp defs :: TExpQ [L.Definition]))|]
+    [||$$(unsafeTExpCoerce [|toDefinitions $(unTypeQ $ antiVarE v)|])
+       ++ $$(qqExp defs)||]
 qqDefinitionListE (def : defs) =
     [||$$(qqExp def) : $$(qqExp defs)||]
 
 qqDefinitionE :: A.Definition -> TExpQ L.Definition
 qqDefinitionE (A.GlobalDefinition v) =
-    [||L.GlobalDefinition $$(qqExp v) :: L.Definition||]
+    [||L.GlobalDefinition $$(qqExp v)||]
 qqDefinitionE (A.TypeDefinition n v) =
-    [||L.TypeDefinition $$(qqExp n) $$(qqExp v) :: L.Definition||]
+    [||L.TypeDefinition $$(qqExp n) $$(qqExp v)||]
 qqDefinitionE (A.MetadataNodeDefinition i vs) =
-    [||L.MetadataNodeDefinition $$(qqExp i) $$(qqExp vs) :: L.Definition||]
+    [||L.MetadataNodeDefinition $$(qqExp i) $$(qqExp vs)||]
 qqDefinitionE (A.NamedMetadataDefinition i vs) =
-    [||L.NamedMetadataDefinition $$(qqExp i) $$(qqExp vs) :: L.Definition||]
+    [||L.NamedMetadataDefinition $$(qqExp i) $$(qqExp vs)||]
 qqDefinitionE (A.ModuleInlineAssembly s) =
-    [||L.ModuleInlineAssembly $$(qqExp s) :: L.Definition||]
+    [||L.ModuleInlineAssembly $$(qqExp s)||]
 qqDefinitionE (A.AntiDefinition s) =
     antiVarE s
 qqDefinitionE a@(A.AntiDefinitionList _s) =
     error $ "Internal Error: unexpected antiquote " ++ show a
 
 qqModuleE :: A.Module -> TExpQ L.Module
-qqModuleE (A.Module n dl tt ds) = 
-  [||L.Module $$(qqExp n) $$(qqExp dl) $$(qqExp tt) $$(qqExp ds) :: L.Module||]
+qqModuleE (A.Module n dl tt ds) =
+  [||L.Module $$(qqExp n) $$(qqExp dl) $$(qqExp tt) $$(qqExp ds)||]
 
 qqGlobalE :: A.Global -> TExpQ L.Global
 qqGlobalE (A.GlobalVariable x1 x2 x3 x4 x5 x6 x7 x8 x9 xA xB) =
-  [||L.GlobalVariable $$(qqExp x1) $$(qqExp x2) $$(qqExp x3) $$(qqExp x4) $$(qqExp x5)
-                          $$(qqExp x6) $$(qqExp x7) $$(qqExp x8) $$(qqExp x9) $$(qqExp xA)
-                          $$(qqExp xB)||]
+  [||L.GlobalVariable $$(qqExp x1) $$(qqExp x2) $$(qqExp x3) $$(qqExp x4)
+                      $$(qqExp x5) $$(qqExp x6) $$(qqExp x7) $$(qqExp x8)
+                      $$(qqExp x9) $$(qqExp xA) $$(qqExp xB)||]
 qqGlobalE (A.GlobalAlias x1 x2 x3 x4 x5) =
-  [||L.GlobalAlias $$(qqExp x1) $$(qqExp x2) $$(qqExp x3) $$(qqExp x4) $$(qqExp x5)||]
+  [||L.GlobalAlias $$(qqExp x1) $$(qqExp x2) $$(qqExp x3) $$(qqExp x4)
+                   $$(qqExp x5)||]
 qqGlobalE (A.Function x1 x2 x3 x4 x5 x6 x7 x8 x9 xA xB xC) =
-  [||L.Function $$(qqExp x1) $$(qqExp x2) $$(qqExp x3) $$(qqExp x4) $$(qqExp x5)
-                    $$(qqExp x6) $$(qqExp x7) $$(qqExp x8) $$(qqExp x9) $$(qqExp xA)
-                    $$(qqExp xB) $$(qqExp xC)||]
+  [||L.Function $$(qqExp x1) $$(qqExp x2) $$(qqExp x3) $$(qqExp x4)
+                $$(qqExp x5) $$(qqExp x6) $$(qqExp x7) $$(qqExp x8)
+                $$(qqExp x9) $$(qqExp xA) $$(qqExp xB) $$(qqExp xC)||]
 
 qqParameterListE :: [A.Parameter] -> TExpQ [L.Parameter]
 qqParameterListE [] = [||[]||]
@@ -346,7 +354,8 @@ qqBasicBlockListE (def : defs) =
 
 transform :: A.BasicBlock -> TExpQ [L.BasicBlock]
 transform bb@A.BasicBlock{} = [||[$$(qqExp bb)]||]
-transform (A.ForLoop label iterType iterName from to elementType element elementName body next) =
+transform (A.ForLoop label iterType iterName from to
+                     elementType element elementName body next) =
   [||
     let ret :: L.BasicBlock -> Maybe (L.Operand, L.Name)
         ret (L.BasicBlock l _ t') = do
@@ -366,7 +375,7 @@ transform (A.ForLoop label iterType iterName from to elementType element element
             n L.:= L.Ret _ md -> L.BasicBlock bbn is (n L.:= L.Br labelR md)
             L.Do (L.Ret _ md) -> L.BasicBlock bbn is (L.Do (L.Br labelR md))
             _                 -> bb
-        
+
         iterName' = $$(qqExp iterName) :: L.Name
         iterType' = $$(qqExp iterType) :: L.Type
         from' = $$(qqExp from) :: L.Operand
@@ -386,22 +395,26 @@ transform (A.ForLoop label iterType iterName from to elementType element element
                      L.IntegerType n -> n
                      t -> error $ "Internal Error: unexpected type " ++ show t
         iter = (L.LocalReference $$(qqExp iterName))
-        --labels = map A.label body
-        preInstrs = 
-          [ iterName' L.:= L.Phi iterType' (map (\(_,l) -> (L.LocalReference iterNameNew,l)) returns ++ map (\(_,s) -> (from',s)) element') []
+        newIters = map (\(_,l) -> (L.LocalReference iterNameNew,l)) returns
+        initIter = map (\(_,s) -> (from',s)) element'
+        preInstrs =
+          [ iterName' L.:= L.Phi iterType' (newIters ++ initIter) []
           , elementName' L.:= L.Phi elementType' (returns ++ element') []
           , cond L.:= L.ICmp LI.ULE iter $$(qqExp to) []
-          , iterNameNew L.:= L.Add True True iter (L.ConstantOperand $ L.Int iterBits 1) []
+          , iterNameNew L.:= L.Add True True iter
+                                   (L.ConstantOperand $ L.Int iterBits 1) []
           ]
         body' = $$(qqExp body) :: [L.BasicBlock]
         bodyLabel = $$(qqExp (A.label $ head body)) :: L.Name
         returns = (body' >>= maybeToList . ret)
-        pre  = case $$(qqExp next) of
-                 Just next' -> [L.BasicBlock label' preInstrs (L.Do $ L.CondBr (L.LocalReference cond) bodyLabel next' [])]
-                 Nothing    -> 
-                   [ L.BasicBlock label' preInstrs (L.Do $ L.CondBr (L.LocalReference cond) bodyLabel labelEnd [])
-                   , L.BasicBlock labelEnd [] (L.Do $ L.Ret (Just $ L.LocalReference elementName') [])
-                   ]
+        branchTo l = (L.Do $ L.CondBr (L.LocalReference cond) bodyLabel l [])
+        retTerm = (L.Do $ L.Ret (Just $ L.LocalReference elementName') [])
+        pre = case $$(qqExp next) of
+                Just next' -> [L.BasicBlock label' preInstrs (branchTo next')]
+                Nothing    ->
+                  [ L.BasicBlock label' preInstrs (branchTo labelEnd)
+                  , L.BasicBlock labelEnd [] retTerm
+                  ]
         main = replaceRets label' body'
     in (pre++main)
   ||]
@@ -433,7 +446,7 @@ qqTerminatorE (A.IndirectBr x1 x2 x3) =
   [||L.IndirectBr $$(qqExp x1) $$(qqExp x2) $$(qqExp x3)||]
 qqTerminatorE (A.Invoke x1 x2 x3 x4 x5 x6 x7 x8) =
   [||L.Invoke $$(qqExp x1) $$(qqExp x2) $$(qqExp x3) $$(qqExp x4) $$(qqExp x5)
-                  $$(qqExp x6) $$(qqExp x7) $$(qqExp x8)||]
+              $$(qqExp x6) $$(qqExp x7) $$(qqExp x8)||]
 qqTerminatorE (A.Resume x1 x2) =
   [||L.Resume $$(qqExp x1) $$(qqExp x2)||]
 qqTerminatorE (A.Unreachable x1) =
@@ -506,17 +519,17 @@ qqInstructionE (A.Load x1 x2 x3 x4 x5) =
   [||L.Load $$(qqExp x1) $$(qqExp x2) $$(qqExp x3) $$(qqExp x4) $$(qqExp x5)||]
 qqInstructionE (A.Store x1 x2 x3 x4 x5 x6) =
   [||L.Store $$(qqExp x1) $$(qqExp x2) $$(qqExp x3) $$(qqExp x4) $$(qqExp x5)
-                 $$(qqExp x6)||]
+             $$(qqExp x6)||]
 qqInstructionE (A.GetElementPtr x1 x2 x3 x4) =
   [||L.GetElementPtr $$(qqExp x1) $$(qqExp x2) $$(qqExp x3) $$(qqExp x4)||]
 qqInstructionE (A.Fence x1 x2) =
   [||L.Fence $$(qqExp x1) $$(qqExp x2)||]
 qqInstructionE (A.CmpXchg x1 x2 x3 x4 x5 x6) =
   [||L.CmpXchg $$(qqExp x1) $$(qqExp x2) $$(qqExp x3) $$(qqExp x4) $$(qqExp x5)
-                  $$(qqExp x6)||]
+               $$(qqExp x6)||]
 qqInstructionE (A.AtomicRMW x1 x2 x3 x4 x5 x6) =
-  [||L.AtomicRMW $$(qqExp x1) $$(qqExp x2) $$(qqExp x3) $$(qqExp x4) $$(qqExp x5)
-                     $$(qqExp x6)||]
+  [||L.AtomicRMW $$(qqExp x1) $$(qqExp x2) $$(qqExp x3) $$(qqExp x4)
+                 $$(qqExp x5) $$(qqExp x6)||]
 qqInstructionE (A.Trunc x1 x2 x3) =
   [||L.Trunc $$(qqExp x1) $$(qqExp x2) $$(qqExp x3)||]
 qqInstructionE (A.ZExt x1 x2 x3) =
@@ -551,7 +564,7 @@ qqInstructionE (A.Phi x1 x2 x3) =
   [||L.Phi $$(qqExp x1) $$(qqExp x2) $$(qqExp x3)||]
 qqInstructionE (A.Call x1 x2 x3 x4 x5 x6 x7) =
   [||L.Call $$(qqExp x1) $$(qqExp x2) $$(qqExp x3) $$(qqExp x4) $$(qqExp x5)
-                $$(qqExp x6) $$(qqExp x7)||]
+            $$(qqExp x6) $$(qqExp x7)||]
 qqInstructionE (A.Select x1 x2 x3 x4) =
   [||L.Select $$(qqExp x1) $$(qqExp x2) $$(qqExp x3) $$(qqExp x4)||]
 qqInstructionE (A.VAArg x1 x2 x3) =
@@ -567,7 +580,8 @@ qqInstructionE (A.ExtractValue x1 x2 x3) =
 qqInstructionE (A.InsertValue x1 x2 x3 x4) =
   [||L.InsertValue $$(qqExp x1) $$(qqExp x2) $$(qqExp x3) $$(qqExp x4)||]
 qqInstructionE (A.LandingPad x1 x2 x3 x4 x5) =
-  [||L.LandingPad $$(qqExp x1) $$(qqExp x2) $$(qqExp x3) $$(qqExp x4) $$(qqExp x5)||]
+  [||L.LandingPad $$(qqExp x1) $$(qqExp x2) $$(qqExp x3) $$(qqExp x4)
+                  $$(qqExp x5)||]
 qqInstructionE (A.AntiInstruction s) =
   antiVarE s
 
@@ -669,8 +683,8 @@ qqDialectE A.IntelDialect =
 
 qqInlineAssemblyE :: A.InlineAssembly -> TExpQ L.InlineAssembly
 qqInlineAssemblyE (A.InlineAssembly x1 x2 x3 x4 x5 x6) =
-  [||L.InlineAssembly $$(qqExp x1) $$(qqExp x2) $$(qqExp x3) $$(qqExp x4) $$(qqExp x5)
-                          $$(qqExp x6)||]
+  [||L.InlineAssembly $$(qqExp x1) $$(qqExp x2) $$(qqExp x3) $$(qqExp x4)
+                      $$(qqExp x5) $$(qqExp x6)||]
 
 qqMapE :: (QQExp [(a, b)] [(c, d)], Ord c) => M.Map a b -> TExpQ (M.Map c d)
 qqMapE m =
@@ -704,7 +718,8 @@ qqAlignTypeE A.StackAlign =
 
 qqDataLayoutE :: A.DataLayout -> TExpQ L.DataLayout
 qqDataLayoutE (A.DataLayout x1 x2 x3 x4 x5) =
-  [||L.DataLayout $$(qqExp x1) $$(qqExp x2) $$(qqExp x3) $$(qqExp x4) $$(qqExp x5)||]
+  [||L.DataLayout $$(qqExp x1) $$(qqExp x2) $$(qqExp x3) $$(qqExp x4)
+                  $$(qqExp x5)||]
 qqDataLayoutE (A.AntiDataLayout s) =
   antiVarE s
 
@@ -745,20 +760,20 @@ qqDefinitionP a@(A.AntiDefinitionList _s) =
     error $ "Internal Error: unexpected antiquote " ++ show a
 
 qqModuleP :: A.Module -> Maybe (Q Pat)
-qqModuleP (A.Module n dl tt ds) = 
+qqModuleP (A.Module n dl tt ds) =
   Just [p|L.Module $(qqP n) $(qqP dl) $(qqP tt) $(qqP ds)|]
 
 qqGlobalP :: A.Global -> Maybe (Q Pat)
 qqGlobalP (A.GlobalVariable x1 x2 x3 x4 x5 x6 x7 x8 x9 xA xB) =
   Just [p|L.GlobalVariable $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4) $(qqP x5)
-                          $(qqP x6) $(qqP x7) $(qqP x8) $(qqP x9) $(qqP xA)
-                          $(qqP xB)|]
+                           $(qqP x6) $(qqP x7) $(qqP x8) $(qqP x9) $(qqP xA)
+                           $(qqP xB)|]
 qqGlobalP (A.GlobalAlias x1 x2 x3 x4 x5) =
   Just [p|L.GlobalAlias $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4) $(qqP x5)|]
 qqGlobalP (A.Function x1 x2 x3 x4 x5 x6 x7 x8 x9 xA xB xC) =
   Just [p|L.Function $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4) $(qqP x5)
-                    $(qqP x6) $(qqP x7) $(qqP x8) $(qqP x9) $(qqP xA)
-                    $(qqP xB) $(qqP xC)|]
+                     $(qqP x6) $(qqP x7) $(qqP x8) $(qqP x9) $(qqP xA)
+                     $(qqP xB) $(qqP xC)|]
 
 qqParameterListP :: [A.Parameter] -> Maybe (Q Pat)
 qqParameterListP [] = Just [p|[]|]
@@ -809,7 +824,7 @@ qqTerminatorP (A.IndirectBr x1 x2 x3) =
   Just [p|L.IndirectBr $(qqP x1) $(qqP x2) $(qqP x3)|]
 qqTerminatorP (A.Invoke x1 x2 x3 x4 x5 x6 x7 x8) =
   Just [p|L.Invoke $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4) $(qqP x5)
-                  $(qqP x6) $(qqP x7) $(qqP x8)|]
+                   $(qqP x6) $(qqP x7) $(qqP x8)|]
 qqTerminatorP (A.Resume x1 x2) =
   Just [p|L.Resume $(qqP x1) $(qqP x2)|]
 qqTerminatorP (A.Unreachable x1) =
@@ -882,17 +897,17 @@ qqInstructionP (A.Load x1 x2 x3 x4 x5) =
   Just [p|L.Load $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4) $(qqP x5)|]
 qqInstructionP (A.Store x1 x2 x3 x4 x5 x6) =
   Just [p|L.Store $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4) $(qqP x5)
-                 $(qqP x6)|]
+                  $(qqP x6)|]
 qqInstructionP (A.GetElementPtr x1 x2 x3 x4) =
   Just [p|L.GetElementPtr $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4)|]
 qqInstructionP (A.Fence x1 x2) =
   Just [p|L.Fence $(qqP x1) $(qqP x2)|]
 qqInstructionP (A.CmpXchg x1 x2 x3 x4 x5 x6) =
   Just [p|L.CmpXchg $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4) $(qqP x5)
-                  $(qqP x6)|]
+                    $(qqP x6)|]
 qqInstructionP (A.AtomicRMW x1 x2 x3 x4 x5 x6) =
   Just [p|L.AtomicRMW $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4) $(qqP x5)
-                     $(qqP x6)|]
+                      $(qqP x6)|]
 qqInstructionP (A.Trunc x1 x2 x3) =
   Just [p|L.Trunc $(qqP x1) $(qqP x2) $(qqP x3)|]
 qqInstructionP (A.ZExt x1 x2 x3) =
@@ -927,7 +942,7 @@ qqInstructionP (A.Phi x1 x2 x3) =
   Just [p|L.Phi $(qqP x1) $(qqP x2) $(qqP x3)|]
 qqInstructionP (A.Call x1 x2 x3 x4 x5 x6 x7) =
   Just [p|L.Call $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4) $(qqP x5)
-                $(qqP x6) $(qqP x7)|]
+                 $(qqP x6) $(qqP x7)|]
 qqInstructionP (A.Select x1 x2 x3 x4) =
   Just [p|L.Select $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4)|]
 qqInstructionP (A.VAArg x1 x2 x3) =
@@ -1046,7 +1061,7 @@ qqDialectP A.IntelDialect =
 qqInlineAssemblyP :: A.InlineAssembly -> Maybe (Q Pat)
 qqInlineAssemblyP (A.InlineAssembly x1 x2 x3 x4 x5 x6) =
   Just [p|L.InlineAssembly $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4) $(qqP x5)
-                          $(qqP x6)|]
+                           $(qqP x6)|]
 
 qqEndiannessP :: A.Endianness -> Maybe (Q Pat)
 qqEndiannessP A.LittleEndian =
@@ -1088,35 +1103,36 @@ qqP :: Data a => a -> Q Pat
 qqP x = dataToPatQ qqPat x
 
 qqPat :: Typeable a => a -> Maybe (Q Pat)
-qqPat = const Nothing `extQ` qqDefinitionP
-                      `extQ` qqDefinitionListP
-                      `extQ` qqModuleP
-                      `extQ` qqGlobalP
-                      `extQ` qqParameterListP
-                      `extQ` qqParameterP
-                      `extQ` qqBasicBlockP
-                      `extQ` qqBasicBlockListP
-                      `extQ` qqTerminatorP
-                      `extQ` qqMemoryOrderingP
-                      `extQ` qqAtomicityP
-                      `extQ` qqLandingPadClauseP
-                      `extQ` qqInstructionP
-                      `extQ` (qqNamedP :: A.Named A.Instruction -> Maybe (Q Pat))
-                      `extQ` (qqNamedP :: A.Named A.Terminator -> Maybe (Q Pat))
-                      `extQ` qqMetadataNodeIDP
-                      `extQ` qqMetadataNodeP
-                      `extQ` qqOperandP
-                      `extQ` qqConstantP
-                      `extQ` qqNameP
-                      `extQ` qqFloatingPointFormatP
-                      `extQ` qqTypeP
-                      `extQ` qqDialectP
-                      `extQ` qqInlineAssemblyP
-                      `extQ` qqEndiannessP
-                      `extQ` qqAlignmentInfoP
-                      `extQ` qqAlignTypeP
-                      `extQ` qqDataLayoutP
-                      `extQ` qqTargetTripleP
+qqPat = const Nothing
+ `extQ` qqDefinitionP
+ `extQ` qqDefinitionListP
+ `extQ` qqModuleP
+ `extQ` qqGlobalP
+ `extQ` qqParameterListP
+ `extQ` qqParameterP
+ `extQ` qqBasicBlockP
+ `extQ` qqBasicBlockListP
+ `extQ` qqTerminatorP
+ `extQ` qqMemoryOrderingP
+ `extQ` qqAtomicityP
+ `extQ` qqLandingPadClauseP
+ `extQ` qqInstructionP
+ `extQ` (qqNamedP :: A.Named A.Instruction -> Maybe (Q Pat))
+ `extQ` (qqNamedP :: A.Named A.Terminator -> Maybe (Q Pat))
+ `extQ` qqMetadataNodeIDP
+ `extQ` qqMetadataNodeP
+ `extQ` qqOperandP
+ `extQ` qqConstantP
+ `extQ` qqNameP
+ `extQ` qqFloatingPointFormatP
+ `extQ` qqTypeP
+ `extQ` qqDialectP
+ `extQ` qqInlineAssemblyP
+ `extQ` qqEndiannessP
+ `extQ` qqAlignmentInfoP
+ `extQ` qqAlignTypeP
+ `extQ` qqDataLayoutP
+ `extQ` qqTargetTripleP
 
 parse :: [A.Extensions]
       -> P.P a
@@ -1141,8 +1157,8 @@ quasiquote :: forall a b. (Data a, QQExp a b)
            -> P.P a
            -> TQuasiQuoter b
 quasiquote exts p = TQuasiQuoter $
-    QuasiQuoter { quoteExp  = parse exts p >=> unTypeQ . (qqExp :: a -> TExpQ b)
-                , quotePat  = parse exts p >=> qqP
-                , quoteType = fail "LLVM type quasiquoter undefined"
-                , quoteDec  = fail "LLVM declaration quasiquoter undefined"
-                }
+  QuasiQuoter { quoteExp  = parse exts p >=> unTypeQ . (qqExp :: a -> TExpQ b)
+              , quotePat  = parse exts p >=> qqP
+              , quoteType = fail "LLVM type quasiquoter undefined"
+              , quoteDec  = fail "LLVM declaration quasiquoter undefined"
+              }

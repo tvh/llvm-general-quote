@@ -29,9 +29,9 @@ tests = testGroup "DataLayout" [
     (
      "no pref",
      Just defaultDataLayout {
-       pointerLayouts = 
+       pointerLayouts =
          Map.singleton
-         (AddrSpace 0) 
+         (AddrSpace 0)
          (
           8,
           AlignmentInfo {
@@ -44,9 +44,9 @@ tests = testGroup "DataLayout" [
     ), (
      "no pref",
      Just defaultDataLayout {
-       pointerLayouts = 
+       pointerLayouts =
          Map.singleton
-         (AddrSpace 1) 
+         (AddrSpace 1)
          (
           8,
           AlignmentInfo {
