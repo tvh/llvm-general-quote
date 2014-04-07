@@ -217,6 +217,9 @@ instance (QQExp a c, QQExp b d) => QQExp (Either a b) (Either c d) where
 instance (QQExp a c, QQExp b d) => QQExp (a,b) (c,d) where
   qqExp (x,y) = [||($$(qqExp x), $$(qqExp y))||]
 
+instance (QQExp a d, QQExp b e, QQExp c f) => QQExp (a,b,c) (d,e,f) where
+  qqExp (x,y,z) = [||($$(qqExp x), $$(qqExp y), $$(qqExp z))||]
+
 --instance (QQExp a c, QQExp b d, Ord c) => QQExp (M.Map a b) (M.Map c d) where
 --  qqExp = qqMapE
 
@@ -354,8 +357,7 @@ qqBasicBlockListE (def : defs) =
 
 transform :: A.BasicBlock -> TExpQ [L.BasicBlock]
 transform bb@A.BasicBlock{} = [||[$$(qqExp bb)]||]
-transform (A.ForLoop label iterType iterName from to
-                     elementType element elementName body next) =
+transform (A.ForLoop label iterType iterName from to element body next) =
   [||
     let ret :: L.BasicBlock -> Maybe (L.Operand, L.Name)
         ret (L.BasicBlock l _ t') = do
@@ -379,9 +381,15 @@ transform (A.ForLoop label iterType iterName from to
         iterName' = $$(qqExp iterName) :: L.Name
         iterType' = $$(qqExp iterType) :: L.Type
         from' = $$(qqExp from) :: L.Operand
-        element' = $$(qqExp element) :: [(L.Operand, L.Name)]
-        elementName' = $$(qqExp elementName) :: L.Name
-        elementType' = $$(qqExp elementType) :: L.Type
+        element' = $$(qqExp element) :: Either [L.Name] (L.Type, [(L.Operand, L.Name)], L.Name)
+        mElement = case element' of
+                     Left  _ -> Nothing
+                     Right x -> Just x
+        phiElement =
+          case element' of
+            Left _ -> []
+            Right (elementType,elementFrom,elementName) ->
+              [elementName L.:= L.Phi elementType (returns ++ elementFrom) []]
         label' = $$(qqExp label) :: L.Name
         labelString = case label' of
                         L.Name s -> s
@@ -396,11 +404,14 @@ transform (A.ForLoop label iterType iterName from to
                      t -> error $ "Internal Error: unexpected type " ++ show t
         iter = (L.LocalReference $$(qqExp iterName))
         newIters = map (\(_,l) -> (L.LocalReference iterNameNew,l)) returns
-        initIter = map (\(_,s) -> (from',s)) element'
+        initFroms = case element' of
+                     Left ns  -> ns
+                     Right (_,xs,_) -> map snd xs
+        initIter = map (\s -> (from',s)) initFroms
         preInstrs =
-          [ iterName' L.:= L.Phi iterType' (newIters ++ initIter) []
-          , elementName' L.:= L.Phi elementType' (returns ++ element') []
-          , cond L.:= L.ICmp LI.ULE iter $$(qqExp to) []
+          [ iterName' L.:= L.Phi iterType' (newIters ++ initIter) [] ]
+          ++ phiElement ++
+          [ cond L.:= L.ICmp LI.ULE iter $$(qqExp to) []
           , iterNameNew L.:= L.Add True True iter
                                    (L.ConstantOperand $ L.Int iterBits 1) []
           ]
@@ -408,7 +419,8 @@ transform (A.ForLoop label iterType iterName from to
         bodyLabel = $$(qqExp (A.label $ head body)) :: L.Name
         returns = (body' >>= maybeToList . ret)
         branchTo l = (L.Do $ L.CondBr (L.LocalReference cond) bodyLabel l [])
-        retTerm = (L.Do $ L.Ret (Just $ L.LocalReference elementName') [])
+        retElement = (mElement >>= \(_,_,n) -> return $ L.LocalReference n)
+        retTerm = (L.Do $ L.Ret retElement [])
         pre = case $$(qqExp next) of
                 Just next' -> [L.BasicBlock label' preInstrs (branchTo next')]
                 Nothing    ->

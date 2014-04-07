@@ -706,14 +706,24 @@ mLabel :
     {- empty -}          { Nothing }
   | ',' 'label' name     { Just $3 }
 
+nameList :: { RevList A.Name }
+nameList :
+    name              { RCons $1 RNil }
+  | nameList name     { RCons $2 $1 }
+
+mElement :: { Either [A.Name] (A.Type, [(A.Operand,A.Name)], A.Name) }
+mElement :
+    'with' nameList                   { Left (rev $2) }
+  | 'with' type phiList 'as' name     { Right ($2, (rev ($3 $2)), $5)}
+
 basicBlock :: { A.BasicBlock }
 basicBlock :
     JUMPLABEL instructions namedT
       { A.BasicBlock (A.Name $1) (rev $2) $3 }
   | instructions namedT
       {% fail "BasicBlocks must always have names, sry" }
-  | JUMPLABEL 'for' type name 'in' operand 'to' operand 'with' type phiList 'as' name mLabel '{' basicBlocks '}'
-      { A.ForLoop (A.Name $1) $3 $4 ($6 $3) ($8 $3) $10 (rev ($11 $10)) $13 (rev $16) $14 }
+  | JUMPLABEL 'for' type name 'in' operand 'to' operand mElement mLabel '{' basicBlocks '}'
+      { A.ForLoop (A.Name $1) $3 $4 ($6 $3) ($8 $3) $9 (rev $12) $10 }
   | ANTI_BB
       { A.AntiBasicBlock $1 }
   | ANTI_BBS
@@ -1020,7 +1030,6 @@ dataLayout s = A.DataLayout endianness stackAlignment pointerLayouts typeLayouts
     case sizes of
       [] -> Nothing
       xs -> Just $ S.fromList xs
-
 
 happyError :: L T.Token -> P a
 happyError (L loc t) =

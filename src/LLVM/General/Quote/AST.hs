@@ -118,9 +118,7 @@ data BasicBlock
     iterName :: Name,
     from :: Operand,
     to :: Operand,
-    _elementType :: Type,
-    _element :: [(Operand,Name)],
-    _elementName :: Name,
+    _element :: Either [Name] (Type, [(Operand,Name)], Name),
     body :: [BasicBlock],
     next :: Maybe Name}
   | AntiBasicBlock String
