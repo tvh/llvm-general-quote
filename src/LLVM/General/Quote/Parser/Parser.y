@@ -250,6 +250,7 @@ import qualified LLVM.General.AST.RMWOperation as AR
  ANTI_BB            { L _ (T.Tanti_bb $$) }
  ANTI_BBS           { L _ (T.Tanti_bbs $$) }
  ANTI_INSTR         { L _ (T.Tanti_instr $$) }
+ ANTI_INSTRS        { L _ (T.Tanti_instrs $$) }
  ANTI_TYPE          { L _ (T.Tanti_type $$) }
  ANTI_OPR           { L _ (T.Tanti_opr $$) }
  ANTI_CONST         { L _ (T.Tanti_const $$) }
@@ -645,6 +646,7 @@ namedI :: { A.Named A.Instruction }
 namedI :
     instruction                     { A.Do $1 }
   | name '=' instruction            { $1 A.:= $3 }
+  | ANTI_INSTRS                     { A.AntiInstructionList $1 }
 
 instructions :: { RevList (A.Named A.Instruction) }
 instructions :

@@ -77,6 +77,8 @@ tokens :-
  "$bbsM:"          / { allowAnti } { lexAntiM Tanti_bbs }
  "$instr:"        / { allowAnti } { lexAnti Tanti_instr }
  "$instrM:"        / { allowAnti } { lexAntiM Tanti_instr }
+ "$instrs:"       / { allowAnti } { lexAnti Tanti_instrs }
+ "$instrsM:"       / { allowAnti } { lexAntiM Tanti_instrs }
  "$type:"         / { allowAnti } { lexAnti Tanti_type }
  "$typeM:"         / { allowAnti } { lexAntiM Tanti_type }
  "$opr:"          / { allowAnti } { lexAnti Tanti_opr }

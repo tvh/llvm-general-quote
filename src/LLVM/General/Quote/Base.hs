@@ -53,6 +53,7 @@ import qualified Data.Map as M
 import qualified Data.Set as S
 import Data.Maybe
 
+
 class ToDefintion a where
   toDefinition :: a -> L.Definition
 instance ToDefintion L.Definition where
@@ -625,6 +626,8 @@ qqInstructionE (A.AntiInstruction s) =
 qqNamedInstructionListE :: Conversion [A.Named A.Instruction] [L.Named L.Instruction]
 qqNamedInstructionListE [] =
   [||pure []||]
+qqNamedInstructionListE (A.AntiInstructionList s:xs) =
+  [||(++) <$> $$(unsafeTExpCoerce $ antiVarE s) <*> $$(qqExpM xs)||]
 qqNamedInstructionListE (x:xs) =
   [||(:) <$> $$(qqExpM x) <*> $$(qqExpM xs)||]
 
@@ -633,6 +636,8 @@ qqNamedE ((A.:=) x1 x2) =
   [||(L.:=) <$> $$(qqExpM x1) <*> $$(qqExpM x2)||]
 qqNamedE (A.Do x1) =
   [||L.Do <$> $$(qqExpM x1)||]
+qqNamedE (A.AntiInstructionList s) =
+  error $ "internal error: unexpected anti-quotation" ++ s
 
 qqMetadataNodeIDE :: Conversion A.MetadataNodeID L.MetadataNodeID
 qqMetadataNodeIDE (A.MetadataNodeID x1) =
@@ -1010,6 +1015,8 @@ qqNamedP ((A.:=) x1 x2) =
   Just [p|(L.:=) $(qqP x1) $(qqP x2)|]
 qqNamedP (A.Do x1) =
   Just [p|L.Do $(qqP x1)|]
+qqNamedP (A.AntiInstructionList s) =
+  error $ "Antiquote not allowed in pattern: " ++ s
 
 qqMetadataNodeIDP :: A.MetadataNodeID -> Maybe (Q Pat)
 qqMetadataNodeIDP (A.MetadataNodeID x1) =

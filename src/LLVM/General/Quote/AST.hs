@@ -521,6 +521,7 @@ data Instruction
 data Named a
   = Name := a
   | Do a
+  | AntiInstructionList String
   deriving (Eq, Read, Show, Typeable, Data)
 
 -- | A 'MetadataNodeID' is a number for identifying a metadata node.

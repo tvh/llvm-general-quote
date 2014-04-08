@@ -244,6 +244,7 @@ data Token
   | Tanti_bb String
   | Tanti_bbs String
   | Tanti_instr String
+  | Tanti_instrs String
   | Tanti_type String
   | Tanti_opr String
   | Tanti_const String
@@ -272,6 +273,7 @@ instance Show Token where
   show (Tanti_bb _) = "ANTI_BB"
   show (Tanti_bbs _) = "ANTI_BBS"
   show (Tanti_instr _) = "ANTI_INSTR"
+  show (Tanti_instrs _) = "ANTI_INSTRS"
   show (Tanti_type _) = "ANTI_TYPE"
   show (Tanti_opr _) = "ANTI_OPR"
   show (Tanti_const _) = "ANTI_CONST"
