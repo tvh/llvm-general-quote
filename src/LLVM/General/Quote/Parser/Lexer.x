@@ -64,19 +64,33 @@ tokens :-
 
 <0> {
  "$dl:"           / { allowAnti } { lexAnti Tanti_dl }
+ "$dlM:"           / { allowAnti } { lexAntiM Tanti_dl }
  "$tt:"           / { allowAnti } { lexAnti Tanti_tt }
+ "$ttM:"           / { allowAnti } { lexAntiM Tanti_tt }
  "$def:"          / { allowAnti } { lexAnti Tanti_def }
+ "$defM:"          / { allowAnti } { lexAntiM Tanti_def }
  "$defs:"         / { allowAnti } { lexAnti Tanti_defs }
+ "$defsM:"         / { allowAnti } { lexAntiM Tanti_defs }
  "$bb:"           / { allowAnti } { lexAnti Tanti_bb }
+ "$bbM:"           / { allowAnti } { lexAntiM Tanti_bb }
  "$bbs:"          / { allowAnti } { lexAnti Tanti_bbs }
+ "$bbsM:"          / { allowAnti } { lexAntiM Tanti_bbs }
  "$instr:"        / { allowAnti } { lexAnti Tanti_instr }
+ "$instrM:"        / { allowAnti } { lexAntiM Tanti_instr }
  "$type:"         / { allowAnti } { lexAnti Tanti_type }
+ "$typeM:"         / { allowAnti } { lexAntiM Tanti_type }
  "$opr:"          / { allowAnti } { lexAnti Tanti_opr }
+ "$oprM:"          / { allowAnti } { lexAntiM Tanti_opr }
  "$const:"        / { allowAnti } { lexAnti Tanti_const }
+ "$constM:"        / { allowAnti } { lexAntiM Tanti_const }
  "$id:"           / { allowAnti } { lexAnti Tanti_id }
+ "$idM:"           / { allowAnti } { lexAntiM Tanti_id }
  "$gid:"          / { allowAnti } { lexAnti Tanti_gid }
+ "$gidM:"          / { allowAnti } { lexAntiM Tanti_gid }
  "$param:"        / { allowAnti } { lexAnti Tanti_param }
+ "$paramM:"        / { allowAnti } { lexAntiM Tanti_param }
  "$params:"       / { allowAnti } { lexAnti Tanti_params }
+ "$paramsM:"       / { allowAnti } { lexAntiM Tanti_params }
 }
 
 <0> {
@@ -181,8 +195,11 @@ lexStringTok beg _ = do
                       lexString (c' : s)
           _    -> lexString (c : s)
 
-lexAnti ::(String -> Token) ->  Action
-lexAnti antiTok beg end = do
+lexAnti :: (String -> Token) -> Action
+lexAnti antiTok = lexAntiM (antiTok . \s -> "return (" ++ s ++ ")")
+
+lexAntiM :: (String -> Token) -> Action
+lexAntiM antiTok beg end = do
     c <- nextChar
     s <- case c of
            '('                 -> lexExpression 0 ""
