@@ -597,6 +597,7 @@ which they are used.
 data Name
     = Name String -- ^ a string name
     | UnName Word -- ^ a number for a nameless thing
+    | NeedsName
     | AntiName String
    deriving (Eq, Ord, Read, Show, Typeable, Data)
 

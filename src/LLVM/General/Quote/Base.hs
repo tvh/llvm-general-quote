@@ -28,6 +28,7 @@ import Language.Haskell.Meta (parseExp, parsePat)
 import Language.Haskell.TH
 import Language.Haskell.TH.Lib
 import Language.Haskell.TH.Syntax
+import Data.IORef (atomicModifyIORef')
 import Language.Haskell.TH.Quote (QuasiQuoter(..),
                                   dataToPatQ)
 
@@ -688,6 +689,9 @@ qqNameE (A.Name x1) =
   [||L.Name <$> $$(qqExpM x1)||]
 qqNameE (A.UnName x1) =
   [||L.UnName <$> $$(qqExpM x1)||]
+qqNameE A.NeedsName = do
+  n <- runIO $ atomicModifyIORef' counter $ \n -> (n+1,n)
+  [||pure $ L.Name $ "n" ++ show n||]
 qqNameE (A.AntiName s) =
   unsafeTExpCoerce [|$(antiVarE s) >>= return . toName|]
 
