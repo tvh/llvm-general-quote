@@ -691,7 +691,7 @@ qqNameE (A.UnName x1) =
   [||L.UnName <$> $$(qqExpM x1)||]
 qqNameE A.NeedsName = do
   n <- runIO $ atomicModifyIORef' counter $ \n -> (n+1,n)
-  [||pure $ L.Name $ "n" ++ show n||]
+  [||pure $ L.Name $ "n" ++ show (n :: Int)||]
 qqNameE (A.AntiName s) =
   unsafeTExpCoerce [|$(antiVarE s) >>= return . toName|]
 
