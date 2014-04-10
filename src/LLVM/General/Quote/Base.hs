@@ -321,7 +321,7 @@ qqDefinitionE (A.NamedMetadataDefinition i vs) =
 qqDefinitionE (A.ModuleInlineAssembly s) =
     [||L.ModuleInlineAssembly <$> $$(qqExpM s)||]
 qqDefinitionE (A.AntiDefinition s) =
-    unsafeTExpCoerce $ antiVarE s
+    unsafeTExpCoerce $ [|$(antiVarE s) >>= return . toDefinition|]
 qqDefinitionE a@(A.AntiDefinitionList _s) =
     error $ "Internal Error: unexpected antiquote " ++ show a
 
@@ -432,10 +432,9 @@ transform (A.ForLoop label iterType iterName from to element body next) =
           ]
         preInstrs = preInstrsF <$> iterName' <*> iterType' <*> newIters <*> initIter <*> phiElement <*> cond <*> iter <*> $$(qqExpM to) <*> iterNameNew <*> iterBits
         body' = $$(qqExpM body :: TExpQ (m [L.BasicBlock]))
-        bodyLabel = $$(qqExpM (A.label $ head body) :: TExpQ (m L.Name))
         returns = ((>>=) <$> body' <*> pure (maybeToList . ret))
         --branchTo :: L.Name -> m (L.Named L.Terminator)
-        branchTo l = (L.Do <$> (L.CondBr <$> (L.LocalReference <$> cond) <*> bodyLabel <*> pure l <*> pure []))
+        branchTo l = (body' >>= \(L.BasicBlock bodyLabel _ _:_) -> L.Do <$> (L.CondBr <$> (L.LocalReference <$> cond) <*> pure bodyLabel <*> pure l <*> pure []))
         retElement = ((>>=) <$> mElement <*> pure (\(_,_,n) -> return $ L.LocalReference n))
         retTerm = (L.Do <$> (L.Ret <$> retElement <*> pure []))
         pre = do
@@ -1073,6 +1072,8 @@ qqNameP (A.UnName x1) =
   Just [p|L.UnName $(qqP x1)|]
 qqNameP (A.AntiName s) =
   Just $ antiVarP s
+qqNameP A.NeedsName =
+  error "can't use unnamed basic blocks within pattern quote"
 
 qqFloatingPointFormatP :: A.FloatingPointFormat -> Maybe (Q Pat)
 qqFloatingPointFormatP A.IEEE =
