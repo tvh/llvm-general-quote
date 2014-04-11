@@ -366,12 +366,12 @@ transform :: forall m.Conversion' m A.BasicBlock [L.BasicBlock]
 transform bb@A.BasicBlock{} = [||(:[]) <$> $$(qqExpM bb)||]
 transform (A.ForLoop label iterType iterName from to element body next) =
   [||
-    let ret :: L.BasicBlock -> Maybe (L.Operand, L.Name)
+    let ret :: L.BasicBlock -> Maybe (Maybe L.Operand, L.Name)
         ret (L.BasicBlock l _ t') = do
           let t = case t' of
                     _ L.:= t'' -> t''
                     L.Do t''   -> t''
-          L.Ret (Just x) _ <- return t
+          L.Ret x _ <- return t
           return (x,l)
 
         replaceRets :: L.Name -> [L.BasicBlock] -> [L.BasicBlock]
@@ -397,7 +397,8 @@ transform (A.ForLoop label iterType iterName from to element body next) =
           case e of
             Left _ -> []
             Right (elementType,elementFrom,elementName) ->
-              [elementName L.:= L.Phi elementType (returns' ++ elementFrom) []]
+              let returns'' = [(x,l) | (Just x, l) <- returns']
+              in [elementName L.:= L.Phi elementType (returns'' ++ elementFrom) []]
         phiElement = phiElementF <$> element' <*> returns
         label' = $$(qqExpM label :: TExpQ (m L.Name))
         labelStringF l = case l of
