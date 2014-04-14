@@ -21,8 +21,8 @@ source-repository head
 
 library
   exposed-modules:
-    LLVM.General.Quote.LLVM
-  other-modules:
+    LLVM.General.Quote.LLVM,
+--  other-modules:
     LLVM.General.Quote.Parser.Lexer,
     LLVM.General.Quote.Parser.Tokens,
     LLVM.General.Quote.Parser.Monad,

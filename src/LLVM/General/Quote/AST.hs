@@ -563,6 +563,7 @@ the rules of what IR is legal into the Haskell types.
 -}
 data Constant
     = Int { integerBits :: Word32, integerValue :: Integer }
+    | IntAntiBs { antiIntegerBits :: String, integerValue :: Integer }
     | Float { floatValue :: A.SomeFloat }
     | Null { constantType :: Type }
     | Struct { structName :: Maybe Name, _isPacked :: Bool, memberValues :: [ Constant ] }

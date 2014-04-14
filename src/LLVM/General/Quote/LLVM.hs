@@ -14,6 +14,7 @@ module LLVM.General.Quote.LLVM (
 import qualified LLVM.General.Quote.Parser.Parser as P
 import qualified LLVM.General.Quote.AST as A
 import LLVM.General.Quote.Base (quasiquote, quasiquoteM, TQuasiQuoter(unTQuasiQuoter))
+import qualified LLVM.General.Quote.Base as B (CodeGenMonad(..))
 import Language.Haskell.TH.Quote (QuasiQuoter)
 import Control.Monad.Identity
 

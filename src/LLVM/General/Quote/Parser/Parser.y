@@ -975,6 +975,8 @@ module :
 {
 intConstant :: Integer -> A.Type -> A.Constant
 intConstant n (A.IntegerType bs) = A.Int bs n
+intConstant n (A.AntiType bs) = A.IntAntiBs bs n
+intConstant n t = error $ "intConstant: unexpected type " ++ show t
 
 floatConstant :: Rational -> A.Type -> A.Constant
 floatConstant x (A.FloatingPointType 32 _) = A.Float (A.Single (fromRational x))

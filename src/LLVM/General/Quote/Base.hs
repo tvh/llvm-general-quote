@@ -6,9 +6,11 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# OPTIONS_GHC -fno-warn-unused-matches #-}
 
 module LLVM.General.Quote.Base (
+    CodeGenMonad(..),
     ToDefintions(..),
     quasiquote,
     quasiquoteM,
@@ -54,6 +56,12 @@ import qualified Data.Map as M
 import qualified Data.Set as S
 import Data.Maybe
 
+class Monad m => CodeGenMonad m where
+  data Variable m
+  newVariable :: m (Variable m)
+  getVariable :: Variable m -> m [L.Operand]
+  (.=.) :: Variable m -> m [L.Operand] -> m [L.BasicBlock]
+  exec :: m () -> m [L.BasicBlock]
 
 class ToDefintion a where
   toDefinition :: a -> L.Definition
@@ -665,6 +673,10 @@ qqOperandE (A.AntiOperand s) =
 qqConstantE :: Conversion A.Constant L.Constant
 qqConstantE (A.Int x1 x2) =
   [||L.Int <$> $$(qqExpM x1) <*> $$(qqExpM x2)||]
+qqConstantE (A.IntAntiBs x1 x2) =
+  [||let typeBits (L.IntegerType bs) = return bs
+         typeBits t                  = error $ "unexpected type: " ++ show t
+     in L.Int <$> ($$(unsafeTExpCoerce (antiVarE x1)) >>= typeBits) <*> $$(qqExpM x2)||]
 qqConstantE (A.Float x1) =
   [||L.Float <$> $$(qqExpM x1)||]
 qqConstantE (A.Null x1) =
