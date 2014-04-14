@@ -241,6 +241,7 @@ import qualified LLVM.General.AST.RMWOperation as AR
  'for'              { L _ T.Tfor }
  'in'               { L _ T.Tin }
  'with'             { L _ T.Twith }
+ 'step'             { L _ T.Tstep }
  'as'               { L _ T.Tas }
 
  ANTI_DL            { L _ (T.Tanti_dl $$) }
@@ -718,6 +719,11 @@ mElement :
     'with' nameList                   { Left (rev $2) }
   | 'with' type phiList 'as' name     { Right ($2, (rev ($3 $2)), $5)}
 
+mStep :: { A.Type -> A.Operand }
+mStep :
+    {- empty -}        { A.ConstantOperand . intConstant 1 }
+  | 'step' operand     { $2 }
+
 jumpLabel :: { A.Name }
 jumpLabel :
     JUMPLABEL           { A.Name $1 }
@@ -727,8 +733,8 @@ basicBlock :: { A.BasicBlock }
 basicBlock :
     jumpLabel instructions namedT
       { A.BasicBlock $1 (rev $2) $3 }
-  | jumpLabel 'for' type name 'in' operand 'to' operand mElement mLabel '{' basicBlocks '}'
-      { A.ForLoop $1 $3 $4 ($6 $3) ($8 $3) $9 (rev $12) $10 }
+  | jumpLabel 'for' type name 'in' operand 'to' operand mStep mElement mLabel '{' basicBlocks '}'
+      { A.ForLoop $1 $3 $4 ($6 $3) ($8 $3) ($9 $3) $10 (rev $13) $11 }
   | ANTI_BB
       { A.AntiBasicBlock $1 }
   | ANTI_BBS

@@ -118,6 +118,7 @@ data BasicBlock
     iterName :: Name,
     from :: Operand,
     to :: Operand,
+    step :: Operand,
     _element :: Either [Name] (Type, [(Operand,Name)], Name),
     body :: [BasicBlock],
     next :: Maybe Name}

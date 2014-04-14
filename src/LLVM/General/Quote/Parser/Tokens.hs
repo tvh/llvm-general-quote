@@ -235,6 +235,7 @@ data Token
   | Tfor
   | Tin
   | Twith
+  | Tstep
   | Tas
   -- Anti-Quotation
   | Tanti_dl String
@@ -478,6 +479,7 @@ instance Show Token where
   show Tfor = "for"
   show Tin = "in"
   show Twith = "with"
+  show Tstep = "step"
   show Tas = "as"
   show Teof = "EOF"
 
@@ -674,6 +676,7 @@ keywords = [("define",            Tdefine,          Nothing),
             ("for",               Tfor,             Just [Loops]),
             ("in",                Tin,              Just [Loops]),
             ("with",              Twith,            Just [Loops]),
+            ("step",              Tstep,            Just [Loops]),
             ("as",                Tas,              Just [Loops])
            ]
 

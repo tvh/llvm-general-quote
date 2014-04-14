@@ -364,7 +364,7 @@ qqBasicBlockListE (def : defs) =
 
 transform :: forall m.Conversion' m A.BasicBlock [L.BasicBlock]
 transform bb@A.BasicBlock{} = [||(:[]) <$> $$(qqExpM bb)||]
-transform (A.ForLoop label iterType iterName from to element body next) =
+transform (A.ForLoop label iterType iterName from to step element body next) =
   [||
     let ret :: L.BasicBlock -> Maybe (Maybe L.Operand, L.Name)
         ret (L.BasicBlock l _ t') = do
@@ -388,6 +388,7 @@ transform (A.ForLoop label iterType iterName from to element body next) =
         iterName' = $$(qqExpM iterName :: TExpQ (m L.Name))
         iterType' = $$(qqExpM iterType :: TExpQ (m L.Type))
         from' = $$(qqExpM from :: TExpQ (m L.Operand))
+        step' = $$(qqExpM step :: TExpQ (m L.Operand))
         element' = $$(qqExpM element :: TExpQ (m (Either [L.Name] (L.Type, [(L.Operand, L.Name)], L.Name))))
         mElementF e = case e of
                      Left  _ -> Nothing
@@ -424,14 +425,13 @@ transform (A.ForLoop label iterType iterName from to element body next) =
         initFroms = initFromsF <$> element'
         initIterF from' initFroms = map (\s -> (from',s)) initFroms
         initIter = initIterF <$> from' <*> initFroms
-        preInstrsF iterName' iterType' newIters initIter phiElement cond iter to iterNameNew iterBits =
+        preInstrsF iterName' iterType' newIters initIter phiElement cond iter to iterNameNew step' =
           [ iterName' L.:= L.Phi iterType' (newIters ++ initIter) [] ]
           ++ phiElement ++
           [ cond L.:= L.ICmp LI.ULE iter to []
-          , iterNameNew L.:= L.Add True True iter
-                                   (L.ConstantOperand $ L.Int iterBits 1) []
+          , iterNameNew L.:= L.Add True True iter step' []
           ]
-        preInstrs = preInstrsF <$> iterName' <*> iterType' <*> newIters <*> initIter <*> phiElement <*> cond <*> iter <*> $$(qqExpM to) <*> iterNameNew <*> iterBits
+        preInstrs = preInstrsF <$> iterName' <*> iterType' <*> newIters <*> initIter <*> phiElement <*> cond <*> iter <*> $$(qqExpM to) <*> iterNameNew <*> step'
         body' = $$(qqExpM body :: TExpQ (m [L.BasicBlock]))
         returns = ((>>=) <$> body' <*> pure (maybeToList . ret))
         --branchTo :: L.Name -> m (L.Named L.Terminator)
