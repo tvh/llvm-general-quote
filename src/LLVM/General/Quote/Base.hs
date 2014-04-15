@@ -56,12 +56,15 @@ import qualified Data.Map as M
 import qualified Data.Set as S
 import Data.Maybe
 
+import Debug.Trace as T
+
 class Monad m => CodeGenMonad m where
   data Variable m
   newVariable :: m (Variable m)
   getVariable :: Variable m -> m [L.Operand]
   (.=.) :: Variable m -> m [L.Operand] -> m [L.BasicBlock]
   exec :: m () -> m [L.BasicBlock]
+  execRet :: m L.Operand -> m [L.BasicBlock]
 
 class ToDefintion a where
   toDefinition :: a -> L.Definition
@@ -373,7 +376,9 @@ qqBasicBlockListE (def : defs) =
 transform :: forall m.Conversion' m A.BasicBlock [L.BasicBlock]
 transform bb@A.BasicBlock{} = [||(:[]) <$> $$(qqExpM bb)||]
 transform (A.ForLoop label iterType iterName from to step element body next) =
-  [||
+  [||do
+    element' <- $$(qqExpM element :: TExpQ (m (Either [L.Name] (L.Type, [(L.Operand, L.Name)], L.Name))))
+    body' <- $$(qqExpM body :: TExpQ (m [L.BasicBlock]))
     let ret :: L.BasicBlock -> Maybe (Maybe L.Operand, L.Name)
         ret (L.BasicBlock l _ t') = do
           let t = case t' of
@@ -383,8 +388,7 @@ transform (A.ForLoop label iterType iterName from to step element body next) =
           return (x,l)
 
         replaceRets :: L.Name -> [L.BasicBlock] -> [L.BasicBlock]
-        replaceRets _ [] = []
-        replaceRets n (x:xs) = replaceRet n x : replaceRets n xs
+        replaceRets n = map (replaceRet n)
 
         replaceRet :: L.Name -> L.BasicBlock -> L.BasicBlock
         replaceRet labelR bb@(L.BasicBlock bbn is t) =
@@ -392,78 +396,63 @@ transform (A.ForLoop label iterType iterName from to step element body next) =
             n L.:= L.Ret _ md -> L.BasicBlock bbn is (n L.:= L.Br labelR md)
             L.Do (L.Ret _ md) -> L.BasicBlock bbn is (L.Do (L.Br labelR md))
             _                 -> bb
-
-        iterName' = $$(qqExpM iterName :: TExpQ (m L.Name))
-        iterType' = $$(qqExpM iterType :: TExpQ (m L.Type))
-        from' = $$(qqExpM from :: TExpQ (m L.Operand))
-        step' = $$(qqExpM step :: TExpQ (m L.Operand))
-        element' = $$(qqExpM element :: TExpQ (m (Either [L.Name] (L.Type, [(L.Operand, L.Name)], L.Name))))
         mElementF e = case e of
                      Left  _ -> Nothing
                      Right x -> Just x
-        mElement = mElementF <$> element'
-        phiElementF e returns' =
+        phiElementF e returns =
           case e of
             Left _ -> []
             Right (elementType,elementFrom,elementName) ->
-              let returns'' = [(x,l) | (Just x, l) <- returns']
-              in [elementName L.:= L.Phi elementType (returns'' ++ elementFrom) []]
-        phiElement = phiElementF <$> element' <*> returns
-        label' = $$(qqExpM label :: TExpQ (m L.Name))
+              let returns' = [(x,l) | (Just x, l) <- returns]
+              in [elementName L.:= L.Phi elementType (returns' ++ elementFrom) []]
         labelStringF l = case l of
                         L.Name s -> s
                         L.UnName n -> "num"++show n
-        labelString = labelStringF <$> label'
-        cond = L.Name <$> ((++) <$> labelString <*> pure ".cond")
-        labelEnd = L.Name <$> ((++) <$> labelString <*> pure ".end")
         iterNameNewF l = L.Name $ case l of
                         L.Name s -> s ++ ".new"
                         L.UnName n -> "num"++show n++".new"
-        iterNameNew = iterNameNewF <$> $$(qqExpM iterName)
-        iterBitsF t = case t of
-                     L.IntegerType n -> n
-                     t -> error $ "Internal Error: unexpected type " ++ show t
-        iterBits = iterBitsF <$> iterType'
-        iter = (L.LocalReference <$> $$(qqExpM iterName))
         newItersF n rs = map (\(_,l) -> (L.LocalReference n,l)) rs
-        newIters = newItersF <$> iterNameNew <*> returns
         initFromsF e = case e of
                      Left ns  -> ns
                      Right (_,xs,_) -> map snd xs
-        initFroms = initFromsF <$> element'
         initIterF from' initFroms = map (\s -> (from',s)) initFroms
-        initIter = initIterF <$> from' <*> initFroms
         preInstrsF iterName' iterType' newIters initIter phiElement cond iter to iterNameNew step' =
           [ iterName' L.:= L.Phi iterType' (newIters ++ initIter) [] ]
           ++ phiElement ++
           [ cond L.:= L.ICmp LI.ULE iter to []
           , iterNameNew L.:= L.Add True True iter step' []
           ]
-        preInstrs = preInstrsF <$> iterName' <*> iterType' <*> newIters <*> initIter <*> phiElement <*> cond <*> iter <*> $$(qqExpM to) <*> iterNameNew <*> step'
-        body' = $$(qqExpM body :: TExpQ (m [L.BasicBlock]))
-        returns = ((>>=) <$> body' <*> pure (maybeToList . ret))
-        --branchTo :: L.Name -> m (L.Named L.Terminator)
-        branchTo l = (body' >>= \(L.BasicBlock bodyLabel _ _:_) -> L.Do <$> (L.CondBr <$> (L.LocalReference <$> cond) <*> pure bodyLabel <*> pure l <*> pure []))
-        retElement = ((>>=) <$> mElement <*> pure (\(_,_,n) -> return $ L.LocalReference n))
-        retTerm = (L.Do <$> (L.Ret <$> retElement <*> pure []))
-        pre = do
-          next'' <- $$(qqExpM next)
-          l <- label'
-          lE <- labelEnd
-          pIs <- preInstrs
+    let returns = body' >>= (maybeToList . ret)
+        mElement = mElementF element'
+        phiElement = phiElementF element' returns
+    label' <- $$(qqExpM label :: TExpQ (m L.Name))
+    let labelString = labelStringF label'
+        cond = L.Name (labelString ++ ".cond")
+        labelEnd = L.Name (labelString ++ ".end")
+    iterName' <- $$(qqExpM iterName :: TExpQ (m L.Name))
+    iterType' <- $$(qqExpM iterType :: TExpQ (m L.Type))
+    from' <- $$(qqExpM from :: TExpQ (m L.Operand))
+    let iterNameNew = iterNameNewF iterName'
+        iter = L.LocalReference iterName'
+        newIters = newItersF iterNameNew returns
+        initFroms = initFromsF element'
+    let initIter = initIterF from' initFroms
+    step' <- $$(qqExpM step :: TExpQ (m L.Operand))
+    to' <- $$(qqExpM to)
+    next'' <- $$(qqExpM next)
+    let preInstrs = preInstrsF iterName' iterType' newIters initIter phiElement cond iter to' iterNameNew step'
+        branchTo l = (case body' of (L.BasicBlock bodyLabel _ _:_) -> L.Do (L.CondBr (L.LocalReference cond) bodyLabel l []))
+        retElement = (mElement >>= \(_,_,n) -> Just $ L.LocalReference n)
+        retTerm = (L.Do (L.Ret retElement []))
+        pre =
           case next'' of
-            Just next' -> do
-              bNext <- branchTo next'
-              return [L.BasicBlock l pIs bNext]
-            Nothing -> do
-              bEnd <- (branchTo lE)
-              rT <- retTerm
-              return $
-                [ L.BasicBlock l pIs bEnd
-                , L.BasicBlock lE [] rT
+            Just next' -> [L.BasicBlock label' preInstrs (branchTo next')]
+            Nothing ->
+                [ L.BasicBlock label' preInstrs (branchTo labelEnd)
+                , L.BasicBlock labelEnd [] retTerm
                 ]
-        main = replaceRets <$> label' <*> body'
-    in (++) <$> pre <*> main
+        main = replaceRets label' body'
+    return (pre ++ main)
   ||]
 transform (A.AntiBasicBlock v)
   = [||(:[]) <$> $$(unsafeTExpCoerce $ antiVarE v)||]
