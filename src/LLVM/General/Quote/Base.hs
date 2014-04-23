@@ -58,11 +58,12 @@ import Data.Maybe
 
 import Debug.Trace as T
 
-class Monad m => CodeGenMonad m where
-  data Variable m
-  newVariable :: m (Variable m)
-  getVariable :: Variable m -> m [L.Operand]
-  (.=.) :: Variable m -> m [L.Operand] -> m [L.BasicBlock]
+class (Applicative m, Monad m) => CodeGenMonad m where
+  newVariable :: m L.Name
+  lookupVariable :: L.Name -> m (Maybe [L.Operand])
+  getVariable :: L.Name -> m [L.Operand]
+  getVariable v = return . maybe (fail $ "variable not defined: " ++ show v) id =<< lookupVariable v
+  (.=.) :: L.Name -> m [L.Operand] -> m [L.BasicBlock]
   exec :: m () -> m [L.BasicBlock]
   execRet :: m L.Operand -> m [L.BasicBlock]
 
