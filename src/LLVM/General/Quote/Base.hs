@@ -67,6 +67,8 @@ class (Applicative m, Monad m) => CodeGenMonad m where
   exec :: m () -> m [L.BasicBlock]
   execRet :: m L.Operand -> m [L.BasicBlock]
 
+instance CodeGenMonad Identity
+
 class ToDefintion a where
   toDefinition :: a -> L.Definition
 instance ToDefintion L.Definition where
@@ -113,8 +115,8 @@ instance ToTargetTriple (Maybe String) where
 antiVarE :: String -> ExpQ
 antiVarE s = [|$(either fail return $ parseExp s)|]
 
-type Conversion a b = forall m.(Applicative m, Monad m) => a -> TExpQ (m b)
-type Conversion' m a b = (Applicative m, Monad m) => a -> TExpQ (m b)
+type Conversion a b = forall m.(CodeGenMonad m) => a -> TExpQ (m b)
+type Conversion' m a b = (CodeGenMonad m) => a -> TExpQ (m b)
 
 class QQExp a b where
   qqExpM :: Conversion a b
@@ -1240,7 +1242,7 @@ quasiquote exts p = TQuasiQuoter $
               , quoteDec  = fail "LLVM declaration quasiquoter undefined"
               }
 
-quasiquoteM :: forall a b m. (Data a, QQExp a b, Monad m, Applicative m)
+quasiquoteM :: forall a b m. (Data a, QQExp a b, CodeGenMonad m)
            => [A.Extensions]
            -> P.P a
            -> TQuasiQuoter (m b)
