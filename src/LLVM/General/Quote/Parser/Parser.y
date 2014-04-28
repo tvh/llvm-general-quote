@@ -351,18 +351,32 @@ nsw :
     {- empty  -}        { False }
   | 'nsw'               { True }
 
-fmflag :: { () }
-fmflag :
-    'nnan'       { () }
-  | 'ninf'       { () }
-  | 'nsz'        { () }
-  | 'arcp'       { () }
-  | 'fast'       { () }
+nnan :: { Bool }
+nnan :
+    {- empty -}    { False }
+  | 'nnan'         { True }
 
-fmflags :: { () }
+ninf :: { Bool }
+ninf :
+    {- empty -}    { False }
+  | 'ninf'         { True }
+
+nsz :: { Bool }
+nsz :
+    {- empty -}    { False }
+  | 'nsz'          { True }
+
+arcp :: { Bool }
+arcp :
+    {- empty -}    { False }
+  | 'arcp'         { True }
+
+fmflags :: { A.FastMathFlags }
 fmflags :
-    {- empty -}         { () }
-  | fmflags fmflag      {% fail "fast-math flags are not supported at this time" }
+    nnan ninf nsz arcp  { if not (or [$1, $2, $3, $4])
+                            then A.NoFastMathFlags
+			    else A.FastMathFlags $1 $2 $3 $4 }
+  | 'fast'              { A.UnsafeAlgebra }
 
 volatile :: { Bool }
 volatile :
@@ -565,17 +579,17 @@ instructionMetadata :
 instruction_ :: { A.InstructionMetadata -> A.Instruction }
 instruction_ :
     'add' nuw nsw type operand ',' operand  { A.Add $3 $2 ($5 $4) ($7 $4) }
-  | 'fadd' fmflags type operand ',' operand { A.FAdd ($4 $3) ($6 $3) }
+  | 'fadd' fmflags type operand ',' operand { A.FAdd $2 ($4 $3) ($6 $3) }
   | 'sub' nuw nsw type operand ',' operand  { A.Sub $3 $2 ($5 $4) ($7 $4) }
-  | 'fsub' fmflags type operand ',' operand { A.FSub ($4 $3) ($6 $3) }
+  | 'fsub' fmflags type operand ',' operand { A.FSub $2 ($4 $3) ($6 $3) }
   | 'mul' nuw nsw type operand ',' operand  { A.Mul $3 $2 ($5 $4) ($7 $4) }
-  | 'fmul' fmflags type operand ',' operand { A.FMul ($4 $3) ($6 $3) }
+  | 'fmul' fmflags type operand ',' operand { A.FMul $2 ($4 $3) ($6 $3) }
   | 'udiv' exact type operand ',' operand   { A.UDiv $2 ($4 $3) ($6 $3) }
   | 'sdiv' exact type operand ',' operand   { A.SDiv $2 ($4 $3) ($6 $3) }
-  | 'fdiv' fmflags type operand ',' operand { A.FDiv ($4 $3) ($6 $3) }
+  | 'fdiv' fmflags type operand ',' operand { A.FDiv $2 ($4 $3) ($6 $3) }
   | 'urem' type operand ',' operand         { A.URem ($3 $2) ($5 $2) }
   | 'srem' type operand ',' operand         { A.SRem ($3 $2) ($5 $2) }
-  | 'frem' fmflags type operand ',' operand { A.FRem ($4 $3) ($6 $3) }
+  | 'frem' fmflags type operand ',' operand { A.FRem $2 ($4 $3) ($6 $3) }
   | 'shl' nuw nsw type operand ',' operand  { A.Shl $3 $2 ($5 $4) ($7 $4) }
   | 'lshr' exact type operand ',' operand   { A.LShr $2 ($4 $3) ($6 $3) }
   | 'ashr' exact type operand ',' operand   { A.AShr $2 ($4 $3) ($6 $3) }

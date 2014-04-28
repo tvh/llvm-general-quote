@@ -278,6 +278,8 @@ instance QQExp A.Atomicity L.Atomicity where
   qqExpM = qqAtomicityE
 instance QQExp A.LandingPadClause L.LandingPadClause where
   qqExpM = qqLandingPadClauseE
+instance QQExp A.FastMathFlags L.FastMathFlags where
+  qqExpM = qqFastMathFlagsE
 instance QQExp A.Instruction L.Instruction where
   qqExpM = qqInstructionE
 instance QQExp [A.Named A.Instruction] [L.Named L.Instruction] where
@@ -513,31 +515,39 @@ qqLandingPadClauseE (A.Catch x1) =
 qqLandingPadClauseE (A.Filter x1) =
   [||L.Filter <$> $$(qqExpM x1)||]
 
+qqFastMathFlagsE :: Conversion A.FastMathFlags L.FastMathFlags
+qqFastMathFlagsE A.NoFastMathFlags =
+  [||pure L.NoFastMathFlags||]
+qqFastMathFlagsE A.UnsafeAlgebra =
+  [||pure L.UnsafeAlgebra||]
+qqFastMathFlagsE (A.FastMathFlags x1 x2 x3 x4) =
+  [||L.FastMathFlags <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4)||]
+
 qqInstructionE :: Conversion A.Instruction L.Instruction
 qqInstructionE (A.Add x1 x2 x3 x4 x5) =
   [||L.Add <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4) <*> $$(qqExpM x5)||]
-qqInstructionE (A.FAdd x1 x2 x3) =
-  [||L.FAdd <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3)||]
+qqInstructionE (A.FAdd x1 x2 x3 x4) =
+  [||L.FAdd <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4)||]
 qqInstructionE (A.Sub x1 x2 x3 x4 x5) =
   [||L.Sub <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4) <*> $$(qqExpM x5)||]
-qqInstructionE (A.FSub x1 x2 x3) =
-  [||L.FSub <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3)||]
+qqInstructionE (A.FSub x1 x2 x3 x4) =
+  [||L.FSub <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4)||]
 qqInstructionE (A.Mul x1 x2 x3 x4 x5) =
   [||L.Mul <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4) <*> $$(qqExpM x5)||]
-qqInstructionE (A.FMul x1 x2 x3) =
-  [||L.FMul <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3)||]
+qqInstructionE (A.FMul x1 x2 x3 x4) =
+  [||L.FMul <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4)||]
 qqInstructionE (A.UDiv x1 x2 x3 x4) =
   [||L.UDiv <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4)||]
 qqInstructionE (A.SDiv x1 x2 x3 x4) =
   [||L.SDiv <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4)||]
-qqInstructionE (A.FDiv x1 x2 x3) =
-  [||L.FDiv <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3)||]
+qqInstructionE (A.FDiv x1 x2 x3 x4) =
+  [||L.FDiv <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4)||]
 qqInstructionE (A.URem x1 x2 x3) =
   [||L.URem <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3)||]
 qqInstructionE (A.SRem x1 x2 x3) =
   [||L.SRem <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3)||]
-qqInstructionE (A.FRem x1 x2 x3) =
-  [||L.FRem <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3)||]
+qqInstructionE (A.FRem x1 x2 x3 x4) =
+  [||L.FRem <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4)||]
 qqInstructionE (A.Shl x1 x2 x3 x4 x5) =
   [||L.Shl <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4) <*> $$(qqExpM x5)||]
 qqInstructionE (A.LShr x1 x2 x3 x4) =
@@ -908,31 +918,39 @@ qqLandingPadClauseP (A.Catch x1) =
 qqLandingPadClauseP (A.Filter x1) =
   Just [p|L.Filter $(qqP x1)|]
 
+qqFastMathFlagsP :: A.FastMathFlags -> Maybe (Q Pat)
+qqFastMathFlagsP A.NoFastMathFlags =
+  Just [p|L.NoFastMathFlags|]
+qqFastMathFlagsP A.UnsafeAlgebra =
+  Just [p|L.UnsafeAlgebra|]
+qqFastMathFlagsP (A.FastMathFlags x1 x2 x3 x4) =
+  Just [p|L.FastMathFlags $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4)|]
+
 qqInstructionP :: A.Instruction -> Maybe (Q Pat)
 qqInstructionP (A.Add x1 x2 x3 x4 x5) =
   Just [p|L.Add $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4) $(qqP x5)|]
-qqInstructionP (A.FAdd x1 x2 x3) =
-  Just [p|L.FAdd $(qqP x1) $(qqP x2) $(qqP x3)|]
+qqInstructionP (A.FAdd x1 x2 x3 x4) =
+  Just [p|L.FAdd $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4)|]
 qqInstructionP (A.Sub x1 x2 x3 x4 x5) =
   Just [p|L.Sub $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4) $(qqP x5)|]
-qqInstructionP (A.FSub x1 x2 x3) =
-  Just [p|L.FSub $(qqP x1) $(qqP x2) $(qqP x3)|]
+qqInstructionP (A.FSub x1 x2 x3 x4) =
+  Just [p|L.FSub $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4)|]
 qqInstructionP (A.Mul x1 x2 x3 x4 x5) =
   Just [p|L.Mul $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4) $(qqP x5)|]
-qqInstructionP (A.FMul x1 x2 x3) =
-  Just [p|L.FMul $(qqP x1) $(qqP x2) $(qqP x3)|]
+qqInstructionP (A.FMul x1 x2 x3 x4) =
+  Just [p|L.FMul $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4)|]
 qqInstructionP (A.UDiv x1 x2 x3 x4) =
   Just [p|L.UDiv $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4)|]
 qqInstructionP (A.SDiv x1 x2 x3 x4) =
   Just [p|L.SDiv $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4)|]
-qqInstructionP (A.FDiv x1 x2 x3) =
-  Just [p|L.FDiv $(qqP x1) $(qqP x2) $(qqP x3)|]
+qqInstructionP (A.FDiv x1 x2 x3 x4) =
+  Just [p|L.FDiv $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4)|]
 qqInstructionP (A.URem x1 x2 x3) =
   Just [p|L.URem $(qqP x1) $(qqP x2) $(qqP x3)|]
 qqInstructionP (A.SRem x1 x2 x3) =
   Just [p|L.SRem $(qqP x1) $(qqP x2) $(qqP x3)|]
-qqInstructionP (A.FRem x1 x2 x3) =
-  Just [p|L.FRem $(qqP x1) $(qqP x2) $(qqP x3)|]
+qqInstructionP (A.FRem x1 x2 x3 x4) =
+  Just [p|L.FRem $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4)|]
 qqInstructionP (A.Shl x1 x2 x3 x4 x5) =
   Just [p|L.Shl $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4) $(qqP x5)|]
 qqInstructionP (A.LShr x1 x2 x3 x4) =
@@ -1174,6 +1192,7 @@ qqPat = const Nothing
  `extQ` qqMemoryOrderingP
  `extQ` qqAtomicityP
  `extQ` qqLandingPadClauseP
+ `extQ` qqFastMathFlagsP
  `extQ` qqInstructionP
  `extQ` (qqNamedP :: A.Named A.Instruction -> Maybe (Q Pat))
  `extQ` (qqNamedP :: A.Named A.Terminator -> Maybe (Q Pat))

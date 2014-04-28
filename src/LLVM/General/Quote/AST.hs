@@ -12,6 +12,7 @@ module LLVM.General.Quote.AST (
   MemoryOrdering(..),
   Atomicity(..),
   LandingPadClause(..),
+  FastMathFlags(..),
   Instruction(..),
   Named(..),
   MetadataNodeID(..),
@@ -222,6 +223,18 @@ data LandingPadClause
     | Filter Constant
     deriving (Eq, Ord, Read, Show, Typeable, Data)
 
+-- | <http://llvm.org/docs/LangRef.html#fast-math-flags>
+data FastMathFlags 
+  = NoFastMathFlags
+  | UnsafeAlgebra
+  | FastMathFlags {
+      noNaNs :: Bool,
+      noInfs :: Bool,
+      noSignedZeros :: Bool,
+      allowReciprocal :: Bool
+    }
+  deriving (Eq, Ord, Read, Show, Data, Typeable)
+
 -- | non-terminator instructions:
 -- <http://llvm.org/docs/LangRef.html#binaryops>
 -- <http://llvm.org/docs/LangRef.html#bitwiseops>
@@ -236,6 +249,7 @@ data Instruction
       metadata :: InstructionMetadata
     }
   | FAdd {
+      fastMathFlags :: FastMathFlags,
       operand0 :: Operand,
       operand1 :: Operand,
       metadata :: InstructionMetadata
@@ -248,6 +262,7 @@ data Instruction
       metadata :: InstructionMetadata
     }
   | FSub {
+      fastMathFlags :: FastMathFlags,
       operand0 :: Operand,
       operand1 :: Operand,
       metadata :: InstructionMetadata
@@ -260,6 +275,7 @@ data Instruction
       metadata :: InstructionMetadata
     }
   | FMul {
+      fastMathFlags :: FastMathFlags,
       operand0 :: Operand,
       operand1 :: Operand,
       metadata :: InstructionMetadata
@@ -277,6 +293,7 @@ data Instruction
       metadata :: InstructionMetadata
     }
   | FDiv {
+      fastMathFlags :: FastMathFlags,
       operand0 :: Operand,
       operand1 :: Operand,
       metadata :: InstructionMetadata
@@ -292,6 +309,7 @@ data Instruction
       metadata :: InstructionMetadata
     }
   | FRem {
+      fastMathFlags :: FastMathFlags,
       operand0 :: Operand,
       operand1 :: Operand,
       metadata :: InstructionMetadata
@@ -733,7 +751,8 @@ $(deriveLiftMany [''A.Visibility,
                   ''S.Set,
                   ''Definition,
                   ''Module,
-                  ''TargetTriple
+                  ''TargetTriple,
+                  ''FastMathFlags
                   ])
 instance Lift Word64 where
   lift = lift . toInteger
