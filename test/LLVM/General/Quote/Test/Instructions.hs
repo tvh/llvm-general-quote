@@ -3,30 +3,19 @@ module LLVM.General.Quote.Test.Instructions where
 
 import Test.Tasty
 import Test.Tasty.HUnit
-import Test.HUnit
-
-import Control.Monad
-import Data.Functor
-import Data.Maybe
-import Foreign.Ptr
-import Data.Word
 
 import LLVM.General.Quote.LLVM
 
 import LLVM.General.AST
-import LLVM.General.AST.Type
-import LLVM.General.AST.Name
 import LLVM.General.AST.AddrSpace
 import qualified LLVM.General.AST.IntegerPredicate as IPred
 import qualified LLVM.General.AST.FloatingPointPredicate as FPPred
-import qualified LLVM.General.AST.Linkage as L
-import qualified LLVM.General.AST.Visibility as V
 import qualified LLVM.General.AST.CallingConvention as CC
-import qualified LLVM.General.AST.Attribute as A
 import qualified LLVM.General.AST.Global as G
 import qualified LLVM.General.AST.Constant as C
 import qualified LLVM.General.AST.RMWOperation as RMWOp
 
+tests :: TestTree
 tests = let a = LocalReference . UnName in testGroup "Instructions" [
   testGroup "regular" [
     testCase name $ instrQ @?= instr
@@ -60,6 +49,7 @@ tests = let a = LocalReference . UnName in testGroup "Instructions" [
            [lli|add nuw i32 %0, %0|]),
           ("fadd",
            FAdd {
+             fastMathFlags = NoFastMathFlags,
              operand0 = a 1,
              operand1 = a 1,
              metadata = []
@@ -76,6 +66,7 @@ tests = let a = LocalReference . UnName in testGroup "Instructions" [
            [lli|sub i32 %0, %0|]),
           ("fsub",
            FSub {
+             fastMathFlags = NoFastMathFlags,
              operand0 = a 1,
              operand1 = a 1,
              metadata = []
@@ -92,6 +83,7 @@ tests = let a = LocalReference . UnName in testGroup "Instructions" [
            [lli|mul i32 %0, %0|]),
           ("fmul",
            FMul {
+             fastMathFlags = NoFastMathFlags,
              operand0 = a 1,
              operand1 = a 1,
              metadata = []
@@ -123,6 +115,7 @@ tests = let a = LocalReference . UnName in testGroup "Instructions" [
            [lli|sdiv i32 %0, %0|]),
           ("fdiv",
            FDiv {
+             fastMathFlags = NoFastMathFlags,
              operand0 = a 1,
              operand1 = a 1,
              metadata = []
@@ -144,6 +137,7 @@ tests = let a = LocalReference . UnName in testGroup "Instructions" [
            [lli|srem i32 %0, %0|]),
           ("frem",
            FRem {
+             fastMathFlags = NoFastMathFlags,
              operand0 = a 1,
              operand1 = a 1,
              metadata = []
