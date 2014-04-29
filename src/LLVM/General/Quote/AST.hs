@@ -564,13 +564,13 @@ data Operand
   | ConstantOperand Constant
   | MetadataStringOperand String
   | MetadataNodeOperand MetadataNode
-  | ListOperand ListOperand
+  | OperandList ListOperand
   | AntiOperand String
   deriving (Eq, Ord, Read, Show, Typeable, Data)
 
 data ListOperand
-  = Variable Name
-  | List [Operand]
+  = VariableOperand Name
+  | ListOperand [Operand]
   deriving (Eq, Ord, Read, Show, Typeable, Data)
 
 -- | The 'LLVM.General.AST.Instruction.Call' instruction is special: the callee can be inline assembly
@@ -659,6 +659,7 @@ data Type
   | NamedTypeReference Name
   -- | <http://llvm.org/docs/LangRef.html#metadata-type>
   | MetadataType -- only to be used as a parameter type for a few intrinsics
+  | TypeList [Type]
   | AntiType String
   deriving (Eq, Ord, Read, Show, Typeable, Data)
 

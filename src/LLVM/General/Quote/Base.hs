@@ -116,6 +116,10 @@ data OperandL
   = Operand L.Operand
   | OperandList [L.Operand]
 
+data TypeL
+  = Type L.Type
+  | TypeList [L.Type]
+
 antiVarE :: String -> ExpQ
 antiVarE s = [|$(either fail return $ parseExp s)|]
 
@@ -308,8 +312,10 @@ instance QQExp A.Name L.Name where
   qqExpM = qqNameE
 instance QQExp A.FloatingPointFormat L.FloatingPointFormat where
   qqExpM = qqFloatingPointFormatE
-instance QQExp A.Type L.Type where
+instance QQExp A.Type TypeL where
   qqExpM = qqTypeE
+instance QQExp A.Type L.Type where
+  qqExpM x = [||$$(qqExpM x) >>= \(Type t) -> return t||]
 instance QQExp A.Dialect L.Dialect where
   qqExpM = qqDialectE
 instance QQExp A.InlineAssembly L.InlineAssembly where
@@ -669,8 +675,8 @@ qqMetadataNodeE (A.MetadataNodeReference x1) =
   [||L.MetadataNodeReference <$> $$(qqExpM x1)||]
 
 qqOperandListE :: Conversion A.ListOperand [L.Operand]
-qqOperandListE (A.List l) = qqExpM l
-qqOperandListE (A.Variable n) =
+qqOperandListE (A.ListOperand l) = qqExpM l
+qqOperandListE (A.VariableOperand n) =
   [||$$(qqExpM n) >>= getVariable||]
 
 qqOperandE :: Conversion A.Operand OperandL
@@ -682,10 +688,10 @@ qqOperandE (A.MetadataStringOperand x1) =
   [||Operand . L.MetadataStringOperand <$> $$(qqExpM x1)||]
 qqOperandE (A.MetadataNodeOperand x1) =
   [||Operand . L.MetadataNodeOperand <$> $$(qqExpM x1)||]
-qqOperandE (A.ListOperand l) =
+qqOperandE (A.OperandList l) =
   [||OperandList <$> $$(qqExpM l)||]
 qqOperandE (A.AntiOperand s) =
-  [||pure $ Operand $$(unsafeTExpCoerce $ antiVarE s)||]
+  [||Operand <$> $$(unsafeTExpCoerce $ antiVarE s)||]
 
 qqConstantE :: Conversion A.Constant L.Constant
 qqConstantE (A.Int x1 x2) =
@@ -730,31 +736,33 @@ qqFloatingPointFormatE A.IEEE =
 qqFloatingPointFormatE A.DoubleExtended =
   [||pure L.DoubleExtended||]
 qqFloatingPointFormatE A.PairOfFloats =
-  [||pure L.PairOfFloats||]
+  [||pure L.PairOfFloats||] 
 
-qqTypeE :: Conversion A.Type L.Type
+qqTypeE :: Conversion A.Type TypeL
 qqTypeE A.VoidType =
-  [||pure L.VoidType||]
+  [||pure $ Type L.VoidType||]
 qqTypeE (A.IntegerType x1) =
-  [||L.IntegerType <$> $$(qqExpM x1)||]
+  [||Type <$> (L.IntegerType <$> $$(qqExpM x1))||]
 qqTypeE (A.PointerType x1 x2) =
-  [||L.PointerType <$> $$(qqExpM x1) <*> $$(qqExpM x2)||]
+  [||Type <$> (L.PointerType <$> $$(qqExpM x1) <*> $$(qqExpM x2))||]
 qqTypeE (A.FloatingPointType x1 x2) =
-  [||L.FloatingPointType <$> $$(qqExpM x1) <*> $$(qqExpM x2)||]
+  [||Type <$> (L.FloatingPointType <$> $$(qqExpM x1) <*> $$(qqExpM x2))||]
 qqTypeE (A.FunctionType x1 x2 x3) =
-  [||L.FunctionType <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3)||]
+  [||Type <$> (L.FunctionType <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3))||]
 qqTypeE (A.VectorType x1 x2) =
-  [||L.VectorType <$> $$(qqExpM x1) <*> $$(qqExpM x2)||]
+  [||Type <$> (L.VectorType <$> $$(qqExpM x1) <*> $$(qqExpM x2))||]
 qqTypeE (A.StructureType x1 x2) =
-  [||L.StructureType <$> $$(qqExpM x1) <*> $$(qqExpM x2)||]
+  [||Type <$> (L.StructureType <$> $$(qqExpM x1) <*> $$(qqExpM x2))||]
 qqTypeE (A.ArrayType x1 x2) =
-  [||L.ArrayType <$> $$(qqExpM x1) <*> $$(qqExpM x2)||]
+  [||Type <$> (L.ArrayType <$> $$(qqExpM x1) <*> $$(qqExpM x2))||]
 qqTypeE (A.NamedTypeReference x1) =
-  [||L.NamedTypeReference <$> $$(qqExpM x1)||]
+  [||Type <$> (L.NamedTypeReference <$> $$(qqExpM x1))||]
 qqTypeE A.MetadataType =
-  [||pure L.MetadataType||]
+  [||pure $ Type L.MetadataType||]
+qqTypeE (A.TypeList l) =
+  [||TypeList <$> $$(qqExpM l)||]
 qqTypeE (A.AntiType s) =
-  unsafeTExpCoerce $ antiVarE s
+  [||Type <$> $$(unsafeTExpCoerce $ antiVarE s)||]
 
 qqDialectE :: Conversion A.Dialect L.Dialect
 qqDialectE A.ATTDialect =
