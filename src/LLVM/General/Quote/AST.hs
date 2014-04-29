@@ -18,7 +18,6 @@ module LLVM.General.Quote.AST (
   MetadataNodeID(..),
   MetadataNode(..),
   Operand(..),
-  ListOperand(..),
   CallableOperand,
   Constant(..),
   Name(..),
@@ -564,13 +563,8 @@ data Operand
   | ConstantOperand Constant
   | MetadataStringOperand String
   | MetadataNodeOperand MetadataNode
-  | OperandList ListOperand
+  | AntiOperands String
   | AntiOperand String
-  deriving (Eq, Ord, Read, Show, Typeable, Data)
-
-data ListOperand
-  = VariableOperand Name
-  | ListOperand [Operand]
   deriving (Eq, Ord, Read, Show, Typeable, Data)
 
 -- | The 'LLVM.General.AST.Instruction.Call' instruction is special: the callee can be inline assembly
@@ -659,7 +653,7 @@ data Type
   | NamedTypeReference Name
   -- | <http://llvm.org/docs/LangRef.html#metadata-type>
   | MetadataType -- only to be used as a parameter type for a few intrinsics
-  | TypeList [Type]
+  | AntiTypes String
   | AntiType String
   deriving (Eq, Ord, Read, Show, Typeable, Data)
 
@@ -760,8 +754,7 @@ $(deriveLiftMany [''A.Visibility,
                   ''Definition,
                   ''Module,
                   ''TargetTriple,
-                  ''FastMathFlags,
-                  ''ListOperand
+                  ''FastMathFlags
                   ])
 instance Lift Word64 where
   lift = lift . toInteger

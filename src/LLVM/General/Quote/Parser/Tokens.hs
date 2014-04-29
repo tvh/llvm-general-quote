@@ -248,6 +248,8 @@ data Token
   | Tanti_instrs String
   | Tanti_type String
   | Tanti_opr String
+  | Tanti_types String
+  | Tanti_oprs String
   | Tanti_const String
   | Tanti_id String
   | Tanti_gid String
@@ -277,6 +279,8 @@ instance Show Token where
   show (Tanti_instrs _) = "ANTI_INSTRS"
   show (Tanti_type _) = "ANTI_TYPE"
   show (Tanti_opr _) = "ANTI_OPR"
+  show (Tanti_types _) = "ANTI_TYPES"
+  show (Tanti_oprs _) = "ANTI_OPRS"
   show (Tanti_const _) = "ANTI_CONST"
   show (Tanti_id _) = "ANTI_ID"
   show (Tanti_gid _) = "ANTI_GID"

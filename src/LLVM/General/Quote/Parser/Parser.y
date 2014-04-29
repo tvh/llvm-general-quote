@@ -254,6 +254,8 @@ import qualified LLVM.General.AST.RMWOperation as AR
  ANTI_INSTRS        { L _ (T.Tanti_instrs $$) }
  ANTI_TYPE          { L _ (T.Tanti_type $$) }
  ANTI_OPR           { L _ (T.Tanti_opr $$) }
+ ANTI_TYPES         { L _ (T.Tanti_types $$) }
+ ANTI_OPRS          { L _ (T.Tanti_oprs $$) }
  ANTI_CONST         { L _ (T.Tanti_const $$) }
  ANTI_ID            { L _ (T.Tanti_id $$) }
  ANTI_GID           { L _ (T.Tanti_gid $$) }
@@ -324,6 +326,7 @@ operand :
   | name                { \_ -> A.LocalReference $1 }
   | '!' STRING          { \A.MetadataType -> A.MetadataStringOperand $2 }
   | metadataNode        { \A.MetadataType -> A.MetadataNodeOperand $1 }
+  | ANTI_OPRS           { \_ -> A.AntiOperands $1 }
   | ANTI_OPR            { \_ -> A.AntiOperand $1 }
 
 mOperand :: { Maybe A.Operand }
@@ -790,6 +793,7 @@ typeNoVoid :
   | '[' INT 'x' type ']'      { A.ArrayType (fromIntegral $2) $4 }
   | name                      { A.NamedTypeReference $1 }
   | 'metadata'                { A.MetadataType }
+  | ANTI_TYPES                { A.AntiTypes $1 }
   | ANTI_TYPE                 { A.AntiType $1 }
 
 type :: { A.Type }

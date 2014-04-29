@@ -13,7 +13,7 @@ module LLVM.General.Quote.LLVM (
 
 import qualified LLVM.General.Quote.Parser.Parser as P
 import qualified LLVM.General.Quote.AST as A
-import LLVM.General.Quote.Base (quasiquote, quasiquoteM, TQuasiQuoter(unTQuasiQuoter))
+import LLVM.General.Quote.Base (CodeGen, quasiquote, quasiquoteM, TQuasiQuoter(unTQuasiQuoter))
 import Language.Haskell.TH.Quote (QuasiQuoter)
 import Control.Monad.Identity
 
@@ -50,23 +50,23 @@ lli = unTQuasiQuoter
 -- |Quasiquoter for 'LLVM.General.AST.Module'
 llmodM :: QuasiQuoter
 llmodM = unTQuasiQuoter
-          (quasiquoteM exts P.parseModule :: TQuasiQuoter (Identity L.Module))
+          (quasiquoteM exts P.parseModule :: TQuasiQuoter (CodeGen L.Module))
 
 -- |Quasiquoter for 'LLVM.General.AST.Definition'
 lldefM :: QuasiQuoter
 lldefM = unTQuasiQuoter
-          (quasiquoteM exts P.parseDefinition :: TQuasiQuoter (Identity L.Definition))
+          (quasiquoteM exts P.parseDefinition :: TQuasiQuoter (CodeGen L.Definition))
 
 -- |Quasiquoter for 'LLVM.General.AST.Global'
 llgM :: QuasiQuoter
-llgM = unTQuasiQuoter (quasiquoteM exts P.parseGlobal :: TQuasiQuoter (Identity L.Global))
+llgM = unTQuasiQuoter (quasiquoteM exts P.parseGlobal :: TQuasiQuoter (CodeGen L.Global))
 
 -- |Quasiquoter for 'LLVM.General.AST.BasicBlock'
 llbbM :: QuasiQuoter
 llbbM = unTQuasiQuoter
-         (quasiquoteM exts P.parseBasicBlock :: TQuasiQuoter (Identity L.BasicBlock))
+         (quasiquoteM exts P.parseBasicBlock :: TQuasiQuoter (CodeGen L.BasicBlock))
 
 -- |Quasiquoter for 'LLVM.General.AST.Instruction.Instruction'
 lliM :: QuasiQuoter
 lliM = unTQuasiQuoter
-        (quasiquoteM exts P.parseInstruction :: TQuasiQuoter (Identity L.Instruction))
+        (quasiquoteM exts P.parseInstruction :: TQuasiQuoter (CodeGen L.Instruction))

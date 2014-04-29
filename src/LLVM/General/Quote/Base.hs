@@ -11,6 +11,7 @@
 
 module LLVM.General.Quote.Base (
     CodeGenMonad(..),
+    CodeGen,
     ToDefintions(..),
     quasiquote,
     quasiquoteM,
@@ -22,6 +23,7 @@ import Control.Applicative
 import Control.Monad.Identity
 import qualified Data.ByteString.Char8 as B
 import Data.List
+import Control.Monad.State
 import Data.Data (Data(..))
 import Data.Generics (extQ)
 import Data.Word
@@ -57,18 +59,24 @@ import qualified Data.Map as M
 import qualified Data.Set as S
 import Data.Maybe
 
-import Debug.Trace as T
+import Control.Exception.Base
 
 class (Applicative m, Monad m) => CodeGenMonad m where
   newVariable :: m L.Name
   lookupVariable :: L.Name -> m (Maybe [L.Operand])
   getVariable :: L.Name -> m [L.Operand]
   getVariable v = return . maybe (fail $ "variable not defined: " ++ show v) id =<< lookupVariable v
+  setVariable :: L.Name -> [L.Operand] -> m ()
   (.=.) :: L.Name -> m [L.Operand] -> m [L.BasicBlock]
   exec :: m () -> m [L.BasicBlock]
   execRet :: m L.Operand -> m [L.BasicBlock]
 
-instance CodeGenMonad Identity
+type CodeGen = State (Int, M.Map L.Name [L.Operand])
+
+instance CodeGenMonad CodeGen where
+  newVariable = state (\(i,vs) -> (L.Name ("n" ++ show i), (i+1,vs)))
+  lookupVariable v = gets (\(_,vs) -> M.lookup v vs)
+  setVariable v xs = state (\(i,vs) -> ((), (i, M.insert v xs vs)))
 
 class ToDefintion a where
   toDefinition :: a -> L.Definition
@@ -130,7 +138,7 @@ type Conversion' m a b = (CodeGenMonad m) => a -> TExpQ (m b)
 class QQExp a b where
   qqExpM :: Conversion a b
   qqExp :: a -> TExpQ b
-  qqExp x = [||runIdentity $$(qqExpM x)||]
+  qqExp x = [||fst $ runState $$(qqExpM x) ((0,M.empty) :: (Int,M.Map L.Name [L.Operand]))||]
 
 --instance (Lift a) => QQExp a a where
 --  qqExpM x = [||x||]
@@ -305,12 +313,16 @@ instance QQExp A.MetadataNodeID L.MetadataNodeID where
   qqExpM = qqMetadataNodeIDE
 instance QQExp A.MetadataNode L.MetadataNode where
   qqExpM = qqMetadataNodeE
-instance QQExp A.ListOperand [L.Operand] where
-  qqExpM = qqOperandListE
 instance QQExp A.Operand OperandL where
   qqExpM = qqOperandE
 instance QQExp A.Operand L.Operand where
-  qqExpM x = [||$$(qqExpM x) >>= \(Operand o) -> return o||]
+  qqExpM x = [||do o' <- $$(qqExpM x) 
+                   case o' of
+                     (Operand o) -> return o
+                     (OperandList os) -> do
+                        v <- newVariable
+                        setVariable v os
+                        return $ L.LocalReference v||]
 instance QQExp A.Constant L.Constant where
   qqExpM = qqConstantE
 instance QQExp A.Name L.Name where
@@ -434,10 +446,10 @@ transform (A.ForLoop label iterType iterName from to step element body next) =
                      Left ns  -> ns
                      Right (_,xs,_) -> map snd xs
         initIterF from' initFroms = map (\s -> (from',s)) initFroms
-        preInstrsF iterName' iterType' newIters initIter phiElements cond iter to iterNameNew step' =
+        preInstrsF iterName' iterType' newIters initIter phiElements cond iter to' iterNameNew step' =
           [ iterName' L.:= L.Phi iterType' (newIters ++ initIter) [] ]
           ++ phiElements ++
-          [ cond L.:= L.ICmp LI.ULE iter to []
+          [ cond L.:= L.ICmp LI.ULE iter to' []
           , iterNameNew L.:= L.Add True True iter step' []
           ]
     let returns = body' >>= (maybeToList . ret)
@@ -453,7 +465,7 @@ transform (A.ForLoop label iterType iterName from to step element body next) =
             rets <- mapM (\(L.LocalReference x,l) -> getVariable x >>= \xs -> return (xs,l)) returns'
             let froms =  rets ++ [(xs,l) | (OperandList xs, l) <- elementFrom]
                 froms' = transpose [[(x,l) | x <- xs] | (xs,l) <- froms] 
-            return $ zip3 ts froms' names
+            return $ assert (length froms' == length ts) $ zip3 ts froms' names
         return [n L.:= L.Phi t f [] | (t,f,n) <- elements]
     label' <- $$(qqExpM label :: TExpQ (m L.Name))
     let labelString = labelStringF label'
@@ -685,11 +697,6 @@ qqMetadataNodeE (A.MetadataNode x1) =
 qqMetadataNodeE (A.MetadataNodeReference x1) =
   [||L.MetadataNodeReference <$> $$(qqExpM x1)||]
 
-qqOperandListE :: Conversion A.ListOperand [L.Operand]
-qqOperandListE (A.ListOperand l) = qqExpM l
-qqOperandListE (A.VariableOperand n) =
-  [||$$(qqExpM n) >>= getVariable||]
-
 qqOperandE :: Conversion A.Operand OperandL
 qqOperandE (A.LocalReference x1) =
   [||Operand . L.LocalReference <$> $$(qqExpM x1)||]
@@ -699,8 +706,8 @@ qqOperandE (A.MetadataStringOperand x1) =
   [||Operand . L.MetadataStringOperand <$> $$(qqExpM x1)||]
 qqOperandE (A.MetadataNodeOperand x1) =
   [||Operand . L.MetadataNodeOperand <$> $$(qqExpM x1)||]
-qqOperandE (A.OperandList l) =
-  [||OperandList <$> $$(qqExpM l)||]
+qqOperandE (A.AntiOperands s) =
+  [||OperandList <$> $$(unsafeTExpCoerce $ antiVarE s)||]
 qqOperandE (A.AntiOperand s) =
   [||Operand <$> $$(unsafeTExpCoerce $ antiVarE s)||]
 
@@ -770,8 +777,8 @@ qqTypeE (A.NamedTypeReference x1) =
   [||Type <$> (L.NamedTypeReference <$> $$(qqExpM x1))||]
 qqTypeE A.MetadataType =
   [||pure $ Type L.MetadataType||]
-qqTypeE (A.TypeList l) =
-  [||TypeList <$> $$(qqExpM l)||]
+qqTypeE (A.AntiTypes s) =
+  [||TypeList <$> $$(unsafeTExpCoerce $ antiVarE s)||]
 qqTypeE (A.AntiType s) =
   [||Type <$> $$(unsafeTExpCoerce $ antiVarE s)||]
 
