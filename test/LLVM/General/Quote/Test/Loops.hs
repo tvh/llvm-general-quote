@@ -3,29 +3,18 @@ module LLVM.General.Quote.Test.Loops where
 
 import Test.Tasty
 import Test.Tasty.HUnit
-import Test.HUnit
-
-import Control.Monad
-import Data.Functor
-import Data.Maybe
-import Foreign.Ptr
-import Data.Word
 
 import LLVM.General.Quote.LLVM
 
 import LLVM.General.AST
-import LLVM.General.AST.Type
-import LLVM.General.AST.Name
-import LLVM.General.AST.AddrSpace
 import qualified LLVM.General.AST.Linkage as L
 import qualified LLVM.General.AST.Visibility as V
 import qualified LLVM.General.AST.CallingConvention as CC
-import qualified LLVM.General.AST.Attribute as A
 import qualified LLVM.General.AST.Global as G
 import qualified LLVM.General.AST.Constant as C
-import qualified LLVM.General.AST.Float as F
 import qualified LLVM.General.AST.IntegerPredicate as IPred
 
+tests :: TestTree
 tests = testGroup "Loops" [
   testCase "nested for" $
     let globQ =

@@ -447,11 +447,11 @@ transform (A.ForLoop label iterType iterName from to step element body next) =
       Right (elementType,elementFrom,elementName) -> do
         let returns' = [(x,l) | (Just x, l) <- returns]
         elements <- case elementType of
-          Type t -> return [(t,map (\(Operand o,n) -> (o,n)) elementFrom ++ returns', elementName)]
+          Type t -> return [(t,returns' ++ map (\(Operand o,n) -> (o,n)) elementFrom, elementName)]
           TypeList ts -> do
             names <- mapM (\_ -> newVariable) ts
             rets <- mapM (\(L.LocalReference x,l) -> getVariable x >>= \xs -> return (xs,l)) returns'
-            let froms = [(xs,l) | (OperandList xs, l) <- elementFrom] ++ rets
+            let froms =  rets ++ [(xs,l) | (OperandList xs, l) <- elementFrom]
                 froms' = transpose [[(x,l) | x <- xs] | (xs,l) <- froms] 
             return $ zip3 ts froms' names
         return [n L.:= L.Phi t f [] | (t,f,n) <- elements]
