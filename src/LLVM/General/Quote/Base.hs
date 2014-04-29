@@ -112,6 +112,10 @@ instance ToTargetTriple String where
 instance ToTargetTriple (Maybe String) where
   toTargetTriple = id
 
+data OperandL
+  = Operand L.Operand
+  | OperandList [L.Operand]
+
 antiVarE :: String -> ExpQ
 antiVarE s = [|$(either fail return $ parseExp s)|]
 
@@ -292,8 +296,12 @@ instance QQExp A.MetadataNodeID L.MetadataNodeID where
   qqExpM = qqMetadataNodeIDE
 instance QQExp A.MetadataNode L.MetadataNode where
   qqExpM = qqMetadataNodeE
-instance QQExp A.Operand L.Operand where
+instance QQExp A.ListOperand [L.Operand] where
+  qqExpM = qqOperandListE
+instance QQExp A.Operand OperandL where
   qqExpM = qqOperandE
+instance QQExp A.Operand L.Operand where
+  qqExpM x = [||$$(qqExpM x) >>= \(Operand o) -> return o||]
 instance QQExp A.Constant L.Constant where
   qqExpM = qqConstantE
 instance QQExp A.Name L.Name where
@@ -660,17 +668,24 @@ qqMetadataNodeE (A.MetadataNode x1) =
 qqMetadataNodeE (A.MetadataNodeReference x1) =
   [||L.MetadataNodeReference <$> $$(qqExpM x1)||]
 
-qqOperandE :: Conversion A.Operand L.Operand
+qqOperandListE :: Conversion A.ListOperand [L.Operand]
+qqOperandListE (A.List l) = qqExpM l
+qqOperandListE (A.Variable n) =
+  [||$$(qqExpM n) >>= getVariable||]
+
+qqOperandE :: Conversion A.Operand OperandL
 qqOperandE (A.LocalReference x1) =
-  [||L.LocalReference <$> $$(qqExpM x1)||]
+  [||Operand . L.LocalReference <$> $$(qqExpM x1)||]
 qqOperandE (A.ConstantOperand x1) =
-  [||L.ConstantOperand <$> $$(qqExpM x1)||]
+  [||Operand . L.ConstantOperand <$> $$(qqExpM x1)||]
 qqOperandE (A.MetadataStringOperand x1) =
-  [||L.MetadataStringOperand <$> $$(qqExpM x1)||]
+  [||Operand . L.MetadataStringOperand <$> $$(qqExpM x1)||]
 qqOperandE (A.MetadataNodeOperand x1) =
-  [||L.MetadataNodeOperand <$> $$(qqExpM x1)||]
+  [||Operand . L.MetadataNodeOperand <$> $$(qqExpM x1)||]
+qqOperandE (A.ListOperand l) =
+  [||OperandList <$> $$(qqExpM l)||]
 qqOperandE (A.AntiOperand s) =
-  unsafeTExpCoerce $ antiVarE s
+  [||pure $ Operand $$(unsafeTExpCoerce $ antiVarE s)||]
 
 qqConstantE :: Conversion A.Constant L.Constant
 qqConstantE (A.Int x1 x2) =
