@@ -407,7 +407,23 @@ qqParameterE a@(A.AntiParameterList _s) =
 qqBasicBlockListE :: Conversion [A.BasicBlock] [L.BasicBlock]
 qqBasicBlockListE [] = [||pure []||]
 qqBasicBlockListE (def : defs) =
-  [||(++) <$> $$(transform def) <*> $$(qqExpM defs)||]
+  [||let nextLabel :: L.Name
+         nextLabel = L.Name "nextblock"
+
+         replaceBrLabel :: L.BasicBlock -> L.Name -> L.BasicBlock
+         replaceBrLabel (L.BasicBlock l is t) l1 =
+           let t' = case t of
+                      n L.:= L.Br l2 md | l2 == nextLabel -> n L.:= L.Br l1 md
+                      L.Do (L.Br l2 md) | l2 == nextLabel -> L.Do (L.Br l1 md)
+                      _                                   -> t
+           in (L.BasicBlock l is t')
+
+         replaceBrLabels :: [L.BasicBlock] -> [L.BasicBlock]
+         replaceBrLabels bbs@[] = bbs
+         replaceBrLabels bbs@[_] = bbs
+         replaceBrLabels (bb:bbs@(L.BasicBlock l1 _ _:_)) =
+           replaceBrLabel bb l1 : bbs
+     in ((++) <$> $$(transform def) <*> $$(qqExpM defs))||]
 
 transform :: forall m.Conversion' m A.BasicBlock [L.BasicBlock]
 transform bb@A.BasicBlock{} = [||(:[]) <$> $$(qqExpM bb)||]
