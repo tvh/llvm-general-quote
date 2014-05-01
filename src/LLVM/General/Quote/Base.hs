@@ -23,7 +23,7 @@ import Control.Applicative
 import Control.Monad.Identity
 import qualified Data.ByteString.Char8 as B
 import Data.List
-import Control.Monad.State
+import Control.Monad.State.Strict
 import Data.Data (Data(..))
 import Data.Generics (extQ)
 import Data.Word
@@ -65,7 +65,7 @@ class (Applicative m, Monad m) => CodeGenMonad m where
   newVariable :: m L.Name
   lookupVariable :: L.Name -> m (Maybe [L.Operand])
   getVariable :: L.Name -> m [L.Operand]
-  getVariable v = return . maybe (fail $ "variable not defined: " ++ show v) id =<< lookupVariable v
+  getVariable v = maybe (fail $ "variable not defined: " ++ show v) return =<< lookupVariable v
   setVariable :: L.Name -> [L.Operand] -> m ()
   (.=.) :: L.Name -> m [L.Operand] -> m [L.BasicBlock]
   exec :: m () -> m [L.BasicBlock]
@@ -124,10 +124,12 @@ instance ToTargetTriple (Maybe String) where
 data OperandL
   = Operand L.Operand
   | OperandList [L.Operand]
+  deriving (Show)
 
 data TypeL
   = Type L.Type
   | TypeList [L.Type]
+  deriving (Show)
 
 antiVarE :: String -> ExpQ
 antiVarE s = [|$(either fail return $ parseExp s)|]
@@ -409,12 +411,16 @@ qqBasicBlockListE [] = [||pure []||]
 qqBasicBlockListE (def : defs) =
   [||let nextLabel :: L.Name
          nextLabel = L.Name "nextblock"
+         
+         (=~) :: L.Name -> L.Name -> Bool
+         (L.Name x) =~ (L.Name y) = y `isPrefixOf` x
+         x          =~ y          = x == y
 
          replaceBrLabel :: L.BasicBlock -> L.Name -> L.BasicBlock
          replaceBrLabel (L.BasicBlock l is t) l1 =
            let t' = case t of
-                      n L.:= L.Br l2 md | l2 == nextLabel -> n L.:= L.Br l1 md
-                      L.Do (L.Br l2 md) | l2 == nextLabel -> L.Do (L.Br l1 md)
+                      n L.:= L.Br l2 md | l2 =~ nextLabel -> n L.:= L.Br l1 md
+                      L.Do (L.Br l2 md) | l2 =~ nextLabel -> L.Do (L.Br l1 md)
                       _                                   -> t
            in (L.BasicBlock l is t')
 
@@ -422,15 +428,14 @@ qqBasicBlockListE (def : defs) =
          replaceBrLabels bbs@[] = bbs
          replaceBrLabels bbs@[_] = bbs
          replaceBrLabels (bb:bbs@(L.BasicBlock l1 _ _:_)) =
-           replaceBrLabel bb l1 : bbs
-     in ((++) <$> $$(transform def) <*> $$(qqExpM defs))||]
+           replaceBrLabel bb l1 : replaceBrLabels bbs
+     in replaceBrLabels <$> ((++) <$> $$(transform def) <*> $$(qqExpM defs))||]
 
 transform :: forall m.Conversion' m A.BasicBlock [L.BasicBlock]
 transform bb@A.BasicBlock{} = [||(:[]) <$> $$(qqExpM bb)||]
 transform (A.ForLoop label iterType iterName from to step element body next) =
   [||do
     element' <- $$(qqExpM element :: TExpQ (m (Either [L.Name] (TypeL, [(OperandL, L.Name)], L.Name))))
-    body' <- $$(qqExpM body :: TExpQ (m [L.BasicBlock]))
     let ret :: L.BasicBlock -> Maybe (Maybe L.Operand, L.Name)
         ret (L.BasicBlock l _ t') = do
           let t = case t' of
@@ -468,21 +473,29 @@ transform (A.ForLoop label iterType iterName from to step element body next) =
           [ cond L.:= L.ICmp LI.ULE iter to' []
           , iterNameNew L.:= L.Add True True iter step' []
           ]
-    let returns = body' >>= (maybeToList . ret)
-        mElement = mElementF element'
-    phiElements <- case element' of
-      Left _ -> return []
+    let mElement = mElementF element'
+    (body',returns,phiElements) <- case element' of
+      Left _ -> do body' <- $$(qqExpM body :: TExpQ (m [L.BasicBlock]))
+                   let returns = body' >>= (maybeToList . ret)
+                   return (body',returns,[])
       Right (elementType,elementFrom,elementName) -> do
-        let returns' = [(x,l) | (Just x, l) <- returns]
-        elements <- case elementType of
-          Type t -> return [(t,returns' ++ map (\(Operand o,n) -> (o,n)) elementFrom, elementName)]
+        (body',returns,elements) <- case elementType of
+          Type t -> do
+            body' <- $$(qqExpM body :: TExpQ (m [L.BasicBlock]))
+            let returns = body' >>= (maybeToList . ret)
+                returns' = [(x,l) | (Just x, l) <- returns]
+            return (body',returns,[(t,returns' ++ map (\(Operand o,n) -> (o,n)) elementFrom, elementName)])
           TypeList ts -> do
             names <- mapM (\_ -> newVariable) ts
+            setVariable elementName (map L.LocalReference names)
+            body' <- $$(qqExpM body :: TExpQ (m [L.BasicBlock]))
+            let returns = body' >>= (maybeToList . ret)
+                returns' = [(x,l) | (Just x, l) <- returns]
             rets <- mapM (\(L.LocalReference x,l) -> getVariable x >>= \xs -> return (xs,l)) returns'
             let froms =  rets ++ [(xs,l) | (OperandList xs, l) <- elementFrom]
                 froms' = transpose [[(x,l) | x <- xs] | (xs,l) <- froms] 
-            return $ assert (length froms' == length ts) $ zip3 ts froms' names
-        return [n L.:= L.Phi t f [] | (t,f,n) <- elements]
+            return $ assert (length froms' == length ts) $ (body',returns,zip3 ts froms' names)
+        return (body',returns,[n L.:= L.Phi t f [] | (t,f,n) <- elements])
     label' <- $$(qqExpM label :: TExpQ (m L.Name))
     let labelString = labelStringF label'
         cond = L.Name (labelString ++ ".cond")
@@ -502,15 +515,14 @@ transform (A.ForLoop label iterType iterName from to step element body next) =
         branchTo l = (case body' of (L.BasicBlock bodyLabel _ _:_) -> L.Do (L.CondBr (L.LocalReference cond) bodyLabel l []))
         retElement = (mElement >>= \(_,_,n) -> Just $ L.LocalReference n)
         retTerm = (L.Do (L.Ret retElement []))
-        pre =
+        (pre,post) =
           case next'' of
-            Just next' -> [L.BasicBlock label' preInstrs (branchTo next')]
+            Just next' -> ([L.BasicBlock label' preInstrs (branchTo next')],[])
             Nothing ->
-                [ L.BasicBlock label' preInstrs (branchTo labelEnd)
-                , L.BasicBlock labelEnd [] retTerm
-                ]
+                ([L.BasicBlock label' preInstrs (branchTo labelEnd)]
+                ,[L.BasicBlock labelEnd [] retTerm])
         main = replaceRets label' body'
-    return (pre ++ main)
+    return (pre ++ main ++ post)
   ||]
 transform (A.AntiBasicBlock v)
   = [||(:[]) <$> $$(unsafeTExpCoerce $ antiVarE v)||]
