@@ -18,8 +18,11 @@ import Text.PrettyPrint.Mainland
 import LLVM.General.Quote.Parser.Lexer
 import LLVM.General.Quote.Parser.Monad
 import qualified LLVM.General.Quote.Parser.Tokens as T
-import qualified LLVM.General.Quote.AST as A
+import qualified LLVM.General.AST as A
+import qualified LLVM.General.AST.Constant as A (Constant(Int,Float,Null,Struct,Array,Vector,Undef,BlockAddress,GlobalReference))
 import qualified LLVM.General.AST.Float as A
+import qualified LLVM.General.AST.InlineAssembly as A
+import qualified LLVM.General.AST.DataLayout as A
 import qualified LLVM.General.AST.Linkage as A
 import qualified LLVM.General.AST.Visibility as A
 import qualified LLVM.General.AST.CallingConvention as A
@@ -238,30 +241,6 @@ import qualified LLVM.General.AST.RMWOperation as AR
  'gc'               { L _ T.Tgc }
  'tail'             { L _ T.Ttail }
 
- 'for'              { L _ T.Tfor }
- 'in'               { L _ T.Tin }
- 'with'             { L _ T.Twith }
- 'step'             { L _ T.Tstep }
- 'as'               { L _ T.Tas }
-
- ANTI_DL            { L _ (T.Tanti_dl $$) }
- ANTI_TT            { L _ (T.Tanti_tt $$) }
- ANTI_DEF           { L _ (T.Tanti_def $$) }
- ANTI_DEFS          { L _ (T.Tanti_defs $$) }
- ANTI_BB            { L _ (T.Tanti_bb $$) }
- ANTI_BBS           { L _ (T.Tanti_bbs $$) }
- ANTI_INSTR         { L _ (T.Tanti_instr $$) }
- ANTI_INSTRS        { L _ (T.Tanti_instrs $$) }
- ANTI_TYPE          { L _ (T.Tanti_type $$) }
- ANTI_OPR           { L _ (T.Tanti_opr $$) }
- ANTI_TYPES         { L _ (T.Tanti_types $$) }
- ANTI_OPRS          { L _ (T.Tanti_oprs $$) }
- ANTI_CONST         { L _ (T.Tanti_const $$) }
- ANTI_ID            { L _ (T.Tanti_id $$) }
- ANTI_GID           { L _ (T.Tanti_gid $$) }
- ANTI_PARAM         { L _ (T.Tanti_param $$) }
- ANTI_PARAMS        { L _ (T.Tanti_params $$) }
-
 %monad { P } { >>= } { return }
 %lexer { lexer } { L _ T.Teof }
 %tokentype { (L T.Token) }
@@ -298,7 +277,6 @@ constant :
                           { \_ -> A.BlockAddress $3 $5 }
   | 'undef'               { A.Undef }
   | globalName            { \_ -> A.GlobalReference $1 }
-  | ANTI_CONST            { \_ -> A.AntiConstant $1 }
 
 tConstant :: { A.Constant }
 tConstant :
@@ -326,8 +304,6 @@ operand :
   | name                { \_ -> A.LocalReference $1 }
   | '!' STRING          { \A.MetadataType -> A.MetadataStringOperand $2 }
   | metadataNode        { \A.MetadataType -> A.MetadataNodeOperand $1 }
-  | ANTI_OPRS           { \_ -> A.AntiOperands $1 }
-  | ANTI_OPR            { \_ -> A.AntiOperand $1 }
 
 mOperand :: { Maybe A.Operand }
 mOperand :
@@ -648,7 +624,6 @@ instruction_ :
                                             { A.InsertValue $2 $4 (rev $6) }
   | 'landingpad' type 'personality' tOperand cleanup clauses
                                             { A.LandingPad $2 $4 $5 (rev $6) }
-  | ANTI_INSTR                              {\[] -> A.AntiInstruction $1 }
 
 instruction :: { A.Instruction }
 instruction :
@@ -658,13 +633,11 @@ name :: { A.Name }
 name :
     NAMED_LOCAL     { A.Name $1 }
   | UNNAMED_LOCAL   { A.UnName $1 }
-  | ANTI_ID         { A.AntiName $1 }
 
 namedI :: { A.Named A.Instruction }
 namedI :
     instruction                     { A.Do $1 }
   | name '=' instruction            { $1 A.:= $3 }
-  | ANTI_INSTRS                     { A.AntiInstructionList $1 }
 
 instructions :: { RevList (A.Named A.Instruction) }
 instructions :
@@ -721,41 +694,15 @@ terminator :
  -
  -----------------------------------------------------------------------------}
 
-mLabel :: { Maybe A.Name }
-mLabel :
-    {- empty -}          { Nothing }
-  | ',' 'label' name     { Just $3 }
-
-nameList :: { RevList A.Name }
-nameList :
-    name              { RCons $1 RNil }
-  | nameList name     { RCons $2 $1 }
-
-mElement :: { Either [A.Name] (A.Type, [(A.Operand,A.Name)], A.Name) }
-mElement :
-    'with' nameList                   { Left (rev $2) }
-  | 'with' type phiList 'as' name     { Right ($2, (rev ($3 $2)), $5)}
-
-mStep :: { A.Type -> A.Operand }
-mStep :
-    {- empty -}        { A.ConstantOperand . intConstant 1 }
-  | 'step' operand     { $2 }
-
 jumpLabel :: { A.Name }
 jumpLabel :
     JUMPLABEL           { A.Name $1 }
-  | {- empty -}         { A.NeedsName }
+  | {- empty -}         {% return . A.UnName =<< newID }
 
 basicBlock :: { A.BasicBlock }
 basicBlock :
     jumpLabel instructions namedT
       { A.BasicBlock $1 (rev $2) $3 }
-  | jumpLabel 'for' type name 'in' operand 'to' operand mStep mElement mLabel '{' basicBlocks '}'
-      { A.ForLoop $1 $3 $4 ($6 $3) ($8 $3) ($9 $3) $10 (rev $13) $11 }
-  | ANTI_BB
-      { A.AntiBasicBlock $1 }
-  | ANTI_BBS
-      { A.AntiBasicBlockList $1 }
 
 basicBlocks :: { RevList (A.BasicBlock) }
 basicBlocks :
@@ -772,7 +719,6 @@ globalName :: { A.Name }
 globalName :
     NAMED_GLOBAL     { A.Name $1 }
   | UNNAMED_GLOBAL   { A.UnName $1 }
-  | ANTI_GID         { A.AntiName $1 }
 
 addrSpace :: { A.AddrSpace }
 addrSpace :
@@ -793,8 +739,6 @@ typeNoVoid :
   | '[' INT 'x' type ']'      { A.ArrayType (fromIntegral $2) $4 }
   | name                      { A.NamedTypeReference $1 }
   | 'metadata'                { A.MetadataType }
-  | ANTI_TYPES                { A.AntiTypes $1 }
-  | ANTI_TYPE                 { A.AntiType $1 }
 
 type :: { A.Type }
 type :
@@ -865,8 +809,6 @@ pAttributes :
 parameter :: { A.Parameter }
 parameter :
     type pAttributes name         { A.Parameter $1 $3 (rev $2) }
-  | ANTI_PARAM                    { A.AntiParameter $1 }
-  | ANTI_PARAMS                   { A.AntiParameterList $1 }
 
 parameterList_ :: { RevList A.Parameter }
 parameterList_ :
@@ -960,8 +902,6 @@ definition :
                    { A.NamedMetadataDefinition $1 (rev $5) }
   | 'module' 'asm' STRING
                    { A.ModuleInlineAssembly $3 }
-  | ANTI_DEF       { A.AntiDefinition $1 }
-  | ANTI_DEFS      { A.AntiDefinitionList $1 }
 
 definitions :: { RevList A.Definition }
 definitions :
@@ -978,13 +918,11 @@ dataLayout :: { Maybe A.DataLayout }
 dataLayout :
     {- empty -}                      { Nothing }
   | 'target' 'datalayout' '=' STRING { Just (dataLayout $4) }
-  | ANTI_DL                          { Just (A.AntiDataLayout $1) }
 
-targetTriple :: { A.TargetTriple }
+targetTriple :: { Maybe String }
 targetTriple :
-    {- empty -}                       { A.NoTargetTriple }
-  | 'target' 'triple' '=' STRING      { A.TargetTriple $4 }
-  | ANTI_TT                           { A.AntiTargetTriple $1 }
+    {- empty -}                       { Nothing }
+  | 'target' 'triple' '=' STRING      { Just $4 }
 
 module :: { A.Module }
 module :
@@ -993,7 +931,6 @@ module :
 {
 intConstant :: Integer -> A.Type -> A.Constant
 intConstant n (A.IntegerType bs) = A.Int bs n
-intConstant n (A.AntiType bs) = A.IntAntiBs bs n
 intConstant n t = error $ "intConstant: unexpected type " ++ show t
 
 floatConstant :: Rational -> A.Type -> A.Constant

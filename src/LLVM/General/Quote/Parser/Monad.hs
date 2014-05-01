@@ -25,10 +25,11 @@ module LLVM.General.Quote.Parser.Monad (
     getLexState,
     getCurToken,
     setCurToken,
-
-    useExts,
-    antiquotationExts,
-
+    getCounter,
+    setCounter,
+    incCounter,
+    newID,
+    
     LexerException(..),
     ParserException(..),
     quoteTok,
@@ -53,18 +54,14 @@ module LLVM.General.Quote.Parser.Monad (
     skipChar,
 
     AlexPredicate,
-    allowAnti,
-    ifExtension
   ) where
 
 import Control.Applicative (Applicative(..))
 import Control.Monad.Exception
 import Control.Monad.Identity
 import Control.Monad.State
-import Data.Bits
 import qualified Data.ByteString.Char8 as B
 import Data.ByteString.Internal (c2w)
-import Data.List (foldl')
 import Data.Loc
 import Data.Typeable (Typeable)
 import Data.Word
@@ -76,18 +73,16 @@ data PState = PState
     { input      :: !AlexInput
     , curToken   :: L Token
     , lexState   :: ![Int]
-    , extensions :: !ExtensionsInt
+    , counter    :: Word
     }
 
-emptyPState :: [Extensions]
-            -> B.ByteString
+emptyPState :: B.ByteString
             -> Pos
             -> PState
-emptyPState exts buf pos = PState
+emptyPState buf pos = PState
     { input       = inp
     , curToken    = error "no token"
     , lexState    = [0]
-    , extensions  = foldl' setBit 0 (map fromEnum exts)
     }
   where
     inp :: AlexInput
@@ -173,12 +168,22 @@ getCurToken = gets curToken
 setCurToken :: L Token -> P ()
 setCurToken tok = modify $ \s -> s { curToken = tok }
 
-antiquotationExts :: ExtensionsInt
-antiquotationExts = (bit . fromEnum) Antiquotation
+getCounter :: P Word
+getCounter = return . counter =<< get
 
-useExts :: ExtensionsInt -> P Bool
-useExts ext = gets $ \s ->
-    extensions s .&. ext /= 0
+setCounter :: Word -> P ()
+setCounter i = modify $ \s -> s { counter = i }
+
+incCounter :: Word -> P ()
+incCounter i = do
+  i' <- getCounter
+  setCounter $ max i i' + 1
+
+newID :: P Word
+newID = do
+  i <- getCounter
+  setCounter (i+1)
+  return i
 
 data LexerException = LexerException Pos Doc
   deriving (Typeable)
@@ -319,9 +324,3 @@ type AlexPredicate =  PState
                    -> Int
                    -> AlexInput
                    -> Bool
-
-allowAnti :: AlexPredicate
-allowAnti = ifExtension antiquotationExts
-
-ifExtension :: ExtensionsInt -> AlexPredicate
-ifExtension i s _ _ _ = extensions s .&. i /= 0

@@ -1,18 +1,13 @@
 module LLVM.General.Quote.Parser.Tokens (
     Token(..),
     Visibility(..),
-    Extensions(..),
-    ExtensionsInt,
     keywords,
     keywordMap
   ) where
 
 import qualified Data.Map as Map
-import Data.Bits
 import Data.Word
 import Text.PrettyPrint.Mainland
-import LLVM.General.Quote.AST
-import Data.List (foldl')
 
 data Visibility
   = Global
@@ -231,30 +226,6 @@ data Token
   | Tssp
   | Tsspreq
   | Tuwtable
-  -- Loops
-  | Tfor
-  | Tin
-  | Twith
-  | Tstep
-  | Tas
-  -- Anti-Quotation
-  | Tanti_dl String
-  | Tanti_tt String
-  | Tanti_def String
-  | Tanti_defs String
-  | Tanti_bb String
-  | Tanti_bbs String
-  | Tanti_instr String
-  | Tanti_instrs String
-  | Tanti_type String
-  | Tanti_opr String
-  | Tanti_types String
-  | Tanti_oprs String
-  | Tanti_const String
-  | Tanti_id String
-  | Tanti_gid String
-  | Tanti_param String
-  | Tanti_params String
   deriving (Eq, Ord)
 
 instance Show Token where
@@ -269,23 +240,6 @@ instance Show Token where
   show (Tunnamed Meta _) = "UNNAMED_META"
   show (TjumpLabel _) = "JUMPLABEL"
   show (TintegerType _) = "INTEGERTYPE"
-  show (Tanti_dl _) = "ANTI_DL"
-  show (Tanti_tt _) = "ANTI_TT"
-  show (Tanti_def _) = "ANTI_DEF"
-  show (Tanti_defs _) = "ANTI_DEFS"
-  show (Tanti_bb _) = "ANTI_BB"
-  show (Tanti_bbs _) = "ANTI_BBS"
-  show (Tanti_instr _) = "ANTI_INSTR"
-  show (Tanti_instrs _) = "ANTI_INSTRS"
-  show (Tanti_type _) = "ANTI_TYPE"
-  show (Tanti_opr _) = "ANTI_OPR"
-  show (Tanti_types _) = "ANTI_TYPES"
-  show (Tanti_oprs _) = "ANTI_OPRS"
-  show (Tanti_const _) = "ANTI_CONST"
-  show (Tanti_id _) = "ANTI_ID"
-  show (Tanti_gid _) = "ANTI_GID"
-  show (Tanti_param _) = "ANTI_PARAM"
-  show (Tanti_params _) = "ANTI_PARAMS"
   show Tlparen = "("
   show Trparen = ")"
   show Tlbrack = "["
@@ -480,216 +434,198 @@ instance Show Token where
   show Tsection = "section"
   show Tgc = "gc"
   show Ttail = "tail"
-  show Tfor = "for"
-  show Tin = "in"
-  show Twith = "with"
-  show Tstep = "step"
-  show Tas = "as"
   show Teof = "EOF"
 
 instance Pretty Token where
     ppr = text . show
 
-keywords :: [(String,             Token,            Maybe [Extensions])]
-keywords = [("define",            Tdefine,          Nothing),
-            ("ret",               Tret,             Nothing),
-            ("target",            Ttarget,          Nothing),
-            ("datalayout",        Tdatalayout,      Nothing),
-            ("triple",            Ttriple,          Nothing),
-            ("float",             Tfloat,           Nothing),
-            ("icmp",              Ticmp,            Nothing),
-            ("add",               Tadd,             Nothing),
-            ("fadd",              Tfadd,            Nothing),
-            ("sub",               Tsub,             Nothing),
-            ("fsub",              Tfsub,            Nothing),
-            ("mul",               Tmul,             Nothing),
-            ("fmul",              Tfmul,            Nothing),
-            ("udiv",              Tudiv,            Nothing),
-            ("sdiv",              Tsdiv,            Nothing),
-            ("fdiv",              Tfdiv,            Nothing),
-            ("urem",              Turem,            Nothing),
-            ("srem",              Tsrem,            Nothing),
-            ("frem",              Tfrem,            Nothing),
-            ("shl",               Tshl,             Nothing),
-            ("lshr",              Tlshr,            Nothing),
-            ("ashr",              Tashr,            Nothing),
-            ("and",               Tand,             Nothing),
-            ("or",                Tor,              Nothing),
-            ("xor",               Txor,             Nothing),
-            ("alloca",            Talloca,          Nothing),
-            ("load",              Tload,            Nothing),
-            ("store",             Tstore,           Nothing),
-            ("getelementptr",     Tgetelementptr,   Nothing),
-            ("fence",             Tfence,           Nothing),
-            ("cmpxchg",           Tcmpxchg,         Nothing),
-            ("atomicrmw",         Tatomicrmw,       Nothing),
-            ("trunc",             Ttrunc,           Nothing),
-            ("zext",              Tzext,            Nothing),
-            ("sext",              Tsext,            Nothing),
-            ("fptoui",            Tfptoui,          Nothing),
-            ("fptosi",            Tfptosi,          Nothing),
-            ("uitofp",            Tuitofp,          Nothing),
-            ("sitofp",            Tsitofp,          Nothing),
-            ("fptrunc",           Tfptrunc,         Nothing),
-            ("fpext",             Tfpext,           Nothing),
-            ("ptrtoint",          Tptrtoint,        Nothing),
-            ("inttoptr",          Tinttoptr,        Nothing),
-            ("bitcast",           Tbitcast,         Nothing),
-            ("addrspacecast",     Taddrspacecast,   Nothing),
-            ("icmp",              Ticmp,            Nothing),
-            ("fcmp",              Tfcmp,            Nothing),
-            ("phi",               Tphi,             Nothing),
-            ("call",              Tcall,            Nothing),
-            ("select",            Tselect,          Nothing),
-            ("va_arg",            Tvaarg,           Nothing),
-            ("extractelement",    Textractelement,  Nothing),
-            ("insertelement",     Tinsertelement,   Nothing),
-            ("shufflevector",     Tshufflevector,   Nothing),
-            ("extractvalue",      Textractvalue,    Nothing),
-            ("insertvalue",       Tinsertvalue,     Nothing),
-            ("landingpad",        Tlandingpad,      Nothing),
-            ("ret",               Tret,             Nothing),
-            ("br",                Tbr,              Nothing),
-            ("switch",            Tswitch,          Nothing),
-            ("indirectbr",        Tindirectbr,      Nothing),
-            ("invoke",            Tinvoke,          Nothing),
-            ("resume",            Tresume,          Nothing),
-            ("unreachable",       Tunreachable,     Nothing),
-            ("label",             Tlabel,           Nothing),
-            ("volatile",          Tvolatile,        Nothing),
-            ("inbounds",          Tinbounds,        Nothing),
-            ("align",             Talign,           Nothing),
-            ("nnan",              Tnnan,            Nothing),
-            ("ninf",              Tninf,            Nothing),
-            ("nsz",               Tnsz,             Nothing),
-            ("arcp",              Tarcp,            Nothing),
-            ("fast",              Tfast,            Nothing),
-            ("eq",                Teq,              Nothing),
-            ("ne",                Tne,              Nothing),
-            ("ugt",               Tugt,             Nothing),
-            ("uge",               Tuge,             Nothing),
-            ("ult",               Tult,             Nothing),
-            ("ule",               Tule,             Nothing),
-            ("sgt",               Tsgt,             Nothing),
-            ("sge",               Tsge,             Nothing),
-            ("slt",               Tslt,             Nothing),
-            ("sle",               Tsle,             Nothing),
-            ("false",             Tfalse,           Nothing),
-            ("oeq",               Toeq,             Nothing),
-            ("ogt",               Togt,             Nothing),
-            ("oge",               Toge,             Nothing),
-            ("olt",               Tolt,             Nothing),
-            ("ole",               Tole,             Nothing),
-            ("one",               Tone,             Nothing),
-            ("ord",               Tord,             Nothing),
-            ("uno",               Tuno,             Nothing),
-            ("ueq",               Tueq,             Nothing),
-            ("une",               Tune,             Nothing),
-            ("true",              Ttrue,            Nothing),
-            ("to",                Tto,              Nothing),
-            ("nsw",               Tnsw,             Nothing),
-            ("nuw",               Tnuw,             Nothing),
-            ("zeroext",           Tzeroext,         Nothing),
-            ("signext",           Tsignext,         Nothing),
-            ("inreg",             Tinreg,           Nothing),
-            ("byval",             Tbyval,           Nothing),
-            ("sret",              Tsret,            Nothing),
-            ("noalias",           Tnoalias,         Nothing),
-            ("nest",              Tnest,            Nothing),
-            ("x",                 Tx,               Nothing),
-            ("zeroinitializer",   Tzeroinitializer, Nothing),
-            ("undef",             Tundef,           Nothing),
-            ("nounwind",          Tnounwind,        Nothing),
-            ("nocapture",         Tnocapture,       Nothing),
-            ("double",            Tdouble,          Nothing),
-            ("float",             Tfloat,           Nothing),
-            ("half",              Thalf,            Nothing),
-            ("void",              Tvoid,            Nothing),
-            ("metadata",          Tmetadata,        Nothing),
-            ("alignstack",        Talignstack,      Nothing),
-            ("alwaysinline",      Talwaysinline,    Nothing),
-            ("inlinehint",        Tinlinehint,      Nothing),
-            ("naked",             Tnaked,           Nothing),
-            ("noimplicitfloat",   Tnoimplicitfloat, Nothing),
-            ("noinline",          Tnoinline,        Nothing),
-            ("nonlazybind",       Tnonlazybind,     Nothing),
-            ("noredzone",         Tnoredzone,       Nothing),
-            ("noreturn",          Tnoreturn,        Nothing),
-            ("nounwind",          Tnounwind,        Nothing),
-            ("optsize",           Toptsize,         Nothing),
-            ("readnone",          Treadnone,        Nothing),
-            ("readonly",          Treadonly,        Nothing),
-            ("ssp",               Tssp,             Nothing),
-            ("sspreq",            Tsspreq,          Nothing),
-            ("uwtable",           Tuwtable,         Nothing),
-            ("global",            Tglobal,          Nothing),
-            ("constant",          Tconstant,        Nothing),
-            ("alias",             Talias,           Nothing),
-            ("unwind",            Tunwind,          Nothing),
-            ("unordered",         Tunordered,       Nothing),
-            ("monotonic",         Tmonotonic,       Nothing),
-            ("acquire",           Tacquire,         Nothing),
-            ("release",           Trelease,         Nothing),
-            ("acq_rel",           Tacq_rel,         Nothing),
-            ("seq_cst",           Tseq_cst,         Nothing),
-            ("singlethread",      Tsinglethread,    Nothing),
-            ("xchg",              Txchg,            Nothing),
-            ("nand",              Tnand,            Nothing),
-            ("max",               Tmax,             Nothing),
-            ("min",               Tmin,             Nothing),
-            ("umax",              Tumax,            Nothing),
-            ("umin",              Tumin,            Nothing),
-            ("cleanup",           Tcleanup,         Nothing),
-            ("catch",             Tcatch,           Nothing),
-            ("filter",            Tfilter,          Nothing),
-            ("personality",       Tpersonality,     Nothing),
-            ("private",           Tprivate,         Nothing),
-            ("internal",          Tinternal,        Nothing),
+keywords :: [(String,             Token)]
+keywords = [("define",            Tdefine),
+            ("ret",               Tret),
+            ("target",            Ttarget),
+            ("datalayout",        Tdatalayout),
+            ("triple",            Ttriple),
+            ("float",             Tfloat),
+            ("icmp",              Ticmp),
+            ("add",               Tadd),
+            ("fadd",              Tfadd),
+            ("sub",               Tsub),
+            ("fsub",              Tfsub),
+            ("mul",               Tmul),
+            ("fmul",              Tfmul),
+            ("udiv",              Tudiv),
+            ("sdiv",              Tsdiv),
+            ("fdiv",              Tfdiv),
+            ("urem",              Turem),
+            ("srem",              Tsrem),
+            ("frem",              Tfrem),
+            ("shl",               Tshl),
+            ("lshr",              Tlshr),
+            ("ashr",              Tashr),
+            ("and",               Tand),
+            ("or",                Tor),
+            ("xor",               Txor),
+            ("alloca",            Talloca),
+            ("load",              Tload),
+            ("store",             Tstore),
+            ("getelementptr",     Tgetelementptr),
+            ("fence",             Tfence),
+            ("cmpxchg",           Tcmpxchg),
+            ("atomicrmw",         Tatomicrmw),
+            ("trunc",             Ttrunc),
+            ("zext",              Tzext),
+            ("sext",              Tsext),
+            ("fptoui",            Tfptoui),
+            ("fptosi",            Tfptosi),
+            ("uitofp",            Tuitofp),
+            ("sitofp",            Tsitofp),
+            ("fptrunc",           Tfptrunc),
+            ("fpext",             Tfpext),
+            ("ptrtoint",          Tptrtoint),
+            ("inttoptr",          Tinttoptr),
+            ("bitcast",           Tbitcast),
+            ("addrspacecast",     Taddrspacecast),
+            ("icmp",              Ticmp),
+            ("fcmp",              Tfcmp),
+            ("phi",               Tphi),
+            ("call",              Tcall),
+            ("select",            Tselect),
+            ("va_arg",            Tvaarg),
+            ("extractelement",    Textractelement),
+            ("insertelement",     Tinsertelement),
+            ("shufflevector",     Tshufflevector),
+            ("extractvalue",      Textractvalue),
+            ("insertvalue",       Tinsertvalue),
+            ("landingpad",        Tlandingpad),
+            ("ret",               Tret),
+            ("br",                Tbr),
+            ("switch",            Tswitch),
+            ("indirectbr",        Tindirectbr),
+            ("invoke",            Tinvoke),
+            ("resume",            Tresume),
+            ("unreachable",       Tunreachable),
+            ("label",             Tlabel),
+            ("volatile",          Tvolatile),
+            ("inbounds",          Tinbounds),
+            ("align",             Talign),
+            ("nnan",              Tnnan),
+            ("ninf",              Tninf),
+            ("nsz",               Tnsz),
+            ("arcp",              Tarcp),
+            ("fast",              Tfast),
+            ("eq",                Teq),
+            ("ne",                Tne),
+            ("ugt",               Tugt),
+            ("uge",               Tuge),
+            ("ult",               Tult),
+            ("ule",               Tule),
+            ("sgt",               Tsgt),
+            ("sge",               Tsge),
+            ("slt",               Tslt),
+            ("sle",               Tsle),
+            ("false",             Tfalse),
+            ("oeq",               Toeq),
+            ("ogt",               Togt),
+            ("oge",               Toge),
+            ("olt",               Tolt),
+            ("ole",               Tole),
+            ("one",               Tone),
+            ("ord",               Tord),
+            ("uno",               Tuno),
+            ("ueq",               Tueq),
+            ("une",               Tune),
+            ("true",              Ttrue),
+            ("to",                Tto),
+            ("nsw",               Tnsw),
+            ("nuw",               Tnuw),
+            ("zeroext",           Tzeroext),
+            ("signext",           Tsignext),
+            ("inreg",             Tinreg),
+            ("byval",             Tbyval),
+            ("sret",              Tsret),
+            ("noalias",           Tnoalias),
+            ("nest",              Tnest),
+            ("x",                 Tx),
+            ("zeroinitializer",   Tzeroinitializer),
+            ("undef",             Tundef),
+            ("nounwind",          Tnounwind),
+            ("nocapture",         Tnocapture),
+            ("double",            Tdouble),
+            ("float",             Tfloat),
+            ("half",              Thalf),
+            ("void",              Tvoid),
+            ("metadata",          Tmetadata),
+            ("alignstack",        Talignstack),
+            ("alwaysinline",      Talwaysinline),
+            ("inlinehint",        Tinlinehint),
+            ("naked",             Tnaked),
+            ("noimplicitfloat",   Tnoimplicitfloat),
+            ("noinline",          Tnoinline),
+            ("nonlazybind",       Tnonlazybind),
+            ("noredzone",         Tnoredzone),
+            ("noreturn",          Tnoreturn),
+            ("nounwind",          Tnounwind),
+            ("optsize",           Toptsize),
+            ("readnone",          Treadnone),
+            ("readonly",          Treadonly),
+            ("ssp",               Tssp),
+            ("sspreq",            Tsspreq),
+            ("uwtable",           Tuwtable),
+            ("global",            Tglobal),
+            ("constant",          Tconstant),
+            ("alias",             Talias),
+            ("unwind",            Tunwind),
+            ("unordered",         Tunordered),
+            ("monotonic",         Tmonotonic),
+            ("acquire",           Tacquire),
+            ("release",           Trelease),
+            ("acq_rel",           Tacq_rel),
+            ("seq_cst",           Tseq_cst),
+            ("singlethread",      Tsinglethread),
+            ("xchg",              Txchg),
+            ("nand",              Tnand),
+            ("max",               Tmax),
+            ("min",               Tmin),
+            ("umax",              Tumax),
+            ("umin",              Tumin),
+            ("cleanup",           Tcleanup),
+            ("catch",             Tcatch),
+            ("filter",            Tfilter),
+            ("personality",       Tpersonality),
+            ("private",           Tprivate),
+            ("internal",          Tinternal),
             ("available_externally",
-                                  Tavailable_externally,
-                                                    Nothing),
-            ("linkonce",          Tlinkonce,        Nothing),
-            ("weak",              Tweak,            Nothing),
-            ("common",            Tcommon,          Nothing),
-            ("appending",         Tappending,       Nothing),
-            ("extern_weak",       Textern_weak,     Nothing),
-            ("linkonce_odr",      Tlinkonce_odr,    Nothing),
-            ("weak_odr",          Tweak_odr,        Nothing),
-            ("external",          Texternal,        Nothing),
-            ("default",           Tdefault,         Nothing),
-            ("hidden",            Thidden,          Nothing),
-            ("protected",         Tprotected,       Nothing),
-            ("ccc",               Tccc,             Nothing),
-            ("fastcc",            Tfastcc,          Nothing),
-            ("coldcc",            Tcoldcc,          Nothing),
-            ("cc",                Tcc,              Nothing),
-            ("atomic",            Tatomic,          Nothing),
-            ("null",              Tnull,            Nothing),
-            ("exact",             Texact,           Nothing),
-            ("addrspace",         Taddrspace,       Nothing),
-            ("blockaddress",      Tblockaddress,    Nothing),
-            ("module",            Tmodule,          Nothing),
-            ("asm",               Tasm,             Nothing),
-            ("type",              Ttype,            Nothing),
-            ("opaque",            Topaque,          Nothing),
-            ("sideeffect",        Tsideeffect,      Nothing),
-            ("inteldialect",      Tinteldialect,    Nothing),
-            ("section",           Tsection,         Nothing),
-            ("gc",                Tgc,              Nothing),
-            ("tail",              Ttail,            Nothing),
-            ("for",               Tfor,             Just [Loops]),
-            ("in",                Tin,              Just [Loops]),
-            ("with",              Twith,            Just [Loops]),
-            ("step",              Tstep,            Just [Loops]),
-            ("as",                Tas,              Just [Loops])
+                                  Tavailable_externally),
+            ("linkonce",          Tlinkonce),
+            ("weak",              Tweak),
+            ("common",            Tcommon),
+            ("appending",         Tappending),
+            ("extern_weak",       Textern_weak),
+            ("linkonce_odr",      Tlinkonce_odr),
+            ("weak_odr",          Tweak_odr),
+            ("external",          Texternal),
+            ("default",           Tdefault),
+            ("hidden",            Thidden),
+            ("protected",         Tprotected),
+            ("ccc",               Tccc),
+            ("fastcc",            Tfastcc),
+            ("coldcc",            Tcoldcc),
+            ("cc",                Tcc),
+            ("atomic",            Tatomic),
+            ("null",              Tnull),
+            ("exact",             Texact),
+            ("addrspace",         Taddrspace),
+            ("blockaddress",      Tblockaddress),
+            ("module",            Tmodule),
+            ("asm",               Tasm),
+            ("type",              Ttype),
+            ("opaque",            Topaque),
+            ("sideeffect",        Tsideeffect),
+            ("inteldialect",      Tinteldialect),
+            ("section",           Tsection),
+            ("gc",                Tgc),
+            ("tail",              Ttail)
            ]
 
-keywordMap :: Map.Map String (Token, Maybe ExtensionsInt)
-keywordMap = Map.fromList (map f keywords)
-  where
-    f  ::  (String, Token, Maybe [Extensions])
-       ->  (String, (Token, Maybe ExtensionsInt))
-    f (s, t, Nothing)    = (s, (t, Nothing))
-    f (s, t, Just exts)  = (s, (t, Just i))
-      where
-        i = foldl' setBit 0 (map fromEnum exts)
+keywordMap :: Map.Map String Token
+keywordMap = Map.fromList keywords

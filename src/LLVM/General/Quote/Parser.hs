@@ -12,10 +12,9 @@ import LLVM.General.Quote.Parser.Lexer as P
 import LLVM.General.Quote.Parser.Tokens as P
 import LLVM.General.Quote.Parser.Monad as P
 
-parse :: [Extensions]
-      -> P a
+parse :: P a
       -> B.ByteString
       -> Pos
       -> Either SomeException a
-parse exts p bs pos =
-    evalP p (emptyPState exts bs pos)
+parse p bs pos =
+    evalP p (emptyPState bs pos)

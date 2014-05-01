@@ -63,43 +63,6 @@ $whitechar = [\ \t\n\r\f\v]
 tokens :-
 
 <0> {
- "$dl:"           / { allowAnti } { lexAnti Tanti_dl }
- "$dlM:"           / { allowAnti } { lexAntiM Tanti_dl }
- "$tt:"           / { allowAnti } { lexAnti Tanti_tt }
- "$ttM:"           / { allowAnti } { lexAntiM Tanti_tt }
- "$def:"          / { allowAnti } { lexAnti Tanti_def }
- "$defM:"          / { allowAnti } { lexAntiM Tanti_def }
- "$defs:"         / { allowAnti } { lexAnti Tanti_defs }
- "$defsM:"         / { allowAnti } { lexAntiM Tanti_defs }
- "$bb:"           / { allowAnti } { lexAnti Tanti_bb }
- "$bbM:"           / { allowAnti } { lexAntiM Tanti_bb }
- "$bbs:"          / { allowAnti } { lexAnti Tanti_bbs }
- "$bbsM:"          / { allowAnti } { lexAntiM Tanti_bbs }
- "$instr:"        / { allowAnti } { lexAnti Tanti_instr }
- "$instrM:"        / { allowAnti } { lexAntiM Tanti_instr }
- "$instrs:"       / { allowAnti } { lexAnti Tanti_instrs }
- "$instrsM:"       / { allowAnti } { lexAntiM Tanti_instrs }
- "$type:"         / { allowAnti } { lexAnti Tanti_type }
- "$typeM:"         / { allowAnti } { lexAntiM Tanti_type }
- "$types:"         / { allowAnti } { lexAnti Tanti_types }
- "$typesM:"         / { allowAnti } { lexAntiM Tanti_types }
- "$opr:"          / { allowAnti } { lexAnti Tanti_opr }
- "$oprM:"          / { allowAnti } { lexAntiM Tanti_opr }
- "$oprs:"          / { allowAnti } { lexAnti Tanti_oprs }
- "$oprsM:"          / { allowAnti } { lexAntiM Tanti_oprs }
- "$const:"        / { allowAnti } { lexAnti Tanti_const }
- "$constM:"        / { allowAnti } { lexAntiM Tanti_const }
- "$id:"           / { allowAnti } { lexAnti Tanti_id }
- "$idM:"           / { allowAnti } { lexAntiM Tanti_id }
- "$gid:"          / { allowAnti } { lexAnti Tanti_gid }
- "$gidM:"          / { allowAnti } { lexAntiM Tanti_gid }
- "$param:"        / { allowAnti } { lexAnti Tanti_param }
- "$paramM:"        / { allowAnti } { lexAntiM Tanti_param }
- "$params:"       / { allowAnti } { lexAnti Tanti_params }
- "$paramsM:"       / { allowAnti } { lexAntiM Tanti_params }
-}
-
-<0> {
  ";" .* ;
  $whitechar+          ;
 
@@ -176,10 +139,8 @@ numberedToken f beg end = do
 keyword :: Action
 keyword beg end = do
     case Map.lookup ident keywordMap of
-      Nothing             -> identError
-      Just (tok, Nothing) -> token tok beg end
-      Just (tok, Just i)  -> do isKw <- useExts i
-                                if isKw then token tok beg end else identError
+      Nothing  -> identError
+      Just tok -> token tok beg end
   where
     ident :: String
     ident = inputString beg end
