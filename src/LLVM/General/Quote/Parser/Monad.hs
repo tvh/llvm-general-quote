@@ -82,7 +82,8 @@ emptyPState :: B.ByteString
 emptyPState buf pos = PState
     { input       = inp
     , curToken    = error "no token"
-    , lexState    = [0]
+    , lexState    = [0],
+    , counter     = 0
     }
   where
     inp :: AlexInput
