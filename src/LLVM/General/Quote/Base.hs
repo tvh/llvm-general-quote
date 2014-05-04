@@ -514,7 +514,7 @@ transform (A.ForLoop label iterType iterName from to step element body next) =
     let preInstrs = preInstrsF iterName' iterType' newIters initIter phiElements cond iter to' iterNameNew step'
         branchTo l = (case body' of (L.BasicBlock bodyLabel _ _:_) -> L.Do (L.CondBr (L.LocalReference cond) bodyLabel l []))
         retElement = (mElement >>= \(_,_,n) -> Just $ L.LocalReference n)
-        retTerm = (L.Do (L.Ret retElement []))
+        retTerm = (L.Do (L.Br (L.Name "nextblock") []))
         (pre,post) =
           case next'' of
             Just next' -> ([L.BasicBlock label' preInstrs (branchTo next')],[])
