@@ -7,6 +7,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TupleSections #-}
 {-# OPTIONS_GHC -fno-warn-unused-matches #-}
 
 module LLVM.General.Quote.Base (
@@ -433,9 +434,9 @@ qqBasicBlockListE (def : defs) =
 
 transform :: forall m.Conversion' m A.BasicBlock [L.BasicBlock]
 transform bb@A.BasicBlock{} = [||(:[]) <$> $$(qqExpM bb)||]
-transform (A.ForLoop label iterType iterName from to step element body next) =
+transform (A.ForLoop label iterType iterName from to step element body) =
   [||do
-    element' <- $$(qqExpM element :: TExpQ (m (Either [L.Name] (TypeL, [(OperandL, L.Name)], L.Name))))
+    element' <- $$(qqExpM element :: TExpQ (m (Maybe (TypeL, OperandL, L.Name))))
     let ret :: L.BasicBlock -> Maybe (Maybe L.Operand, L.Name)
         ret (L.BasicBlock l _ t') = do
           let t = case t' of
@@ -453,9 +454,6 @@ transform (A.ForLoop label iterType iterName from to step element body next) =
             n L.:= L.Ret _ md -> L.BasicBlock bbn is (n L.:= L.Br labelR md)
             L.Do (L.Ret _ md) -> L.BasicBlock bbn is (L.Do (L.Br labelR md))
             _                 -> bb
-        mElementF e = case e of
-                     Left  _ -> Nothing
-                     Right x -> Just x
         labelStringF l = case l of
                         L.Name s -> s
                         L.UnName n -> "num"++show n
@@ -463,28 +461,29 @@ transform (A.ForLoop label iterType iterName from to step element body next) =
                         L.Name s -> s ++ ".new"
                         L.UnName n -> "num"++show n++".new"
         newItersF n rs = map (\(_,l) -> (L.LocalReference n,l)) rs
-        initFromsF e = case e of
-                     Left ns  -> ns
-                     Right (_,xs,_) -> map snd xs
-        initIterF from' initFroms = map (\s -> (from',s)) initFroms
         preInstrsF iterName' iterType' newIters initIter phiElements cond iter to' iterNameNew step' =
-          [ iterName' L.:= L.Phi iterType' (newIters ++ initIter) [] ]
+          [ iterName' L.:= L.Phi iterType' (initIter : newIters) [] ]
           ++ phiElements ++
           [ cond L.:= L.ICmp LI.ULE iter to' []
           , iterNameNew L.:= L.Add True True iter step' []
           ]
-    let mElement = mElementF element'
+    label' <- $$(qqExpM label :: TExpQ (m L.Name))
+    let labelString = labelStringF label'
+        cond = L.Name (labelString ++ ".cond")
+        labelHead = L.Name (labelString ++ ".head")
+        labelEnd = L.Name (labelString ++ ".end")
     (body',returns,phiElements) <- case element' of
-      Left _ -> do body' <- $$(qqExpM body :: TExpQ (m [L.BasicBlock]))
-                   let returns = body' >>= (maybeToList . ret)
-                   return (body',returns,[])
-      Right (elementType,elementFrom,elementName) -> do
+      Nothing -> do body' <- $$(qqExpM body :: TExpQ (m [L.BasicBlock]))
+                    let returns = body' >>= (maybeToList . ret)
+                    return (body',returns,[])
+      Just (elementType,elementFrom,elementName) -> do
         (body',returns,elements) <- case elementType of
           Type t -> do
+            let Operand opr = elementFrom
             body' <- $$(qqExpM body :: TExpQ (m [L.BasicBlock]))
             let returns = body' >>= (maybeToList . ret)
                 returns' = [(x,l) | (Just x, l) <- returns]
-            return (body',returns,[(t,returns' ++ map (\(Operand o,n) -> (o,n)) elementFrom, elementName)])
+            return (body',returns,[(t, (opr,label'):returns', elementName)])
           TypeList ts -> do
             names <- mapM (\_ -> newVariable) ts
             setVariable elementName (map L.LocalReference names)
@@ -492,36 +491,30 @@ transform (A.ForLoop label iterType iterName from to step element body next) =
             let returns = body' >>= (maybeToList . ret)
                 returns' = [(x,l) | (Just x, l) <- returns]
             rets <- mapM (\(L.LocalReference x,l) -> getVariable x >>= \xs -> return (xs,l)) returns'
-            let froms =  rets ++ [(xs,l) | (OperandList xs, l) <- elementFrom]
+            xs <- case elementFrom of
+              OperandList xs -> return xs
+              Operand (L.LocalReference n) -> getVariable n
+            let froms = (xs,label') : rets
                 froms' = transpose [[(x,l) | x <- xs] | (xs,l) <- froms] 
             return $ assert (length froms' == length ts) $ (body',returns,zip3 ts froms' names)
         return (body',returns,[n L.:= L.Phi t f [] | (t,f,n) <- elements])
-    label' <- $$(qqExpM label :: TExpQ (m L.Name))
-    let labelString = labelStringF label'
-        cond = L.Name (labelString ++ ".cond")
-        labelEnd = L.Name (labelString ++ ".end")
     iterName' <- $$(qqExpM iterName :: TExpQ (m L.Name))
     iterType' <- $$(qqExpM iterType :: TExpQ (m L.Type))
     from' <- $$(qqExpM from :: TExpQ (m L.Operand))
     let iterNameNew = iterNameNewF iterName'
         iter = L.LocalReference iterName'
         newIters = newItersF iterNameNew returns
-        initFroms = initFromsF element'
-    let initIter = initIterF from' initFroms
+    let initIter = (from', label')
     step' <- $$(qqExpM step :: TExpQ (m L.Operand))
     to' <- $$(qqExpM to)
-    next'' <- $$(qqExpM next)
     let preInstrs = preInstrsF iterName' iterType' newIters initIter phiElements cond iter to' iterNameNew step'
         branchTo l = (case body' of (L.BasicBlock bodyLabel _ _:_) -> L.Do (L.CondBr (L.LocalReference cond) bodyLabel l []))
-        retElement = (mElement >>= \(_,_,n) -> Just $ L.LocalReference n)
+        retElement = (element' >>= \(_,_,n) -> Just $ L.LocalReference n)
         retTerm = (L.Do (L.Br (L.Name "nextblock") []))
         (pre,post) =
-          case next'' of
-            Just next' -> ([L.BasicBlock label' preInstrs (branchTo next')],[])
-            Nothing ->
-                ([L.BasicBlock label' preInstrs (branchTo labelEnd)]
+                ([L.BasicBlock label' [] (L.Do (L.Br labelHead [])), L.BasicBlock labelHead preInstrs (branchTo labelEnd)]
                 ,[L.BasicBlock labelEnd [] retTerm])
-        main = replaceRets label' body'
+        main = replaceRets labelHead body'
     return (pre ++ main ++ post)
   ||]
 transform (A.AntiBasicBlock v)

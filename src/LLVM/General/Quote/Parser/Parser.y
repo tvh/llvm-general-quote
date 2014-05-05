@@ -731,10 +731,10 @@ nameList :
     name              { RCons $1 RNil }
   | nameList name     { RCons $2 $1 }
 
-mElement :: { Either [A.Name] (A.Type, [(A.Operand,A.Name)], A.Name) }
+mElement :: { Maybe (A.Type, A.Operand, A.Name) }
 mElement :
-    'with' nameList                   { Left (rev $2) }
-  | 'with' type phiList 'as' name     { Right ($2, (rev ($3 $2)), $5)}
+    {- empty -}                       { Nothing }
+  | 'with' type operand 'as' name     { Just ($2, ($3 $2), $5) }
 
 mStep :: { A.Type -> A.Operand }
 mStep :
@@ -750,8 +750,8 @@ basicBlock :: { A.BasicBlock }
 basicBlock :
     jumpLabel instructions namedT
       { A.BasicBlock $1 (rev $2) $3 }
-  | jumpLabel 'for' type name 'in' operand 'to' operand mStep mElement mLabel '{' basicBlocks '}'
-      { A.ForLoop $1 $3 $4 ($6 $3) ($8 $3) ($9 $3) $10 (rev $13) $11 }
+  | jumpLabel 'for' type name 'in' operand 'to' operand mStep mElement '{' basicBlocks '}'
+      { A.ForLoop $1 $3 $4 ($6 $3) ($8 $3) ($9 $3) $10 (rev $12) }
   | ANTI_BB
       { A.AntiBasicBlock $1 }
   | ANTI_BBS

@@ -23,9 +23,9 @@ tests = testGroup "Loops" [
               br label %bla
 
               bla:
-              for i32 %i in 1 to %x with i32 [0,%entry] as %n, label %end {
+              for i32 %i in 1 to %x with i32 0 as %n {
                 body:
-                for i32 %j in 1 to %x with i32 [%n,%bla] as %m, label %test {
+                for i32 %j in 1 to %x with i32 %n as %m {
                   blub:
                   %k = add i32 %m, 1
                   ret i32 %k
