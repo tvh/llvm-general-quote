@@ -71,6 +71,7 @@ class (Applicative m, Monad m) => CodeGenMonad m where
   (.=.) :: L.Name -> m [L.Operand] -> m [L.BasicBlock]
   exec :: m () -> m [L.BasicBlock]
   execRet :: m L.Operand -> m [L.BasicBlock]
+  execRet_ :: m () -> m [L.BasicBlock]
 
 type CodeGen = State (Int, M.Map L.Name [L.Operand])
 
@@ -464,7 +465,7 @@ transform (A.ForLoop label iterType iterName from to step element body) =
         preInstrsF iterName' iterType' newIters initIter phiElements cond iter to' iterNameNew step' =
           [ iterName' L.:= L.Phi iterType' (initIter : newIters) [] ]
           ++ phiElements ++
-          [ cond L.:= L.ICmp LI.ULE iter to' []
+          [ cond L.:= L.ICmp LI.ULT iter to' []
           , iterNameNew L.:= L.Add True True iter step' []
           ]
     label' <- $$(qqExpM label :: TExpQ (m L.Name))
@@ -509,7 +510,6 @@ transform (A.ForLoop label iterType iterName from to step element body) =
     to' <- $$(qqExpM to)
     let preInstrs = preInstrsF iterName' iterType' newIters initIter phiElements cond iter to' iterNameNew step'
         branchTo l = (case body' of (L.BasicBlock bodyLabel _ _:_) -> L.Do (L.CondBr (L.LocalReference cond) bodyLabel l []))
-        retElement = (element' >>= \(_,_,n) -> Just $ L.LocalReference n)
         retTerm = (L.Do (L.Br (L.Name "nextblock") []))
         (pre,post) =
                 ([L.BasicBlock label' [] (L.Do (L.Br labelHead [])), L.BasicBlock labelHead preInstrs (branchTo labelEnd)]
