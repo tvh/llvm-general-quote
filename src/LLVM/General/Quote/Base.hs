@@ -79,6 +79,10 @@ instance CodeGenMonad CodeGen where
   newVariable = state (\(i,vs) -> (L.Name ("n" ++ show i), (i+1,vs)))
   lookupVariable v = gets (\(_,vs) -> M.lookup v vs)
   setVariable v xs = state (\(i,vs) -> ((), (i, M.insert v xs vs)))
+  (.=.) = error "not defined: (.=.)"
+  exec = error "not defined: exec"
+  execRet = error "not defined: execRet"
+  execRet_ = error "not defined: execRet_"
 
 class ToDefintion a where
   toDefinition :: a -> L.Definition
@@ -495,8 +499,9 @@ transform (A.ForLoop label iterType iterName from to step element body) =
             xs <- case elementFrom of
               OperandList xs -> return xs
               Operand (L.LocalReference n) -> getVariable n
+              Operand o -> error $ "can't use single Operand with list of types: " ++ show o
             let froms = (xs,label') : rets
-                froms' = transpose [[(x,l) | x <- xs] | (xs,l) <- froms] 
+                froms' = transpose [[(x,l) | x <- xs'] | (xs',l) <- froms] 
             return $ assert (length froms' == length ts) $ (body',returns,zip3 ts froms' names)
         return (body',returns,[n L.:= L.Phi t f [] | (t,f,n) <- elements])
     iterName' <- $$(qqExpM iterName :: TExpQ (m L.Name))
@@ -509,7 +514,9 @@ transform (A.ForLoop label iterType iterName from to step element body) =
     step' <- $$(qqExpM step :: TExpQ (m L.Operand))
     to' <- $$(qqExpM to)
     let preInstrs = preInstrsF iterName' iterType' newIters initIter phiElements cond iter to' iterNameNew step'
-        branchTo l = (case body' of (L.BasicBlock bodyLabel _ _:_) -> L.Do (L.CondBr (L.LocalReference cond) bodyLabel l []))
+        branchTo l = case body' of
+          [] -> error "empty body of for-loop"
+          (L.BasicBlock bodyLabel _ _:_) -> L.Do (L.CondBr (L.LocalReference cond) bodyLabel l [])
         retTerm = (L.Do (L.Br (L.Name "nextblock") []))
         (pre,post) =
                 ([L.BasicBlock label' [] (L.Do (L.Br labelHead [])), L.BasicBlock labelHead preInstrs (branchTo labelEnd)]
@@ -1127,6 +1134,8 @@ qqOperandP (A.MetadataNodeOperand x1) =
   Just [p|L.MetadataNodeOperand $(qqP x1)|]
 qqOperandP (A.AntiOperand s) =
   Just $ antiVarP s
+qqOperandP (A.AntiOperands s) =
+  error $ "Antiquote not allowed in pattern: " ++ s
 
 qqConstantP :: A.Constant -> Maybe (Q Pat)
 qqConstantP (A.Int x1 x2) =
@@ -1149,6 +1158,8 @@ qqConstantP (A.GlobalReference x1) =
   Just [p|L.GlobalReference $(qqP x1)|]
 qqConstantP (A.AntiConstant s) =
   Just $ antiVarP s
+qqConstantP (A.IntAntiBs s _) =
+  error $ "Antiquote not allowed in pattern: " ++ s
 
 qqNameP :: A.Name -> Maybe (Q Pat)
 qqNameP (A.Name x1) =
@@ -1191,6 +1202,8 @@ qqTypeP A.MetadataType =
   Just [p|L.MetadataType|]
 qqTypeP (A.AntiType s) =
   Just $ antiVarP s
+qqTypeP (A.AntiTypes s) =
+  error $ "Antiquote not allowed in pattern: " ++ s
 
 qqDialectP :: A.Dialect -> Maybe (Q Pat)
 qqDialectP A.ATTDialect =
