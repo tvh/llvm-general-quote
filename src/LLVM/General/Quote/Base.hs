@@ -11,13 +11,14 @@
 {-# OPTIONS_GHC -fno-warn-unused-matches #-}
 
 module LLVM.General.Quote.Base (
-    CodeGenMonad(..),
     CodeGen,
+    CodeGenMonad(..),
     ToDefintions(..),
     quasiquote,
     quasiquoteM,
     TQuasiQuoter(..),
-    parse
+    parse,
+    (.=.)
   ) where
 
 import Control.Applicative
@@ -63,25 +64,41 @@ import Data.Maybe
 import Control.Exception.Base
 
 class (Applicative m, Monad m) => CodeGenMonad m where
-  newVariable :: m L.Name
+  newVariable    :: m L.Name
   lookupVariable :: L.Name -> m (Maybe [L.Operand])
-  getVariable :: L.Name -> m [L.Operand]
-  getVariable v = maybe (fail $ "variable not defined: " ++ show v) return =<< lookupVariable v
-  setVariable :: L.Name -> [L.Operand] -> m ()
-  (.=.) :: L.Name -> m [L.Operand] -> m [L.BasicBlock]
-  exec :: m () -> m [L.BasicBlock]
-  execRet :: m L.Operand -> m [L.BasicBlock]
+  getVariable    :: L.Name -> m [L.Operand]
+  getVariable v =
+    let msg = "variable not defined: " ++ show v
+    in  maybe (fail msg) return =<< lookupVariable v
+
+  setVariable   :: L.Name -> [L.Operand]   -> m ()
+  assign        :: L.Name -> m [L.Operand] -> m [L.BasicBlock]
+
+  exec     :: m () -> m [L.BasicBlock]
+  execRet  :: m L.Operand -> m [L.BasicBlock]
   execRet_ :: m () -> m [L.BasicBlock]
+
+class ToRvalue a where
+  toRvalue :: a -> [L.Operand]
+instance ToRvalue L.Operand where
+  toRvalue = return
+instance ToRvalue [L.Operand] where
+  toRvalue = id
+
+(.=.) :: (ToRvalue r, CodeGenMonad m) => L.Name -> m r -> m [L.BasicBlock]
+(.=.) lhs rhs = assign lhs (toRvalue <$> rhs)
+
 
 type CodeGen = State (Int, M.Map L.Name [L.Operand])
 
 instance CodeGenMonad CodeGen where
-  newVariable = state (\(i,vs) -> (L.Name ("n" ++ show i), (i+1,vs)))
-  lookupVariable v = gets (\(_,vs) -> M.lookup v vs)
-  setVariable v xs = state (\(i,vs) -> ((), (i, M.insert v xs vs)))
-  (.=.) = error "not defined: (.=.)"
-  exec = error "not defined: exec"
-  execRet = error "not defined: execRet"
+  newVariable      = state $ \(i,vs) -> (L.Name ("n" ++ show i), (i+1,vs))
+  lookupVariable v = gets  $ \(_,vs) -> M.lookup v vs
+  setVariable v xs = state $ \(i,vs) -> ((), (i, M.insert v xs vs))
+
+  assign   = error "not defined: assign"
+  exec     = error "not defined: exec"
+  execRet  = error "not defined: execRet"
   execRet_ = error "not defined: execRet_"
 
 class ToDefintion a where
