@@ -271,6 +271,7 @@ import qualified LLVM.General.AST.RMWOperation as AR
 %name parseDefinition   definition
 %name parseGlobal       global
 %name parseBasicBlock   basicBlock
+%name parseBasicBlocks  basicBlocks_
 %name parseInstruction  instruction
 
 %%
@@ -761,6 +762,10 @@ basicBlocks :: { RevList (A.BasicBlock) }
 basicBlocks :
     {- empty -}             { RNil }
   | basicBlocks basicBlock  { RCons $2 $1 }
+
+basicBlocks_ :: { [A.BasicBlock] }
+basicBlocks_ :
+    basicBlocks             { rev $1 }
 
 {------------------------------------------------------------------------------
  -

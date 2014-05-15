@@ -3,11 +3,13 @@ module LLVM.General.Quote.LLVM (
     lldef,
     llg,
     llbb,
+    llbbs,
     lli,
     llmodM,
     lldefM,
     llgM,
     llbbM,
+    llbbsM,
     lliM
   ) where
 
@@ -40,6 +42,11 @@ llbb :: QuasiQuoter
 llbb = unTQuasiQuoter
          (quasiquote exts P.parseBasicBlock :: TQuasiQuoter L.BasicBlock)
 
+-- |Quasiquoter for '[LLVM.General.AST.BasicBlock]'
+llbbs :: QuasiQuoter
+llbbs = unTQuasiQuoter
+          (quasiquote exts P.parseBasicBlocks :: TQuasiQuoter [L.BasicBlock])
+
 -- |Quasiquoter for 'LLVM.General.AST.Instruction.Instruction'
 lli :: QuasiQuoter
 lli = unTQuasiQuoter
@@ -64,6 +71,11 @@ llgM = unTQuasiQuoter (quasiquoteM exts P.parseGlobal :: TQuasiQuoter (CodeGen L
 llbbM :: QuasiQuoter
 llbbM = unTQuasiQuoter
          (quasiquoteM exts P.parseBasicBlock :: TQuasiQuoter (CodeGen L.BasicBlock))
+
+-- |Quasiquoter for 'LLVM.General.AST.BasicBlock'
+llbbsM :: QuasiQuoter
+llbbsM = unTQuasiQuoter
+          (quasiquoteM exts P.parseBasicBlocks :: TQuasiQuoter (CodeGen [L.BasicBlock]))
 
 -- |Quasiquoter for 'LLVM.General.AST.Instruction.Instruction'
 lliM :: QuasiQuoter
