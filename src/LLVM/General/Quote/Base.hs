@@ -516,7 +516,7 @@ transform (A.ForLoop label iterType iterName from to step element body) =
             xs <- case elementFrom of
               OperandList xs -> return xs
               Operand (L.LocalReference n) -> getVariable n
-              Operand o -> error $ "can't use single Operand with list of types: " ++ show o
+              Operand o -> fail $ "can't use single Operand with list of types: " ++ show o
             let froms = (xs,label') : rets
                 froms' = transpose [[(x,l) | x <- xs'] | (xs',l) <- froms] 
             return $ assert (length froms' == length ts) $ (body',returns,zip3 ts froms' names)
@@ -786,7 +786,7 @@ qqConstantE (A.Int x1 x2) =
   [||L.Int <$> $$(qqExpM x1) <*> $$(qqExpM x2)||]
 qqConstantE (A.IntAntiBs x1 x2) =
   [||let typeBits (L.IntegerType bs) = return bs
-         typeBits t                  = error $ "unexpected type: " ++ show t
+         typeBits t                  = fail $ "unexpected type: " ++ show t
      in L.Int <$> ($$(unsafeTExpCoerce (antiVarE x1)) >>= typeBits) <*> $$(qqExpM x2)||]
 qqConstantE (A.Float x1) =
   [||L.Float <$> $$(qqExpM x1)||]
