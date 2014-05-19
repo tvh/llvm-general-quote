@@ -725,7 +725,7 @@ qqNamedInstructionListE ((A.:=) name' x2'@(A.Phi ty' incoming' meta'):xs) =
   [||do let toOpList :: CodeGenMonad m => (OperandL,L.Name) -> m ([L.Operand],L.Name)
             toOpList (from,l) = do
               froms <- case from of
-                    OperandList xs -> return xs
+                    OperandList os -> return os
                     Operand (L.LocalReference n) -> getVariable n
                     Operand o -> fail $ "can't use single Operand with list of types: " ++ show o
               return (froms,l)
@@ -742,7 +742,7 @@ qqNamedInstructionListE ((A.:=) name' x2'@(A.Phi ty' incoming' meta'):xs) =
                     names <- mapM (\_ -> newVariable) ts
                     setVariable name $ map L.LocalReference names
                     incomings' <- mapM toOpList incoming
-                    let incomings = transpose [[(x,l) | x <- xs'] | (xs',l) <- incomings']
+                    let incomings = transpose [[(x',l) | x' <- xs'] | (xs',l) <- incomings']
                     return $ assert (length incomings' == length ts) $
                       zipWith3 (\n t inc -> n L.:= L.Phi t inc meta) names ts incomings
         (++) <$> x <*> $$(qqExpM xs)||]

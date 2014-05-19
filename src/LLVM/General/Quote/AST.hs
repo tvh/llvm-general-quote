@@ -120,7 +120,7 @@ data BasicBlock
     from :: Operand,
     to :: Operand,
     step :: Operand,
-    _element :: Maybe(Type, Operand, Name),
+    _element :: Maybe (Type, Operand, Name),
     body :: [BasicBlock]}
   | AntiBasicBlock String
   | AntiBasicBlockList String
