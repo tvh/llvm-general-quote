@@ -456,7 +456,7 @@ qqBasicBlockListE (def : defs) =
 
 transform :: forall m.Conversion' m A.BasicBlock [L.BasicBlock]
 transform bb@A.BasicBlock{} = [||(:[]) <$> $$(qqExpM bb)||]
-transform (A.ForLoop label iterType iterName from to step element body) =
+transform (A.ForLoop label iterType iterName direction from to step element body) =
   [||do
     element' <- $$(qqExpM element :: TExpQ (m (Maybe (TypeL, OperandL, L.Name))))
     let ret :: L.BasicBlock -> Maybe (Maybe L.Operand, L.Name)
@@ -486,9 +486,15 @@ transform (A.ForLoop label iterType iterName from to step element body) =
         preInstrsF iterName' iterType' newIters initIter phiElements cond iter to' iterNameNew step' =
           [ iterName' L.:= L.Phi iterType' (initIter : newIters) [] ]
           ++ phiElements ++
-          [ cond L.:= L.ICmp LI.ULT iter to' []
-          , iterNameNew L.:= L.Add True True iter step' []
-          ]
+          case direction of
+            A.Up ->
+              [ cond L.:= L.ICmp LI.ULT iter to' []
+              , iterNameNew L.:= L.Add True True iter step' []
+              ]
+            A.Down ->
+              [ cond L.:= L.ICmp LI.UGT iter to' []
+              , iterNameNew L.:= L.Sub True True iter step' []
+              ]
     label' <- $$(qqExpM label :: TExpQ (m L.Name))
     let labelString = labelStringF label'
         cond = L.Name (labelString ++ ".cond")

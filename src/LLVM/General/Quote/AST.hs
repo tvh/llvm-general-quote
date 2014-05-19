@@ -6,6 +6,7 @@ module LLVM.General.Quote.AST (
   Definition(..),
   Global(..),
   Parameter(..),
+  Direction(..),
   BasicBlock(..),
   InstructionMetadata,
   Terminator(..),
@@ -104,6 +105,11 @@ data Parameter
   | AntiParameterList String
   deriving (Eq, Read, Show, Typeable, Data)
 
+data Direction
+  = Up
+  | Down
+  deriving (Eq, Read, Show, Typeable, Data)
+
 -- | <http://llvm.org/doxygen/classllvm_1_1BasicBlock.html>
 -- LLVM code in a function is a sequence of 'BasicBlock's each with a label,
 -- some instructions, and a terminator.
@@ -117,6 +123,7 @@ data BasicBlock
     label :: Name,
     iterType :: Type,
     iterName :: Name,
+    direction :: Direction,
     from :: Operand,
     to :: Operand,
     step :: Operand,
@@ -727,6 +734,7 @@ $(deriveLiftMany [''A.Visibility,
                   ''A.SomeFloat,
                   ''AI.IntegerPredicate,
                   ''AF.FloatingPointPredicate,
+                  ''Direction,
                   ''BasicBlock,
                   ''Parameter,
                   ''Named,

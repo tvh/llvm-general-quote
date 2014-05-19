@@ -147,6 +147,7 @@ import qualified LLVM.General.AST.RMWOperation as AR
  'arcp'             { L _ T.Tarcp }
  'fast'             { L _ T.Tfast }
  'to'               { L _ T.Tto }
+ 'downto'           { L _ T.Tdownto }
  'nsw'              { L _ T.Tnsw }
  'nuw'              { L _ T.Tnuw }
  'target'           { L _ T.Ttarget }
@@ -747,12 +748,17 @@ jumpLabel :
     JUMPLABEL           { A.Name $1 }
   | {- empty -}         { A.NeedsName }
 
+direction :: { A.Direction }
+direction :
+    'to'        { A.Up }
+  | 'downto'    { A.Down }
+
 basicBlock :: { A.BasicBlock }
 basicBlock :
     jumpLabel instructions namedT
       { A.BasicBlock $1 (rev $2) $3 }
-  | jumpLabel 'for' type name 'in' operand 'to' operand mStep mElement '{' basicBlocks '}'
-      { A.ForLoop $1 $3 $4 ($6 $3) ($8 $3) ($9 $3) $10 (rev $12) }
+  | jumpLabel 'for' type name 'in' operand direction operand mStep mElement '{' basicBlocks '}'
+      { A.ForLoop $1 $3 $4 $7 ($6 $3) ($8 $3) ($9 $3) $10 (rev $12) }
   | ANTI_BB
       { A.AntiBasicBlock $1 }
   | ANTI_BBS

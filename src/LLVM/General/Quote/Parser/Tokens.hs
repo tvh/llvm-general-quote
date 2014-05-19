@@ -237,6 +237,7 @@ data Token
   | Twith
   | Tstep
   | Tas
+  | Tdownto
   -- Anti-Quotation
   | Tanti_dl String
   | Tanti_tt String
@@ -482,6 +483,7 @@ instance Show Token where
   show Ttail = "tail"
   show Tfor = "for"
   show Tin = "in"
+  show Tdownto = "downto"
   show Twith = "with"
   show Tstep = "step"
   show Tas = "as"
@@ -679,6 +681,7 @@ keywords = [("define",            Tdefine,          Nothing),
             ("tail",              Ttail,            Nothing),
             ("for",               Tfor,             Just [Loops]),
             ("in",                Tin,              Just [Loops]),
+            ("downto",            Tdownto,          Just [Loops]),
             ("with",              Twith,            Just [Loops]),
             ("step",              Tstep,            Just [Loops]),
             ("as",                Tas,              Just [Loops])
