@@ -696,3 +696,4 @@ keywordMap = Map.fromList (map f keywords)
     f (s, t, Just exts)  = (s, (t, Just i))
       where
         i = foldl' setBit 0 (map fromEnum exts)
+

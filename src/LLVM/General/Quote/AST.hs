@@ -7,28 +7,20 @@ module LLVM.General.Quote.AST (
   Global(..),
   Parameter(..),
   Direction(..),
-  BasicBlock(..),
   InstructionMetadata,
-  Terminator(..),
-  MemoryOrdering(..),
-  Atomicity(..),
   LandingPadClause(..),
   FastMathFlags(..),
   Instruction(..),
-  Named(..),
+  NamedInstruction(..),
+  LabeledInstruction(..),
   MetadataNodeID(..),
   MetadataNode(..),
   Operand(..),
   CallableOperand,
   Constant(..),
   Name(..),
-  FloatingPointFormat(..),
   Type(..),
-  Dialect(..),
   InlineAssembly(..),
-  Endianness(..),
-  AlignmentInfo(..),
-  AlignType(..),
   DataLayout(..),
   TargetTriple(..),
   Extensions(..), ExtensionsInt
@@ -40,9 +32,13 @@ import qualified LLVM.General.AST.Visibility as A
 import qualified LLVM.General.AST.CallingConvention as A
 import qualified LLVM.General.AST.AddrSpace as A
 import qualified LLVM.General.AST.Attribute as A
+import qualified LLVM.General.AST.Instruction as A
+import qualified LLVM.General.AST.InlineAssembly as A
 import qualified LLVM.General.AST.IntegerPredicate as AI
 import qualified LLVM.General.AST.FloatingPointPredicate as AF
 import qualified LLVM.General.AST.RMWOperation as A
+import qualified LLVM.General.AST.Type as A
+import qualified LLVM.General.AST.DataLayout as A
 
 import Data.Word
 import Data.Typeable
@@ -94,7 +90,7 @@ data Global
         section :: Maybe String,
         alignment :: Word32,
         garbageCollectorName :: Maybe String,
-        basicBlocks :: [BasicBlock]
+        instructions :: [LabeledInstruction]
       }
   deriving (Eq, Read, Show, Typeable, Data)
 
@@ -108,29 +104,6 @@ data Parameter
 data Direction
   = Up
   | Down
-  deriving (Eq, Read, Show, Typeable, Data)
-
--- | <http://llvm.org/doxygen/classllvm_1_1BasicBlock.html>
--- LLVM code in a function is a sequence of 'BasicBlock's each with a label,
--- some instructions, and a terminator.
-data BasicBlock
-  = BasicBlock {
-    label :: Name,
-    instructions :: [Named Instruction],
-    terminator :: Named Terminator
-  }
-  | ForLoop {
-    label :: Name,
-    iterType :: Type,
-    iterName :: Name,
-    direction :: Direction,
-    from :: Operand,
-    to :: Operand,
-    step :: Operand,
-    _element :: Maybe (Type, Operand, Name),
-    body :: [BasicBlock]}
-  | AntiBasicBlock String
-  | AntiBasicBlockList String
   deriving (Eq, Read, Show, Typeable, Data)
 
 -- | Any thing which can be at the top level of a 'Module'
@@ -158,70 +131,6 @@ data Module =
 -- | <http://llvm.org/docs/LangRef.html#metadata-nodes-and-metadata-strings>
 -- Metadata can be attached to an instruction
 type InstructionMetadata = [(String, MetadataNode)]
-
--- | <http://llvm.org/docs/LangRef.html#terminators>
-data Terminator
-  = Ret {
-      returnOperand :: Maybe Operand,
-      metadata' :: InstructionMetadata
-    }
-  | CondBr {
-      condition :: Operand,
-      trueDest :: Name,
-      falseDest :: Name,
-      metadata' :: InstructionMetadata
-    }
-  | Br {
-      dest :: Name,
-      metadata' :: InstructionMetadata
-    }
-  | Switch {
-      operand0' :: Operand,
-      defaultDest :: Name,
-      dests :: [(Constant, Name)],
-      metadata' :: InstructionMetadata
-    }
-  | IndirectBr {
-      operand0' :: Operand,
-      possibleDests :: [Name],
-      metadata' :: InstructionMetadata
-    }
-  | Invoke {
-      callingConvention' :: A.CallingConvention,
-      returnAttributes' :: [A.ParameterAttribute],
-      function' :: CallableOperand,
-      arguments' :: [(Operand, [A.ParameterAttribute])],
-      functionAttributes' :: [A.FunctionAttribute],
-      returnDest :: Name,
-      exceptionDest :: Name,
-      metadata' :: InstructionMetadata
-    }
-  | Resume {
-      operand0' :: Operand,
-      metadata' :: InstructionMetadata
-    }
-  | Unreachable {
-      metadata' :: InstructionMetadata
-    }
-  deriving (Eq, Read, Show, Typeable, Data)
-
--- | <http://llvm.org/docs/LangRef.html#atomic-memory-ordering-constraints>
--- <http://llvm.org/docs/Atomics.html>
-data MemoryOrdering
-  = Unordered
-  | Monotonic
-  | Acquire
-  | Release
-  | AcquireRelease
-  | SequentiallyConsistent
-  deriving (Eq, Ord, Read, Show, Data, Typeable)
-
--- | An 'Atomicity' describes constraints on the visibility of effects of an atomic instruction
-data Atomicity = Atomicity {
-  crossThread :: Bool, -- ^ <http://llvm.org/docs/LangRef.html#singlethread>
-  memoryOrdering :: MemoryOrdering
- }
- deriving (Eq, Ord, Read, Show, Typeable, Data)
 
 -- | For the redoubtably complex 'LandingPad' instruction
 data LandingPadClause
@@ -363,7 +272,7 @@ data Instruction
   | Load {
       volatile :: Bool,
       address :: Operand,
-      maybeAtomicity :: Maybe Atomicity,
+      maybeAtomicity :: Maybe A.Atomicity,
       alignmentI :: Word32,
       metadata :: InstructionMetadata
     }
@@ -371,7 +280,7 @@ data Instruction
       volatile :: Bool,
       address :: Operand,
       value :: Operand,
-      maybeAtomicity :: Maybe Atomicity,
+      maybeAtomicity :: Maybe A.Atomicity,
       alignmentI :: Word32,
       metadata :: InstructionMetadata
     }
@@ -382,7 +291,7 @@ data Instruction
       metadata :: InstructionMetadata
     }
   | Fence {
-      atomicity :: Atomicity,
+      atomicity :: A.Atomicity,
       metadata :: InstructionMetadata
     }
   | CmpXchg {
@@ -390,7 +299,7 @@ data Instruction
       address :: Operand,
       expected :: Operand,
       replacement :: Operand,
-      atomicity :: Atomicity,
+      atomicity :: A.Atomicity,
       metadata :: InstructionMetadata
     }
   | AtomicRMW {
@@ -398,7 +307,7 @@ data Instruction
       rmwOperation :: A.RMWOperation,
       address :: Operand,
       value :: Operand,
-      atomicity :: Atomicity,
+      atomicity :: A.Atomicity,
       metadata :: InstructionMetadata
     }
   | Trunc {
@@ -482,7 +391,7 @@ data Instruction
       type' :: Type,
       incomingValues :: [ (Operand, Name) ],
       metadata :: InstructionMetadata
-  }
+    }
   | Call {
       isTailCall :: Bool,
       callingConvention :: A.CallingConvention,
@@ -539,14 +448,74 @@ data Instruction
       metadata :: InstructionMetadata
     }
   | AntiInstruction String
+  | Ret {
+      returnOperand :: Maybe Operand,
+      metadata :: InstructionMetadata
+    }
+  | CondBr { 
+      condition :: Operand, 
+      trueDest :: Name, 
+      falseDest :: Name,
+      metadata' :: InstructionMetadata
+    }
+  | Br { 
+      dest :: Name,
+      metadata' :: InstructionMetadata
+    }
+  | Switch {
+      operand0' :: Operand,
+      defaultDest :: Name,
+      dests :: [(Constant, Name)],
+      metadata' :: InstructionMetadata
+    }
+  | IndirectBr {
+      operand0' :: Operand,
+      possibleDests :: [Name],
+      metadata' :: InstructionMetadata
+    }
+  | Invoke {
+      callingConvention' :: A.CallingConvention,
+      returnAttributes' :: [A.ParameterAttribute],
+      function' :: CallableOperand,
+      arguments' :: [(Operand, [A.ParameterAttribute])],
+      functionAttributes' :: [A.FunctionAttribute],
+      returnDest :: Name,
+      exceptionDest :: Name,
+      metadata :: InstructionMetadata
+    }
+  | Resume {
+      operand0 :: Operand,
+      metadata :: InstructionMetadata
+    }
+  | Unreachable {
+      metadata :: InstructionMetadata
+    }
+  | OperandInstruction Operand
+  deriving (Eq, Read, Show, Typeable, Data)
+
+data LabeledInstruction
+  = Labeled {
+    label :: Name,
+    instruction :: NamedInstruction }
   deriving (Eq, Read, Show, Typeable, Data)
 
 -- | Instances of instructions may be given a name, allowing their results to be referenced as 'Operand's.
 -- Sometimes instructions - e.g. a call to a function returning void - don't need names.
-data Named a
-  = Name := a
-  | Do a
+data NamedInstruction
+  = Name := Instruction
+  | Do Instruction
   | AntiInstructionList String
+  | ForLoop {
+    iterType :: Type,
+    iterName :: Name,
+    direction :: Direction,
+    from :: Operand,
+    to :: Operand,
+    step :: Operand,
+    _element :: Maybe (Type, Operand, Name),
+    body :: [LabeledInstruction]}
+  | AntiBasicBlock String
+  | AntiBasicBlockList String
   deriving (Eq, Read, Show, Typeable, Data)
 
 -- | A 'MetadataNodeID' is a number for identifying a metadata node.
@@ -628,15 +597,6 @@ data Name
     | AntiName String
    deriving (Eq, Ord, Read, Show, Typeable, Data)
 
--- | LLVM supports some special formats floating point format. This type is to distinguish those format.
--- I believe it's treated as a format for "a" float, as opposed to a vector of two floats, because
--- its intended usage is to represent a single number with a combined significand.
-data FloatingPointFormat
-  = IEEE
-  | DoubleExtended
-  | PairOfFloats
-  deriving (Eq, Ord, Read, Show, Typeable, Data)
-
 -- | <http://llvm.org/docs/LangRef.html#type-system>
 data Type
   -- | <http://llvm.org/docs/LangRef.html#void-type>
@@ -646,7 +606,7 @@ data Type
   -- | <http://llvm.org/docs/LangRef.html#pointer-type>
   | PointerType { pointerReferent :: Type, pointerAddrSpace :: A.AddrSpace }
   -- | <http://llvm.org/docs/LangRef.html#floating-point-types>
-  | FloatingPointType { typeBits :: Word32, floatingPointFormat :: FloatingPointFormat }
+  | FloatingPointType { typeBits :: Word32, floatingPointFormat :: A.FloatingPointFormat }
   -- | <http://llvm.org/docs/LangRef.html#function-type>
   | FunctionType { resultType :: Type, argumentTypes :: [Type], isVarArg :: Bool }
   -- | <http://llvm.org/docs/LangRef.html#vector-type>
@@ -663,13 +623,6 @@ data Type
   | AntiType String
   deriving (Eq, Ord, Read, Show, Typeable, Data)
 
--- | the dialect of assembly used in an inline assembly string
--- <http://en.wikipedia.org/wiki/X86_assembly_language#Syntax>
-data Dialect
-  = ATTDialect
-  | IntelDialect
-  deriving (Eq, Read, Show, Typeable, Data)
-
 -- | <http://llvm.org/docs/LangRef.html#inline-assembler-expressions>
 -- to be used through 'LLVM.General.AST.Operand.CallableOperand' with a
 -- 'LLVM.General.AST.Instruction.Call' instruction
@@ -680,38 +633,18 @@ data InlineAssembly
       constraints :: String,
       hasSideEffects :: Bool,
       alignStack :: Bool,
-      dialect :: Dialect
+      dialect :: A.Dialect
     }
   deriving (Eq, Read, Show, Typeable, Data)
-
--- | Little Endian is the one true way :-). Sadly, we must support the infidels.
-data Endianness = LittleEndian | BigEndian
-  deriving (Eq, Ord, Read, Show, Typeable, Data)
-
--- | An AlignmentInfo describes how a given type must and would best be aligned
-data AlignmentInfo = AlignmentInfo {
-    abiAlignment :: Word32,
-    preferredAlignment :: Maybe Word32
-  }
-  deriving (Eq, Ord, Read, Show, Typeable, Data)
-
--- | A type of type for which 'AlignmentInfo' may be specified
-data AlignType
-  = IntegerAlign
-  | VectorAlign
-  | FloatAlign
-  | AggregateAlign
-  | StackAlign
-  deriving (Eq, Ord, Read, Show, Typeable, Data)
 
 -- | a description of the various data layout properties which may be used during
 -- optimization
 data DataLayout
   = DataLayout {
-    endianness :: Maybe Endianness,
+    endianness :: Maybe A.Endianness,
     stackAlignment :: Maybe Word32,
-    pointerLayouts :: M.Map A.AddrSpace (Word32, AlignmentInfo),
-    typeLayouts :: M.Map (AlignType, Word32) AlignmentInfo,
+    pointerLayouts :: M.Map A.AddrSpace (Word32, A.AlignmentInfo),
+    typeLayouts :: M.Map (A.AlignType, Word32) A.AlignmentInfo,
     nativeSizes :: Maybe (S.Set Word32)
   }
   | AntiDataLayout String
@@ -735,28 +668,27 @@ $(deriveLiftMany [''A.Visibility,
                   ''AI.IntegerPredicate,
                   ''AF.FloatingPointPredicate,
                   ''Direction,
-                  ''BasicBlock,
                   ''Parameter,
-                  ''Named,
+                  ''NamedInstruction,
+                  ''LabeledInstruction,
                   ''Instruction,
                   ''InlineAssembly,
-                  ''Dialect,
+                  ''A.Dialect,
                   ''A.RMWOperation,
-                  ''Atomicity,
+                  ''A.Atomicity,
                   ''LandingPadClause,
-                  ''MemoryOrdering,
-                  ''Terminator,
+                  ''A.MemoryOrdering,
                   ''Name,
                   ''MetadataNode,
                   ''MetadataNodeID,
                   ''Operand,
                   ''Type,
-                  ''FloatingPointFormat,
+                  ''A.FloatingPointFormat,
                   ''DataLayout,
-                  ''Endianness,
+                  ''A.Endianness,
                   ''M.Map,
-                  ''AlignType,
-                  ''AlignmentInfo,
+                  ''A.AlignType,
+                  ''A.AlignmentInfo,
                   ''S.Set,
                   ''Definition,
                   ''Module,

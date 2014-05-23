@@ -25,9 +25,14 @@ import qualified LLVM.General.AST.Visibility as A
 import qualified LLVM.General.AST.CallingConvention as A
 import qualified LLVM.General.AST.AddrSpace as A
 import qualified LLVM.General.AST.Attribute as A
+import qualified LLVM.General.AST.InlineAssembly as A ( Dialect(..) )
+import qualified LLVM.General.AST.Instruction as A ( Atomicity(..), MemoryOrdering(..) )
 import qualified LLVM.General.AST.IntegerPredicate as AI
 import qualified LLVM.General.AST.FloatingPointPredicate as AF
 import qualified LLVM.General.AST.RMWOperation as AR
+import qualified LLVM.General.AST.Type as A ( FloatingPointFormat(..) )
+import qualified LLVM.General.AST.DataLayout as A
+  ( Endianness(..), AlignmentInfo(..), AlignType(..) )
 }
 
 %token
@@ -271,8 +276,6 @@ import qualified LLVM.General.AST.RMWOperation as AR
 %name parseModule       module
 %name parseDefinition   definition
 %name parseGlobal       global
-%name parseBasicBlock   basicBlock
-%name parseBasicBlocks  basicBlocks_
 %name parseInstruction  instruction
 
 %%
@@ -557,6 +560,24 @@ idxs :
     idx            { RCons $1 RNil }
   | idxs ',' idx   { RCons $3 $1 }
 
+destination :: { (A.Constant, A.Name) }
+destination :
+    tConstant ',' label    { ($1, $3) }
+
+destinations :: { RevList (A.Constant, A.Name) }
+destinations :
+    {- empty -}                   { RNil }
+  | destinations destination      { RCons $2 $1 }
+
+label :: { A.Name }
+label :
+  'label' name        { $2 }
+
+labels :: { RevList A.Name }
+labels :
+    label                         { RCons $1 RNil }
+  | labels ','label               { RCons $3 $1 }
+
 metadataNodeID :: { A.MetadataNodeID }
 metadataNodeID :
     UNNAMED_META       { A.MetadataNodeID $1 }
@@ -650,11 +671,25 @@ instruction_ :
                                             { A.InsertValue $2 $4 (rev $6) }
   | 'landingpad' type 'personality' tOperand cleanup clauses
                                             { A.LandingPad $2 $4 $5 (rev $6) }
+  | 'ret' 'void'                            { A.Ret Nothing }
+  | 'ret' typeNoVoid operand                { A.Ret (Just ($3 $2)) }
+  | 'br' 'label' name                       { A.Br $3 }
+  | 'br' type operand ',' 'label' name ',' 'label' name
+					    { A.CondBr ($3 $2) $6 $9 }
+  | 'switch' type operand ',' 'label' name '[' destinations ']'
+					    { A.Switch ($3 $2) $6 (rev $8) }
+  | 'indirectbr' tOperand ',' '[' labels ']'
+					    { A.IndirectBr $2 (rev $5) }
+  | 'invoke' cconv parameterAttributes callableOperand '(' argumentList ')' fAttributes 'to' 'label' name 'unwind' 'label' name
+                                            { A.Invoke $2 (rev $3) ($4 (map fst (rev $6))) (map snd (rev $6)) (rev $8) $11 $14 }
+  | 'resume' tOperand                       { A.Resume $2 }
+  | 'unreachable'                           { A.Unreachable }
   | ANTI_INSTR                              {\[] -> A.AntiInstruction $1 }
 
 instruction :: { A.Instruction }
 instruction :
-  instruction_ instructionMetadata   { $1 (rev $2) }
+    instruction_ instructionMetadata   { $1 (rev $2) }
+  | tOperand                           { A.OperandInstruction $1 }
 
 name :: { A.Name }
 name :
@@ -662,76 +697,32 @@ name :
   | UNNAMED_LOCAL   { A.UnName $1 }
   | ANTI_ID         { A.AntiName $1 }
 
-namedI :: { A.Named A.Instruction }
+namedI :: { A.NamedInstruction }
 namedI :
     instruction                     { A.Do $1 }
   | name '=' instruction            { $1 A.:= $3 }
+  | 'for' type name 'in' operand direction operand mStep mElement '{' instructions '}'
+      { A.ForLoop $2 $3 $6 ($5 $2) ($7 $2) ($8 $2) $9 (rev $11) }
+  | ANTI_BB
+      { A.AntiBasicBlock $1 }
+  | ANTI_BBS
+      { A.AntiBasicBlockList $1 }
   | ANTI_INSTRS                     { A.AntiInstructionList $1 }
 
-instructions :: { RevList (A.Named A.Instruction) }
+labeledI :: { A.LabeledInstruction }
+labeledI :
+    jumpLabel namedI                { A.Labeled $1 $2 }
+
+instructions :: { RevList (A.LabeledInstruction) }
 instructions :
     {- empty -}                   { RNil }
-  | instructions namedI           { RCons $2 $1 }
-
-destination :: { (A.Constant, A.Name) }
-destination :
-    tConstant ',' label    { ($1, $3) }
-
-destinations :: { RevList (A.Constant, A.Name) }
-destinations :
-    {- empty -}                   { RNil }
-  | destinations destination      { RCons $2 $1 }
-
-label :: { A.Name }
-label :
-  'label' name        { $2 }
-
-labels :: { RevList A.Name }
-labels :
-    label                         { RCons $1 RNil }
-  | labels ','label               { RCons $3 $1 }
-
-namedT :: { A.Named A.Terminator }
-namedT :
-    terminator                      { A.Do $1 }
-  | name   '=' terminator           { $1 A.:= $3 }
-
-terminator_ :: { A.InstructionMetadata -> A.Terminator }
-terminator_ :
-    'ret' 'void'          { A.Ret Nothing }
-  | 'ret' typeNoVoid operand
-                          { A.Ret (Just ($3 $2)) }
-  | 'br' 'label' name     { A.Br $3 }
-  | 'br' type operand ',' 'label' name ',' 'label' name
-                          { A.CondBr ($3 $2) $6 $9 }
-  | 'switch' type operand ',' 'label' name '[' destinations ']'
-                          { A.Switch ($3 $2) $6 (rev $8) }
-  | 'indirectbr' tOperand ',' '[' labels ']'
-                          { A.IndirectBr $2 (rev $5) }
-  | 'invoke' cconv parameterAttributes callableOperand '(' argumentList ')' fAttributes 'to' 'label' name 'unwind' 'label' name
-                          { A.Invoke $2 (rev $3) ($4 (map fst (rev $6))) (map snd (rev $6)) (rev $8) $11 $14 }
-  | 'resume' tOperand     { A.Resume $2 }
-  | 'unreachable'         { A.Unreachable }
-
-terminator :: { A.Terminator }
-terminator :
-  terminator_ instructionMetadata   { $1 (rev $2) }
+  | instructions labeledI           { RCons $2 $1 }
 
 {------------------------------------------------------------------------------
  -
  - Basic Blocks
  -
  -----------------------------------------------------------------------------}
-
-mLabel :: { Maybe A.Name }
-mLabel :
-    {- empty -}          { Nothing }
-  | ',' 'label' name     { Just $3 }
-
-nameList :: { RevList A.Name }
-nameList :
-    name              { RCons $1 RNil }
-  | nameList name     { RCons $2 $1 }
 
 mElement :: { Maybe (A.Type, A.Operand, A.Name) }
 mElement :
@@ -752,26 +743,6 @@ direction :: { A.Direction }
 direction :
     'to'        { A.Up }
   | 'downto'    { A.Down }
-
-basicBlock :: { A.BasicBlock }
-basicBlock :
-    jumpLabel instructions namedT
-      { A.BasicBlock $1 (rev $2) $3 }
-  | jumpLabel 'for' type name 'in' operand direction operand mStep mElement '{' basicBlocks '}'
-      { A.ForLoop $1 $3 $4 $7 ($6 $3) ($8 $3) ($9 $3) $10 (rev $12) }
-  | ANTI_BB
-      { A.AntiBasicBlock $1 }
-  | ANTI_BBS
-      { A.AntiBasicBlockList $1 }
-
-basicBlocks :: { RevList (A.BasicBlock) }
-basicBlocks :
-    {- empty -}             { RNil }
-  | basicBlocks basicBlock  { RCons $2 $1 }
-
-basicBlocks_ :: { [A.BasicBlock] }
-basicBlocks_ :
-    basicBlocks             { rev $1 }
 
 {------------------------------------------------------------------------------
  -
@@ -923,7 +894,7 @@ isConstant :
 
 global :: { A.Global }
 global :
-    'define' linkage visibility cconv parameterAttributes type globalName '(' parameterList ')' fAttributes section alignment gc '{' basicBlocks '}'
+    'define' linkage visibility cconv parameterAttributes type globalName '(' parameterList ')' fAttributes section alignment gc '{' instructions '}'
       { A.Function $2 $3 $4 (rev $5) $6 $7 $9 (rev $11) $12 $13 $14 (rev $16) }
   | globalName '=' linkage visibility isConstant type mConstant alignment
       { A.GlobalVariable $1 $3 $4 False (A.AddrSpace 0) False $5 $6 ($7 $6) Nothing $8 }

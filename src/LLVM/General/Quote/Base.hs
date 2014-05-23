@@ -26,18 +26,15 @@ import Control.Monad.Identity
 import qualified Data.ByteString.Char8 as B
 import Data.List
 import Control.Monad.State.Strict
-import Data.Data (Data(..))
-import Data.Generics (extQ)
 import Data.Word
 import Data.Loc
-import Data.Typeable (Typeable)
-import Language.Haskell.Meta (parseExp, parsePat)
+import Data.Data (Data(..))
+import Language.Haskell.Meta (parseExp)
 import Language.Haskell.TH
 import Language.Haskell.TH.Lib
 import Language.Haskell.TH.Syntax
 import Data.IORef (atomicModifyIORef')
-import Language.Haskell.TH.Quote (QuasiQuoter(..),
-                                  dataToPatQ)
+import Language.Haskell.TH.Quote (QuasiQuoter(..))
 
 import qualified LLVM.General.Quote.Parser as P
 import qualified LLVM.General.Quote.AST as A
@@ -49,19 +46,10 @@ import qualified LLVM.General.AST.Constant as L
 import qualified LLVM.General.AST.Float as L
 import qualified LLVM.General.AST.InlineAssembly as L
 import qualified LLVM.General.AST.DataLayout as L
-import qualified LLVM.General.AST.AddrSpace as L
-import qualified LLVM.General.AST.Linkage as L
-import qualified LLVM.General.AST.Visibility as L
-import qualified LLVM.General.AST.CallingConvention as L
 import qualified LLVM.General.AST.Attribute as L
-import qualified LLVM.General.AST.RMWOperation as LR
-import qualified LLVM.General.AST.FloatingPointPredicate as LF
 
 import qualified Data.Map as M
-import qualified Data.Set as S
 import Data.Maybe
-
-import Control.Exception.Base
 
 class (Applicative m, Monad m) => CodeGenMonad m where
   newVariable    :: m L.Name
@@ -165,52 +153,8 @@ class QQExp a b where
   qqExp :: a -> TExpQ b
   qqExp x = [||fst $ runState $$(qqExpM x) ((0,M.empty) :: (Int,M.Map L.Name [L.Operand]))||]
 
---instance (Lift a) => QQExp a a where
---  qqExpM x = [||x||]
-instance QQExp String String where
+instance (Lift a) => QQExp a a where
   qqExpM x = [||pure x||]
-instance QQExp L.Linkage L.Linkage where
-  qqExpM x = [||pure x||]
-instance QQExp L.Visibility L.Visibility where
-  qqExpM x = [||pure x||]
-instance QQExp L.AddrSpace L.AddrSpace where
-  qqExpM x = [||pure x||]
-instance QQExp L.CallingConvention L.CallingConvention where
-  qqExpM x = [||pure x||]
-instance QQExp L.ParameterAttribute L.ParameterAttribute where
-  qqExpM x = [||pure x||]
-instance QQExp L.FunctionAttribute L.FunctionAttribute where
-  qqExpM x = [||pure x||]
-instance QQExp LR.RMWOperation LR.RMWOperation where
-  qqExpM x = [||pure x||]
-instance QQExp LI.IntegerPredicate LI.IntegerPredicate where
-  qqExpM x = [||pure x||]
-instance QQExp LF.FloatingPointPredicate LF.FloatingPointPredicate where
-  qqExpM x = [||pure x||]
-instance QQExp Bool Bool where
-  qqExpM x = [||pure x||]
-instance QQExp Word Word where
-  qqExpM x = [||pure x||]
-instance QQExp Word16 Word16 where
-  qqExpM x = [||pure x||]
-instance QQExp Word32 Word32 where
-  qqExpM x = [||pure x||]
-instance QQExp Word64 Word64 where
-  qqExpM x = [||pure x||]
-instance QQExp Integer Integer where
-  qqExpM x = [||pure x||]
-instance QQExp L.SomeFloat L.SomeFloat where
-  qqExpM x = [||pure x||]
-instance QQExp [L.ParameterAttribute] [L.ParameterAttribute] where
-  qqExpM x = [||pure x||]
-instance QQExp [L.FunctionAttribute] [L.FunctionAttribute] where
-  qqExpM x = [||pure x||]
-instance QQExp [Word32] [Word32] where
-  qqExpM x = [||pure x||]
-
---instance (QQExp a b) => QQExp [a] [b] where
---  qqExpM (x:xs) = [||$$(qqExpM x) : $$(qqExpM xs)||]
---  qqExpM []     = [||[]||]
 
 instance QQExp [A.MetadataNodeID] [L.MetadataNodeID] where
   qqExpM (x:xs) = [||(:) <$> $$(qqExpM x) <*> $$(qqExpM xs)||]
@@ -257,24 +201,39 @@ instance QQExp [A.Type] [L.Type] where
   qqExpM (x:xs) = [||(:) <$> $$(qqExpM x) <*> $$(qqExpM xs)||]
   qqExpM []     = [||pure []||]
 
-instance QQExp [(L.AddrSpace, (Word32, A.AlignmentInfo))]
-               [(L.AddrSpace, (Word32, L.AlignmentInfo))] where
-  qqExpM (x:xs) = [||(:) <$> $$(qqExpM x) <*> $$(qqExpM xs)||]
-  qqExpM []     = [||pure []||]
-
-instance QQExp [((A.AlignType, Word32), A.AlignmentInfo)]
-               [((L.AlignType, Word32), L.AlignmentInfo)] where
-  qqExpM (x:xs) = [||(:) <$> $$(qqExpM x) <*> $$(qqExpM xs)||]
-  qqExpM []     = [||pure []||]
-
 instance QQExp [(A.Operand, A.Name)] [(OperandL, L.Name)] where
   qqExpM (x:xs) = [||(:) <$> $$(qqExpM x) <*> $$(qqExpM xs)||]
   qqExpM []     = [||pure []||]
 
-instance (QQExp a b) => QQExp (Maybe a) (Maybe b) where
+-- instance (QQExp a b) => QQExp (Maybe a) (Maybe b) where
+--   qqExpM Nothing  = [||pure Nothing||]
+--   qqExpM (Just x) = [||Just <$> $$(qqExpM x)||]
+
+instance QQExp (Maybe A.Operand) (Maybe L.Operand) where
   qqExpM Nothing  = [||pure Nothing||]
   qqExpM (Just x) = [||Just <$> $$(qqExpM x)||]
 
+instance QQExp (Maybe A.Name) (Maybe L.Name) where
+  qqExpM Nothing  = [||pure Nothing||]
+  qqExpM (Just x) = [||Just <$> $$(qqExpM x)||]
+
+instance QQExp (Maybe A.Type) (Maybe L.Type) where
+  qqExpM Nothing  = [||pure Nothing||]
+  qqExpM (Just x) = [||Just <$> $$(qqExpM x)||]
+
+instance QQExp (Maybe A.DataLayout) (Maybe L.DataLayout) where
+  qqExpM Nothing  = [||pure Nothing||]
+  qqExpM (Just x) = [||Just <$> $$(qqExpM x)||]
+
+instance QQExp (Maybe A.Constant) (Maybe L.Constant) where
+  qqExpM Nothing  = [||pure Nothing||]
+  qqExpM (Just x) = [||Just <$> $$(qqExpM x)||]
+  
+instance QQExp (Maybe (A.Type, A.Operand, A.Name))
+               (Maybe (TypeL, OperandL, L.Name)) where
+  qqExpM Nothing  = [||pure Nothing||]
+  qqExpM (Just x) = [||Just <$> $$(qqExpM x)||]
+  
 instance (QQExp a c, QQExp b d) => QQExp (Either a b) (Either c d) where
   qqExpM (Left x)  = [||Left <$> $$(qqExpM x)||]
   qqExpM (Right x) = [||Right <$> $$(qqExpM x)||]
@@ -284,23 +243,6 @@ instance (QQExp a c, QQExp b d) => QQExp (a,b) (c,d) where
 
 instance (QQExp a d, QQExp b e, QQExp c f) => QQExp (a,b,c) (d,e,f) where
   qqExpM (x,y,z) = [||(,,) <$> $$(qqExpM x) <*> $$(qqExpM y) <*> $$(qqExpM z)||]
-
---instance (QQExp a c, QQExp b d, Ord c) => QQExp (M.Map a b) (M.Map c d) where
---  qqExpM = qqMapE
-
-instance QQExp (M.Map L.AddrSpace (Word32, A.AlignmentInfo))
-               (M.Map L.AddrSpace (Word32, L.AlignmentInfo)) where
-  qqExpM = qqMapE
-
-instance QQExp (M.Map (A.AlignType, Word32) A.AlignmentInfo)
-               (M.Map (L.AlignType, Word32) L.AlignmentInfo) where
-  qqExpM = qqMapE
-
---instance (QQExp a b, Ord b) => QQExp (S.Set a) (S.Set b) where
---  qqExpM = qqSetE
-
-instance QQExp (S.Set Word32) (S.Set Word32) where
-  qqExpM = qqSetE
 
 instance QQExp A.Definition L.Definition where
   qqExpM = qqDefinitionE
@@ -314,26 +256,20 @@ instance QQExp [A.Parameter] [L.Parameter] where
   qqExpM = qqParameterListE
 instance QQExp A.Parameter L.Parameter where
   qqExpM = qqParameterE
-instance QQExp A.BasicBlock L.BasicBlock where
-  qqExpM = qqBasicBlockE
-instance QQExp [A.BasicBlock] [L.BasicBlock] where
-  qqExpM = qqBasicBlockListE
-instance QQExp A.Terminator L.Terminator where
-  qqExpM = qqTerminatorE
-instance QQExp A.MemoryOrdering L.MemoryOrdering where
-  qqExpM = qqMemoryOrderingE
-instance QQExp A.Atomicity L.Atomicity where
-  qqExpM = qqAtomicityE
 instance QQExp A.LandingPadClause L.LandingPadClause where
   qqExpM = qqLandingPadClauseE
 instance QQExp A.FastMathFlags L.FastMathFlags where
   qqExpM = qqFastMathFlagsE
-instance QQExp A.Instruction L.Instruction where
+instance QQExp A.InlineAssembly L.InlineAssembly where
+  qqExpM = qqInlineAssemblyE
+instance QQExp A.Instruction (Either L.Instruction L.Terminator) where
   qqExpM = qqInstructionE
-instance QQExp [A.Named A.Instruction] [L.Named L.Instruction] where
-  qqExpM = qqNamedInstructionListE
-instance (QQExp a b) => QQExp (A.Named a) (L.Named b) where
-  qqExpM = qqNamedE
+instance QQExp [A.LabeledInstruction] [L.BasicBlock] where
+  qqExpM = qqLabeledInstructionListE
+instance QQExp A.NamedInstruction [L.BasicBlock] where
+  qqExpM = qqNamedInstructionE
+instance QQExp A.LabeledInstruction [L.BasicBlock] where
+  qqExpM = qqLabeledInstructionE
 instance QQExp A.MetadataNodeID L.MetadataNodeID where
   qqExpM = qqMetadataNodeIDE
 instance QQExp A.MetadataNode L.MetadataNode where
@@ -352,22 +288,10 @@ instance QQExp A.Constant L.Constant where
   qqExpM = qqConstantE
 instance QQExp A.Name L.Name where
   qqExpM = qqNameE
-instance QQExp A.FloatingPointFormat L.FloatingPointFormat where
-  qqExpM = qqFloatingPointFormatE
 instance QQExp A.Type TypeL where
   qqExpM = qqTypeE
 instance QQExp A.Type L.Type where
   qqExpM x = [||$$(qqExpM x) >>= \(Type t) -> return t||]
-instance QQExp A.Dialect L.Dialect where
-  qqExpM = qqDialectE
-instance QQExp A.InlineAssembly L.InlineAssembly where
-  qqExpM = qqInlineAssemblyE
-instance QQExp A.Endianness L.Endianness where
-  qqExpM = qqEndiannessE
-instance QQExp A.AlignmentInfo L.AlignmentInfo where
-  qqExpM = qqAlignmentInfoE
-instance QQExp A.AlignType L.AlignType where
-  qqExpM = qqAlignTypeE
 instance QQExp A.DataLayout L.DataLayout where
   qqExpM = qqDataLayoutE
 instance QQExp A.TargetTriple (Maybe String) where
@@ -429,34 +353,208 @@ qqParameterE (A.AntiParameter s) =
 qqParameterE a@(A.AntiParameterList _s) =
   error $ "Internal Error: unexpected antiquote " ++ show a
 
-qqBasicBlockListE :: Conversion [A.BasicBlock] [L.BasicBlock]
-qqBasicBlockListE [] = [||pure []||]
-qqBasicBlockListE (def : defs) =
+qqLandingPadClauseE :: Conversion A.LandingPadClause L.LandingPadClause
+qqLandingPadClauseE (A.Catch x1) =
+  [||L.Catch <$> $$(qqExpM x1)||]
+qqLandingPadClauseE (A.Filter x1) =
+  [||L.Filter <$> $$(qqExpM x1)||]
+
+qqFastMathFlagsE :: Conversion A.FastMathFlags L.FastMathFlags
+qqFastMathFlagsE A.NoFastMathFlags =
+  [||pure L.NoFastMathFlags||]
+qqFastMathFlagsE A.UnsafeAlgebra =
+  [||pure L.UnsafeAlgebra||]
+qqFastMathFlagsE (A.FastMathFlags x1 x2 x3 x4) =
+  [||L.FastMathFlags <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4)||]
+
+qqInlineAssemblyE :: Conversion A.InlineAssembly L.InlineAssembly
+qqInlineAssemblyE (A.InlineAssembly x1 x2 x3 x4 x5 x6) =
+  [||L.InlineAssembly <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4)
+                      <*> $$(qqExpM x5) <*> $$(qqExpM x6)||]
+
+qqInstructionE :: Conversion A.Instruction (Either L.Instruction L.Terminator)
+qqInstructionE (A.Add x1 x2 x3 x4 x5) =
+  [||Left <$> (L.Add <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4) <*> $$(qqExpM x5))||]
+qqInstructionE (A.FAdd x1 x2 x3 x4) =
+  [||Left <$> (L.FAdd <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4))||]
+qqInstructionE (A.Sub x1 x2 x3 x4 x5) =
+  [||Left <$> (L.Sub <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4) <*> $$(qqExpM x5))||]
+qqInstructionE (A.FSub x1 x2 x3 x4) =
+  [||Left <$> (L.FSub <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4))||]
+qqInstructionE (A.Mul x1 x2 x3 x4 x5) =
+  [||Left <$> (L.Mul <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4) <*> $$(qqExpM x5))||]
+qqInstructionE (A.FMul x1 x2 x3 x4) =
+  [||Left <$> (L.FMul <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4))||]
+qqInstructionE (A.UDiv x1 x2 x3 x4) =
+  [||Left <$> (L.UDiv <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4))||]
+qqInstructionE (A.SDiv x1 x2 x3 x4) =
+  [||Left <$> (L.SDiv <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4))||]
+qqInstructionE (A.FDiv x1 x2 x3 x4) =
+  [||Left <$> (L.FDiv <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4))||]
+qqInstructionE (A.URem x1 x2 x3) =
+  [||Left <$> (L.URem <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3))||]
+qqInstructionE (A.SRem x1 x2 x3) =
+  [||Left <$> (L.SRem <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3))||]
+qqInstructionE (A.FRem x1 x2 x3 x4) =
+  [||Left <$> (L.FRem <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4))||]
+qqInstructionE (A.Shl x1 x2 x3 x4 x5) =
+  [||Left <$> (L.Shl <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4) <*> $$(qqExpM x5))||]
+qqInstructionE (A.LShr x1 x2 x3 x4) =
+  [||Left <$> (L.LShr <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4))||]
+qqInstructionE (A.AShr x1 x2 x3 x4) =
+  [||Left <$> (L.AShr <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4))||]
+qqInstructionE (A.And x1 x2 x3) =
+  [||Left <$> (L.And <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3))||]
+qqInstructionE (A.Or x1 x2 x3) =
+  [||Left <$> (L.Or <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3))||]
+qqInstructionE (A.Xor x1 x2 x3) =
+  [||Left <$> (L.Xor <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3))||]
+qqInstructionE (A.Alloca x1 x2 x3 x4) =
+  [||Left <$> (L.Alloca <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4))||]
+qqInstructionE (A.Load x1 x2 x3 x4 x5) =
+  [||Left <$> (L.Load <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4) <*> $$(qqExpM x5))||]
+qqInstructionE (A.Store x1 x2 x3 x4 x5 x6) =
+  [||Left <$> (L.Store <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4) <*> $$(qqExpM x5)
+             <*> $$(qqExpM x6))||]
+qqInstructionE (A.GetElementPtr x1 x2 x3 x4) =
+  [||Left <$> (L.GetElementPtr <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4))||]
+qqInstructionE (A.Fence x1 x2) =
+  [||Left <$> (L.Fence <$> $$(qqExpM x1) <*> $$(qqExpM x2))||]
+qqInstructionE (A.CmpXchg x1 x2 x3 x4 x5 x6) =
+  [||Left <$> (L.CmpXchg <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4) <*> $$(qqExpM x5)
+               <*> $$(qqExpM x6))||]
+qqInstructionE (A.AtomicRMW x1 x2 x3 x4 x5 x6) =
+  [||Left <$> (L.AtomicRMW <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4)
+                 <*> $$(qqExpM x5) <*> $$(qqExpM x6))||]
+qqInstructionE (A.Trunc x1 x2 x3) =
+  [||Left <$> (L.Trunc <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3))||]
+qqInstructionE (A.ZExt x1 x2 x3) =
+  [||Left <$> (L.ZExt <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3))||]
+qqInstructionE (A.SExt x1 x2 x3) =
+  [||Left <$> (L.SExt <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3))||]
+qqInstructionE (A.FPToUI x1 x2 x3) =
+  [||Left <$> (L.FPToUI <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3))||]
+qqInstructionE (A.FPToSI x1 x2 x3) =
+  [||Left <$> (L.FPToSI <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3))||]
+qqInstructionE (A.UIToFP x1 x2 x3) =
+  [||Left <$> (L.UIToFP <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3))||]
+qqInstructionE (A.SIToFP x1 x2 x3) =
+  [||Left <$> (L.SIToFP <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3))||]
+qqInstructionE (A.FPTrunc x1 x2 x3) =
+  [||Left <$> (L.FPTrunc <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3))||]
+qqInstructionE (A.FPExt x1 x2 x3) =
+  [||Left <$> (L.FPExt <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3))||]
+qqInstructionE (A.PtrToInt x1 x2 x3) =
+  [||Left <$> (L.PtrToInt <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3))||]
+qqInstructionE (A.IntToPtr x1 x2 x3) =
+  [||Left <$> (L.IntToPtr <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3))||]
+qqInstructionE (A.BitCast x1 x2 x3) =
+  [||Left <$> (L.BitCast <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3))||]
+qqInstructionE (A.AddrSpaceCast x1 x2 x3) =
+  [||Left <$> (L.AddrSpaceCast <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3))||]
+qqInstructionE (A.ICmp x1 x2 x3 x4) =
+  [||Left <$> (L.ICmp <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4))||]
+qqInstructionE (A.FCmp x1 x2 x3 x4) =
+  [||Left <$> (L.FCmp <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4))||]
+qqInstructionE (A.Phi x1 x2 x3) =
+  [||Left <$> (L.Phi <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3))||]
+qqInstructionE (A.Call x1 x2 x3 x4 x5 x6 x7) =
+  [||Left <$> (L.Call <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4) <*> $$(qqExpM x5)
+            <*> $$(qqExpM x6) <*> $$(qqExpM x7))||]
+qqInstructionE (A.Select x1 x2 x3 x4) =
+  [||Left <$> (L.Select <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4))||]
+qqInstructionE (A.VAArg x1 x2 x3) =
+  [||Left <$> (L.VAArg <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3))||]
+qqInstructionE (A.ExtractElement x1 x2 x3) =
+  [||Left <$> (L.ExtractElement <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3))||]
+qqInstructionE (A.InsertElement x1 x2 x3 x4) =
+  [||Left <$> (L.InsertElement <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4))||]
+qqInstructionE (A.ShuffleVector x1 x2 x3 x4) =
+  [||Left <$> (L.ShuffleVector <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4))||]
+qqInstructionE (A.ExtractValue x1 x2 x3) =
+  [||Left <$> (L.ExtractValue <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3))||]
+qqInstructionE (A.InsertValue x1 x2 x3 x4) =
+  [||Left <$> (L.InsertValue <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4))||]
+qqInstructionE (A.LandingPad x1 x2 x3 x4 x5) =
+  [||Left <$> (L.LandingPad <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4)
+                  <*> $$(qqExpM x5))||]
+qqInstructionE (A.OperandInstruction x1) =
+  [||do x1' <- $$(qqExpM x1)
+        let true = L.ConstantOperand $ L.Int 1 1
+        return $ Left $ L.Select true x1' x1' []||]
+qqInstructionE (A.AntiInstruction s) =
+  unsafeTExpCoerce $ antiVarE s
+qqInstructionE (A.Ret x1 x2) =
+  [||Right <$> (L.Ret <$> $$(qqExpM x1) <*> $$(qqExpM x2))||]
+qqInstructionE (A.CondBr x1 x2 x3 x4) =
+  [||Right <$> (L.CondBr <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4))||]
+qqInstructionE (A.Br x1 x2) =
+  [||Right <$> (L.Br <$> $$(qqExpM x1) <*> $$(qqExpM x2))||]
+qqInstructionE (A.Switch x1 x2 x3 x4) =
+  [||Right <$> (L.Switch <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4))||]
+qqInstructionE (A.IndirectBr x1 x2 x3) =
+  [||Right <$> (L.IndirectBr <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3))||]
+qqInstructionE (A.Invoke x1 x2 x3 x4 x5 x6 x7 x8) =
+  [||Right <$> (L.Invoke <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4) <*> $$(qqExpM x5)
+              <*> $$(qqExpM x6) <*> $$(qqExpM x7) <*> $$(qqExpM x8))||]
+qqInstructionE (A.Resume x1 x2) =
+  [||Right <$> (L.Resume <$> $$(qqExpM x1) <*> $$(qqExpM x2))||]
+qqInstructionE (A.Unreachable x1) =
+  [||Right <$> (L.Unreachable <$> $$(qqExpM x1))||]
+
+qqLabeledInstructionListE :: Conversion [A.LabeledInstruction] [L.BasicBlock]
+qqLabeledInstructionListE [] =
+  [||pure []||]
+qqLabeledInstructionListE (x:xs) =
   [||let nextLabel :: L.Name
          nextLabel = L.Name "nextblock"
+
+         jumpNext :: L.BasicBlock -> Bool
+         jumpNext (L.BasicBlock _ _ t) =
+           case t of
+             _ L.:= L.Br l2 md | l2 == nextLabel -> True
+             L.Do (L.Br l2 md) | l2 == nextLabel -> True
+             _                                   -> False
+
+         -- this works under the ussumption, that the second block has only one incoming block
+         -- and no phi-nodes
+         fuse :: L.BasicBlock -> L.BasicBlock -> L.BasicBlock
+         fuse (L.BasicBlock n1 i1 t1) (L.BasicBlock n2 i2 t2) =
+           L.BasicBlock n1 (i1++i2) t2
          
-         (=~) :: L.Name -> L.Name -> Bool
-         (L.Name x) =~ (L.Name y) = y `isPrefixOf` x
-         x          =~ y          = x == y
+         fuseBlocks :: [L.BasicBlock] -> [L.BasicBlock]
+         fuseBlocks bbs@[] = bbs
+         fuseBlocks bbs@[_] = bbs
+         fuseBlocks (bb1:bbs@(bb2:bbs')) =
+           case jumpNext bb1 of
+             True  -> fuseBlocks ((fuse bb1 bb2):bbs')
+             False -> bb1 : fuseBlocks bbs
+         
+     in fuseBlocks <$> ((++) <$> $$(qqExpM x) <*> $$(qqExpM xs))||]
 
-         replaceBrLabel :: L.BasicBlock -> L.Name -> L.BasicBlock
-         replaceBrLabel (L.BasicBlock l is t) l1 =
-           let t' = case t of
-                      n L.:= L.Br l2 md | l2 =~ nextLabel -> n L.:= L.Br l1 md
-                      L.Do (L.Br l2 md) | l2 =~ nextLabel -> L.Do (L.Br l1 md)
-                      _                                   -> t
-           in (L.BasicBlock l is t')
+qqLabeledInstructionE :: Conversion A.LabeledInstruction [L.BasicBlock]
+qqLabeledInstructionE (A.Labeled label instr) =
+  [||do label' <- $$(qqExpM label)
+        L.BasicBlock _ is t:bbs <- $$(qqExpM instr)
+        return $ L.BasicBlock label' is t:bbs||]
 
-         replaceBrLabels :: [L.BasicBlock] -> [L.BasicBlock]
-         replaceBrLabels bbs@[] = bbs
-         replaceBrLabels bbs@[_] = bbs
-         replaceBrLabels (bb:bbs@(L.BasicBlock l1 _ _:_)) =
-           replaceBrLabel bb l1 : replaceBrLabels bbs
-     in replaceBrLabels <$> ((++) <$> $$(transform def) <*> $$(qqExpM defs))||]
-
-transform :: forall m.Conversion' m A.BasicBlock [L.BasicBlock]
-transform bb@A.BasicBlock{} = [||(:[]) <$> $$(qqExpM bb)||]
-transform (A.ForLoop label iterType iterName direction from to step element body) =
+qqNamedInstructionE :: forall m. Conversion' m A.NamedInstruction [L.BasicBlock]
+qqNamedInstructionE (x1 A.:= x2) =
+  [||do x1' <- $$(qqExpM x1)
+        x2' <- $$(qqExpM x2)
+        n <- newVariable
+        case x2' of
+          Left ins -> return [L.BasicBlock n [x1' L.:= ins] (L.Do $ L.Br (L.Name "nextblock") [])]
+          Right term -> return [L.BasicBlock n [] (x1' L.:= term)]||]
+qqNamedInstructionE (A.Do x2) =
+  [||do x2' <- $$(qqExpM x2)
+        n <- newVariable
+        case x2' of
+          Left ins -> return [L.BasicBlock n [L.Do ins] (L.Do $ L.Br (L.Name "nextblock") [])]
+          Right term -> return [L.BasicBlock n [] (L.Do term)]||]
+qqNamedInstructionE (A.AntiInstructionList s) =
+  unsafeTExpCoerce $ antiVarE s
+qqNamedInstructionE (A.ForLoop iterType iterName direction from to step element body) =
   [||do
     element' <- $$(qqExpM element :: TExpQ (m (Maybe (TypeL, OperandL, L.Name))))
     let ret :: L.BasicBlock -> Maybe (Maybe L.Operand, L.Name)
@@ -488,14 +586,14 @@ transform (A.ForLoop label iterType iterName direction from to step element body
           ++ phiElements ++
           case direction of
             A.Up ->
-              [ cond L.:= L.ICmp LI.ULT iter to' []
+              [ cond L.:= L.ICmp LI.SLT iter to' []
               , iterNameNew L.:= L.Add True True iter step' []
               ]
             A.Down ->
-              [ cond L.:= L.ICmp LI.UGT iter to' []
+              [ cond L.:= L.ICmp LI.SGT iter to' []
               , iterNameNew L.:= L.Sub True True iter step' []
               ]
-    label' <- $$(qqExpM label :: TExpQ (m L.Name))
+    label' <- newVariable
     let labelString = labelStringF label'
         cond = L.Name (labelString ++ ".cond")
         labelHead = L.Name (labelString ++ ".head")
@@ -525,7 +623,7 @@ transform (A.ForLoop label iterType iterName direction from to step element body
               Operand o -> fail $ "can't use single Operand with list of types: " ++ show o
             let froms = (xs,label') : rets
                 froms' = transpose [[(x,l) | x <- xs'] | (xs',l) <- froms] 
-            return $ assert (length froms' == length ts) $ (body',returns,zip3 ts froms' names)
+            return (body',returns,zip3 ts froms' names)
         return (body',returns,[n L.:= L.Phi t f [] | (t,f,n) <- elements])
     iterName' <- $$(qqExpM iterName :: TExpQ (m L.Name))
     iterType' <- $$(qqExpM iterType :: TExpQ (m L.Type))
@@ -547,221 +645,10 @@ transform (A.ForLoop label iterType iterName direction from to step element body
         main = replaceRets labelHead body'
     return (pre ++ main ++ post)
   ||]
-transform (A.AntiBasicBlock v)
+qqNamedInstructionE (A.AntiBasicBlock v)
   = [||(:[]) <$> $$(unsafeTExpCoerce $ antiVarE v)||]
-transform (A.AntiBasicBlockList v)
+qqNamedInstructionE (A.AntiBasicBlockList v)
   = unsafeTExpCoerce $ antiVarE v
-
-qqBasicBlockE :: Conversion A.BasicBlock L.BasicBlock
-qqBasicBlockE (A.BasicBlock x1 x2 x3) =
-  [||L.BasicBlock <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3)||]
-qqBasicBlockE (A.AntiBasicBlock s) =
-  unsafeTExpCoerce $ antiVarE s
-qqBasicBlockE a@A.ForLoop{} =
-  error $ "Internal Error: unexpected loop " ++ show a
-qqBasicBlockE a@(A.AntiBasicBlockList _s) =
-  error $ "Internal Error: unexpected antiquote " ++ show a
-
-qqTerminatorE :: Conversion A.Terminator L.Terminator
-qqTerminatorE (A.Ret x1 x2) =
-  [||L.Ret <$> $$(qqExpM x1) <*> $$(qqExpM x2)||]
-qqTerminatorE (A.CondBr x1 x2 x3 x4) =
-  [||L.CondBr <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4)||]
-qqTerminatorE (A.Br x1 x2) =
-  [||L.Br <$> $$(qqExpM x1) <*> $$(qqExpM x2)||]
-qqTerminatorE (A.Switch x1 x2 x3 x4) =
-  [||L.Switch <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4)||]
-qqTerminatorE (A.IndirectBr x1 x2 x3) =
-  [||L.IndirectBr <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3)||]
-qqTerminatorE (A.Invoke x1 x2 x3 x4 x5 x6 x7 x8) =
-  [||L.Invoke <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4) <*> $$(qqExpM x5)
-              <*> $$(qqExpM x6) <*> $$(qqExpM x7) <*> $$(qqExpM x8)||]
-qqTerminatorE (A.Resume x1 x2) =
-  [||L.Resume <$> $$(qqExpM x1) <*> $$(qqExpM x2)||]
-qqTerminatorE (A.Unreachable x1) =
-  [||L.Unreachable <$> $$(qqExpM x1)||]
-
-qqMemoryOrderingE :: Conversion A.MemoryOrdering L.MemoryOrdering
-qqMemoryOrderingE A.Unordered =
-  [||pure L.Unordered||]
-qqMemoryOrderingE A.Monotonic =
-  [||pure L.Monotonic||]
-qqMemoryOrderingE A.Acquire =
-  [||pure L.Acquire||]
-qqMemoryOrderingE A.Release =
-  [||pure L.Release||]
-qqMemoryOrderingE A.AcquireRelease =
-  [||pure L.AcquireRelease||]
-qqMemoryOrderingE A.SequentiallyConsistent =
-  [||pure L.SequentiallyConsistent||]
-
-qqAtomicityE :: Conversion A.Atomicity L.Atomicity
-qqAtomicityE (A.Atomicity x1 x2) =
-  [||L.Atomicity <$> $$(qqExpM x1) <*> $$(qqExpM x2)||]
-
-qqLandingPadClauseE :: Conversion A.LandingPadClause L.LandingPadClause
-qqLandingPadClauseE (A.Catch x1) =
-  [||L.Catch <$> $$(qqExpM x1)||]
-qqLandingPadClauseE (A.Filter x1) =
-  [||L.Filter <$> $$(qqExpM x1)||]
-
-qqFastMathFlagsE :: Conversion A.FastMathFlags L.FastMathFlags
-qqFastMathFlagsE A.NoFastMathFlags =
-  [||pure L.NoFastMathFlags||]
-qqFastMathFlagsE A.UnsafeAlgebra =
-  [||pure L.UnsafeAlgebra||]
-qqFastMathFlagsE (A.FastMathFlags x1 x2 x3 x4) =
-  [||L.FastMathFlags <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4)||]
-
-qqInstructionE :: Conversion A.Instruction L.Instruction
-qqInstructionE (A.Add x1 x2 x3 x4 x5) =
-  [||L.Add <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4) <*> $$(qqExpM x5)||]
-qqInstructionE (A.FAdd x1 x2 x3 x4) =
-  [||L.FAdd <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4)||]
-qqInstructionE (A.Sub x1 x2 x3 x4 x5) =
-  [||L.Sub <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4) <*> $$(qqExpM x5)||]
-qqInstructionE (A.FSub x1 x2 x3 x4) =
-  [||L.FSub <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4)||]
-qqInstructionE (A.Mul x1 x2 x3 x4 x5) =
-  [||L.Mul <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4) <*> $$(qqExpM x5)||]
-qqInstructionE (A.FMul x1 x2 x3 x4) =
-  [||L.FMul <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4)||]
-qqInstructionE (A.UDiv x1 x2 x3 x4) =
-  [||L.UDiv <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4)||]
-qqInstructionE (A.SDiv x1 x2 x3 x4) =
-  [||L.SDiv <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4)||]
-qqInstructionE (A.FDiv x1 x2 x3 x4) =
-  [||L.FDiv <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4)||]
-qqInstructionE (A.URem x1 x2 x3) =
-  [||L.URem <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3)||]
-qqInstructionE (A.SRem x1 x2 x3) =
-  [||L.SRem <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3)||]
-qqInstructionE (A.FRem x1 x2 x3 x4) =
-  [||L.FRem <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4)||]
-qqInstructionE (A.Shl x1 x2 x3 x4 x5) =
-  [||L.Shl <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4) <*> $$(qqExpM x5)||]
-qqInstructionE (A.LShr x1 x2 x3 x4) =
-  [||L.LShr <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4)||]
-qqInstructionE (A.AShr x1 x2 x3 x4) =
-  [||L.AShr <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4)||]
-qqInstructionE (A.And x1 x2 x3) =
-  [||L.And <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3)||]
-qqInstructionE (A.Or x1 x2 x3) =
-  [||L.Or <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3)||]
-qqInstructionE (A.Xor x1 x2 x3) =
-  [||L.Xor <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3)||]
-qqInstructionE (A.Alloca x1 x2 x3 x4) =
-  [||L.Alloca <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4)||]
-qqInstructionE (A.Load x1 x2 x3 x4 x5) =
-  [||L.Load <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4) <*> $$(qqExpM x5)||]
-qqInstructionE (A.Store x1 x2 x3 x4 x5 x6) =
-  [||L.Store <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4) <*> $$(qqExpM x5)
-             <*> $$(qqExpM x6)||]
-qqInstructionE (A.GetElementPtr x1 x2 x3 x4) =
-  [||L.GetElementPtr <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4)||]
-qqInstructionE (A.Fence x1 x2) =
-  [||L.Fence <$> $$(qqExpM x1) <*> $$(qqExpM x2)||]
-qqInstructionE (A.CmpXchg x1 x2 x3 x4 x5 x6) =
-  [||L.CmpXchg <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4) <*> $$(qqExpM x5)
-               <*> $$(qqExpM x6)||]
-qqInstructionE (A.AtomicRMW x1 x2 x3 x4 x5 x6) =
-  [||L.AtomicRMW <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4)
-                 <*> $$(qqExpM x5) <*> $$(qqExpM x6)||]
-qqInstructionE (A.Trunc x1 x2 x3) =
-  [||L.Trunc <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3)||]
-qqInstructionE (A.ZExt x1 x2 x3) =
-  [||L.ZExt <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3)||]
-qqInstructionE (A.SExt x1 x2 x3) =
-  [||L.SExt <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3)||]
-qqInstructionE (A.FPToUI x1 x2 x3) =
-  [||L.FPToUI <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3)||]
-qqInstructionE (A.FPToSI x1 x2 x3) =
-  [||L.FPToSI <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3)||]
-qqInstructionE (A.UIToFP x1 x2 x3) =
-  [||L.UIToFP <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3)||]
-qqInstructionE (A.SIToFP x1 x2 x3) =
-  [||L.SIToFP <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3)||]
-qqInstructionE (A.FPTrunc x1 x2 x3) =
-  [||L.FPTrunc <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3)||]
-qqInstructionE (A.FPExt x1 x2 x3) =
-  [||L.FPExt <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3)||]
-qqInstructionE (A.PtrToInt x1 x2 x3) =
-  [||L.PtrToInt <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3)||]
-qqInstructionE (A.IntToPtr x1 x2 x3) =
-  [||L.IntToPtr <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3)||]
-qqInstructionE (A.BitCast x1 x2 x3) =
-  [||L.BitCast <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3)||]
-qqInstructionE (A.AddrSpaceCast x1 x2 x3) =
-  [||L.AddrSpaceCast <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3)||]
-qqInstructionE (A.ICmp x1 x2 x3 x4) =
-  [||L.ICmp <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4)||]
-qqInstructionE (A.FCmp x1 x2 x3 x4) =
-  [||L.FCmp <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4)||]
-qqInstructionE (A.Phi x1 x2 x3) =
-  [||L.Phi <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3)||]
-qqInstructionE (A.Call x1 x2 x3 x4 x5 x6 x7) =
-  [||L.Call <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4) <*> $$(qqExpM x5)
-            <*> $$(qqExpM x6) <*> $$(qqExpM x7)||]
-qqInstructionE (A.Select x1 x2 x3 x4) =
-  [||L.Select <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4)||]
-qqInstructionE (A.VAArg x1 x2 x3) =
-  [||L.VAArg <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3)||]
-qqInstructionE (A.ExtractElement x1 x2 x3) =
-  [||L.ExtractElement <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3)||]
-qqInstructionE (A.InsertElement x1 x2 x3 x4) =
-  [||L.InsertElement <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4)||]
-qqInstructionE (A.ShuffleVector x1 x2 x3 x4) =
-  [||L.ShuffleVector <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4)||]
-qqInstructionE (A.ExtractValue x1 x2 x3) =
-  [||L.ExtractValue <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3)||]
-qqInstructionE (A.InsertValue x1 x2 x3 x4) =
-  [||L.InsertValue <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4)||]
-qqInstructionE (A.LandingPad x1 x2 x3 x4 x5) =
-  [||L.LandingPad <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4)
-                  <*> $$(qqExpM x5)||]
-qqInstructionE (A.AntiInstruction s) =
-  unsafeTExpCoerce $ antiVarE s
-
-qqNamedInstructionListE :: Conversion [A.Named A.Instruction] [L.Named L.Instruction]
-qqNamedInstructionListE [] =
-  [||pure []||]
-qqNamedInstructionListE (A.AntiInstructionList s:xs) =
-  [||(++) <$> $$(unsafeTExpCoerce $ antiVarE s) <*> $$(qqExpM xs)||]
-qqNamedInstructionListE ((A.:=) name' x2'@(A.Phi ty' incoming' meta'):xs) =
-  [||do let toOpList :: CodeGenMonad m => (OperandL,L.Name) -> m ([L.Operand],L.Name)
-            toOpList (from,l) = do
-              froms <- case from of
-                    OperandList os -> return os
-                    Operand (L.LocalReference n) -> getVariable n
-                    Operand o -> fail $ "can't use single Operand with list of types: " ++ show o
-              return (froms,l)
-
-        name <- $$(qqExpM name')
-        ty <- $$(qqExpM ty')
-        let x = case ty of
-                  Type t      -> do
-                    x2 <- $$(qqExpM x2')
-                    return $ [name L.:= x2]
-                  TypeList ts -> do
-                    incoming <- $$(qqExpM incoming')
-                    meta <- $$(qqExpM meta')
-                    names <- mapM (\_ -> newVariable) ts
-                    setVariable name $ map L.LocalReference names
-                    incomings' <- mapM toOpList incoming
-                    let incomings = transpose [[(x',l) | x' <- xs'] | (xs',l) <- incomings']
-                    return $ assert (length incomings' == length ts) $
-                      zipWith3 (\n t inc -> n L.:= L.Phi t inc meta) names ts incomings
-        (++) <$> x <*> $$(qqExpM xs)||]
-qqNamedInstructionListE (x:xs) =
-  [||(:) <$> $$(qqExpM x) <*> $$(qqExpM xs)||]
-
-qqNamedE :: (QQExp a b) => Conversion (A.Named a) (L.Named b)
-qqNamedE ((A.:=) x1 x2) =
-  [||(L.:=) <$> $$(qqExpM x1) <*> $$(qqExpM x2)||]
-qqNamedE (A.Do x1) =
-  [||L.Do <$> $$(qqExpM x1)||]
-qqNamedE (A.AntiInstructionList s) =
-  error $ "internal error: unexpected anti-quotation" ++ s
 
 qqMetadataNodeIDE :: Conversion A.MetadataNodeID L.MetadataNodeID
 qqMetadataNodeIDE (A.MetadataNodeID x1) =
@@ -824,14 +711,6 @@ qqNameE A.NeedsName = do
 qqNameE (A.AntiName s) =
   unsafeTExpCoerce [|$(antiVarE s) >>= return . toName|]
 
-qqFloatingPointFormatE :: Conversion A.FloatingPointFormat L.FloatingPointFormat
-qqFloatingPointFormatE A.IEEE =
-  [||pure L.IEEE||]
-qqFloatingPointFormatE A.DoubleExtended =
-  [||pure L.DoubleExtended||]
-qqFloatingPointFormatE A.PairOfFloats =
-  [||pure L.PairOfFloats||] 
-
 qqTypeE :: Conversion A.Type TypeL
 qqTypeE A.VoidType =
   [||pure $ Type L.VoidType||]
@@ -858,47 +737,6 @@ qqTypeE (A.AntiTypes s) =
 qqTypeE (A.AntiType s) =
   [||Type <$> $$(unsafeTExpCoerce $ antiVarE s)||]
 
-qqDialectE :: Conversion A.Dialect L.Dialect
-qqDialectE A.ATTDialect =
-  [||pure L.ATTDialect||]
-qqDialectE A.IntelDialect =
-  [||pure L.IntelDialect||]
-
-qqInlineAssemblyE :: Conversion A.InlineAssembly L.InlineAssembly
-qqInlineAssemblyE (A.InlineAssembly x1 x2 x3 x4 x5 x6) =
-  [||L.InlineAssembly <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4)
-                      <*> $$(qqExpM x5) <*> $$(qqExpM x6)||]
-
-qqMapE :: (QQExp [(a, b)] [(c, d)], Ord c) => Conversion (M.Map a b) (M.Map c d)
-qqMapE m =
-  [||M.fromList <$> $$(qqExpM (M.toList m))||]
-
-qqSetE :: (QQExp [a] [b], Ord b) => Conversion (S.Set a) (S.Set b)
-qqSetE m =
-  [||S.fromList <$> $$(qqExpM (S.toList m))||]
-
-qqEndiannessE :: Conversion A.Endianness L.Endianness
-qqEndiannessE A.LittleEndian =
-  [||pure L.LittleEndian||]
-qqEndiannessE A.BigEndian =
-  [||pure L.BigEndian||]
-
-qqAlignmentInfoE :: Conversion A.AlignmentInfo L.AlignmentInfo
-qqAlignmentInfoE (A.AlignmentInfo x1 x2) =
-  [||L.AlignmentInfo <$> $$(qqExpM x1) <*> $$(qqExpM x2)||]
-
-qqAlignTypeE :: Conversion A.AlignType L.AlignType
-qqAlignTypeE A.IntegerAlign =
-  [||pure L.IntegerAlign||]
-qqAlignTypeE A.VectorAlign =
-  [||pure L.VectorAlign||]
-qqAlignTypeE A.FloatAlign =
-  [||pure L.FloatAlign||]
-qqAlignTypeE A.AggregateAlign =
-  [||pure L.AggregateAlign||]
-qqAlignTypeE A.StackAlign =
-  [||pure L.StackAlign||]
-
 qqDataLayoutE :: Conversion A.DataLayout L.DataLayout
 qqDataLayoutE (A.DataLayout x1 x2 x3 x4 x5) =
   [||L.DataLayout <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4)
@@ -913,428 +751,6 @@ qqTargetTripleE (A.TargetTriple v) =
   [||Just <$> $$(qqExpM v)||]
 qqTargetTripleE (A.AntiTargetTriple v) =
   unsafeTExpCoerce [|$(antiVarE v) >>= return . toTargetTriple|]
-
-antiVarP :: String -> PatQ
-antiVarP = either fail return . parsePat
-
-qqDefinitionListP :: [A.Definition] -> Maybe (Q Pat)
-qqDefinitionListP [] = Just [p|[]|]
-qqDefinitionListP [A.AntiDefinitionList v] =
-    Just $ antiVarP v
-qqDefinitionListP (A.AntiDefinitionList _ : _ : _) =
-    error "Antiquoted list of definitions must be last item in quoted list"
-qqDefinitionListP (def : defs) =
-    Just [p|$(qqP def) : $(qqP defs)|]
-
-qqDefinitionP :: A.Definition -> Maybe (Q Pat)
-qqDefinitionP (A.GlobalDefinition v) =
-    Just [p|L.GlobalDefinition $(qqP v)|]
-qqDefinitionP (A.TypeDefinition n v) =
-    Just [p|L.TypeDefinition $(qqP n) $(qqP v)|]
-qqDefinitionP (A.MetadataNodeDefinition i vs) =
-    Just [p|L.MetadataNodeDefinition $(qqP i) $(qqP vs)|]
-qqDefinitionP (A.NamedMetadataDefinition i vs) =
-    Just [p|L.NamedMetadataDefinition $(qqP i) $(qqP vs)|]
-qqDefinitionP (A.ModuleInlineAssembly s) =
-    Just [p|L.ModuleInlineAssembly $(qqP s)|]
-qqDefinitionP (A.AntiDefinition s) =
-    Just $ antiVarP s
-qqDefinitionP a@(A.AntiDefinitionList _s) =
-    error $ "Internal Error: unexpected antiquote " ++ show a
-
-qqModuleP :: A.Module -> Maybe (Q Pat)
-qqModuleP (A.Module n dl tt ds) =
-  Just [p|L.Module $(qqP n) $(qqP dl) $(qqP tt) $(qqP ds)|]
-
-qqGlobalP :: A.Global -> Maybe (Q Pat)
-qqGlobalP (A.GlobalVariable x1 x2 x3 x4 x5 x6 x7 x8 x9 xA xB) =
-  Just [p|L.GlobalVariable $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4) $(qqP x5)
-                           $(qqP x6) $(qqP x7) $(qqP x8) $(qqP x9) $(qqP xA)
-                           $(qqP xB)|]
-qqGlobalP (A.GlobalAlias x1 x2 x3 x4 x5) =
-  Just [p|L.GlobalAlias $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4) $(qqP x5)|]
-qqGlobalP (A.Function x1 x2 x3 x4 x5 x6 x7 x8 x9 xA xB xC) =
-  Just [p|L.Function $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4) $(qqP x5)
-                     $(qqP x6) $(qqP x7) $(qqP x8) $(qqP x9) $(qqP xA)
-                     $(qqP xB) $(qqP xC)|]
-
-qqParameterListP :: [A.Parameter] -> Maybe (Q Pat)
-qqParameterListP [] = Just [p|[]|]
-qqParameterListP [A.AntiParameterList v] =
-    Just $ antiVarP v
-qqParameterListP (A.AntiParameterList v : _) =
-    error "Antiquoted list of Parameters must be last item in quoted list"
-qqParameterListP (def : defs) =
-    Just [p|$(qqP def) : $(qqP defs)|]
-
-qqParameterP :: A.Parameter -> Maybe (Q Pat)
-qqParameterP (A.Parameter x1 x2 x3) =
-  Just [p|L.Parameter $(qqP x1) $(qqP x2) $(qqP x3)|]
-qqParameterP (A.AntiParameter s) =
-  Just $ antiVarP s
-qqParameterP a@(A.AntiParameterList _s) =
-  error $ "Internal Error: unexpected antiquote " ++ show a
-
-qqBasicBlockListP :: [A.BasicBlock] -> Maybe (Q Pat)
-qqBasicBlockListP [] = Just [p|[]|]
-qqBasicBlockListP [A.AntiBasicBlockList v] =
-    Just $ antiVarP v
-qqBasicBlockListP (A.AntiBasicBlockList v : defs) =
-    error "Antiquoted list of BasicBlocks must be last item in quoted list"
-qqBasicBlockListP (def : defs) =
-    Just [p|$(qqP def) : $(qqP defs)|]
-
-qqBasicBlockP :: A.BasicBlock -> Maybe (Q Pat)
-qqBasicBlockP (A.BasicBlock x1 x2 x3) =
-  Just [p|L.BasicBlock $(qqP x1) $(qqP x2) $(qqP x3)|]
-qqBasicBlockP (A.AntiBasicBlock s) =
-  Just $ antiVarP s
-qqBasicBlockP a@A.ForLoop{} =
-  error $ "Error: for-loop not allowed in pattern quote " ++ show a
-qqBasicBlockP a@(A.AntiBasicBlockList _s) =
-  error $ "Internal Error: unexpected antiquote " ++ show a
-
-qqTerminatorP :: A.Terminator -> Maybe (Q Pat)
-qqTerminatorP (A.Ret x1 x2) =
-  Just [p|L.Ret $(qqP x1) $(qqP x2)|]
-qqTerminatorP (A.CondBr x1 x2 x3 x4) =
-  Just [p|L.CondBr $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4)|]
-qqTerminatorP (A.Br x1 x2) =
-  Just [p|L.Br $(qqP x1) $(qqP x2)|]
-qqTerminatorP (A.Switch x1 x2 x3 x4) =
-  Just [p|L.Switch $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4)|]
-qqTerminatorP (A.IndirectBr x1 x2 x3) =
-  Just [p|L.IndirectBr $(qqP x1) $(qqP x2) $(qqP x3)|]
-qqTerminatorP (A.Invoke x1 x2 x3 x4 x5 x6 x7 x8) =
-  Just [p|L.Invoke $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4) $(qqP x5)
-                   $(qqP x6) $(qqP x7) $(qqP x8)|]
-qqTerminatorP (A.Resume x1 x2) =
-  Just [p|L.Resume $(qqP x1) $(qqP x2)|]
-qqTerminatorP (A.Unreachable x1) =
-  Just [p|L.Unreachable $(qqP x1)|]
-
-qqMemoryOrderingP :: A.MemoryOrdering -> Maybe (Q Pat)
-qqMemoryOrderingP A.Unordered =
-  Just [p|L.Unordered|]
-qqMemoryOrderingP A.Monotonic =
-  Just [p|L.Monotonic|]
-qqMemoryOrderingP A.Acquire =
-  Just [p|L.Acquire|]
-qqMemoryOrderingP A.Release =
-  Just [p|L.Release|]
-qqMemoryOrderingP A.AcquireRelease =
-  Just [p|L.AcquireRelease|]
-qqMemoryOrderingP A.SequentiallyConsistent =
-  Just [p|L.SequentiallyConsistent|]
-
-qqAtomicityP :: A.Atomicity -> Maybe (Q Pat)
-qqAtomicityP (A.Atomicity x1 x2) =
-  Just [p|L.Atomicity $(qqP x1) $(qqP x2)|]
-
-qqLandingPadClauseP :: A.LandingPadClause -> Maybe (Q Pat)
-qqLandingPadClauseP (A.Catch x1) =
-  Just [p|L.Catch $(qqP x1)|]
-qqLandingPadClauseP (A.Filter x1) =
-  Just [p|L.Filter $(qqP x1)|]
-
-qqFastMathFlagsP :: A.FastMathFlags -> Maybe (Q Pat)
-qqFastMathFlagsP A.NoFastMathFlags =
-  Just [p|L.NoFastMathFlags|]
-qqFastMathFlagsP A.UnsafeAlgebra =
-  Just [p|L.UnsafeAlgebra|]
-qqFastMathFlagsP (A.FastMathFlags x1 x2 x3 x4) =
-  Just [p|L.FastMathFlags $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4)|]
-
-qqInstructionP :: A.Instruction -> Maybe (Q Pat)
-qqInstructionP (A.Add x1 x2 x3 x4 x5) =
-  Just [p|L.Add $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4) $(qqP x5)|]
-qqInstructionP (A.FAdd x1 x2 x3 x4) =
-  Just [p|L.FAdd $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4)|]
-qqInstructionP (A.Sub x1 x2 x3 x4 x5) =
-  Just [p|L.Sub $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4) $(qqP x5)|]
-qqInstructionP (A.FSub x1 x2 x3 x4) =
-  Just [p|L.FSub $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4)|]
-qqInstructionP (A.Mul x1 x2 x3 x4 x5) =
-  Just [p|L.Mul $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4) $(qqP x5)|]
-qqInstructionP (A.FMul x1 x2 x3 x4) =
-  Just [p|L.FMul $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4)|]
-qqInstructionP (A.UDiv x1 x2 x3 x4) =
-  Just [p|L.UDiv $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4)|]
-qqInstructionP (A.SDiv x1 x2 x3 x4) =
-  Just [p|L.SDiv $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4)|]
-qqInstructionP (A.FDiv x1 x2 x3 x4) =
-  Just [p|L.FDiv $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4)|]
-qqInstructionP (A.URem x1 x2 x3) =
-  Just [p|L.URem $(qqP x1) $(qqP x2) $(qqP x3)|]
-qqInstructionP (A.SRem x1 x2 x3) =
-  Just [p|L.SRem $(qqP x1) $(qqP x2) $(qqP x3)|]
-qqInstructionP (A.FRem x1 x2 x3 x4) =
-  Just [p|L.FRem $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4)|]
-qqInstructionP (A.Shl x1 x2 x3 x4 x5) =
-  Just [p|L.Shl $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4) $(qqP x5)|]
-qqInstructionP (A.LShr x1 x2 x3 x4) =
-  Just [p|L.LShr $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4)|]
-qqInstructionP (A.AShr x1 x2 x3 x4) =
-  Just [p|L.AShr $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4)|]
-qqInstructionP (A.And x1 x2 x3) =
-  Just [p|L.And $(qqP x1) $(qqP x2) $(qqP x3)|]
-qqInstructionP (A.Or x1 x2 x3) =
-  Just [p|L.Or $(qqP x1) $(qqP x2) $(qqP x3)|]
-qqInstructionP (A.Xor x1 x2 x3) =
-  Just [p|L.Xor $(qqP x1) $(qqP x2) $(qqP x3)|]
-qqInstructionP (A.Alloca x1 x2 x3 x4) =
-  Just [p|L.Alloca $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4)|]
-qqInstructionP (A.Load x1 x2 x3 x4 x5) =
-  Just [p|L.Load $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4) $(qqP x5)|]
-qqInstructionP (A.Store x1 x2 x3 x4 x5 x6) =
-  Just [p|L.Store $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4) $(qqP x5)
-                  $(qqP x6)|]
-qqInstructionP (A.GetElementPtr x1 x2 x3 x4) =
-  Just [p|L.GetElementPtr $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4)|]
-qqInstructionP (A.Fence x1 x2) =
-  Just [p|L.Fence $(qqP x1) $(qqP x2)|]
-qqInstructionP (A.CmpXchg x1 x2 x3 x4 x5 x6) =
-  Just [p|L.CmpXchg $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4) $(qqP x5)
-                    $(qqP x6)|]
-qqInstructionP (A.AtomicRMW x1 x2 x3 x4 x5 x6) =
-  Just [p|L.AtomicRMW $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4) $(qqP x5)
-                      $(qqP x6)|]
-qqInstructionP (A.Trunc x1 x2 x3) =
-  Just [p|L.Trunc $(qqP x1) $(qqP x2) $(qqP x3)|]
-qqInstructionP (A.ZExt x1 x2 x3) =
-  Just [p|L.ZExt $(qqP x1) $(qqP x2) $(qqP x3)|]
-qqInstructionP (A.SExt x1 x2 x3) =
-  Just [p|L.SExt $(qqP x1) $(qqP x2) $(qqP x3)|]
-qqInstructionP (A.FPToUI x1 x2 x3) =
-  Just [p|L.FPToUI $(qqP x1) $(qqP x2) $(qqP x3)|]
-qqInstructionP (A.FPToSI x1 x2 x3) =
-  Just [p|L.FPToSI $(qqP x1) $(qqP x2) $(qqP x3)|]
-qqInstructionP (A.UIToFP x1 x2 x3) =
-  Just [p|L.UIToFP $(qqP x1) $(qqP x2) $(qqP x3)|]
-qqInstructionP (A.SIToFP x1 x2 x3) =
-  Just [p|L.SIToFP $(qqP x1) $(qqP x2) $(qqP x3)|]
-qqInstructionP (A.FPTrunc x1 x2 x3) =
-  Just [p|L.FPTrunc $(qqP x1) $(qqP x2) $(qqP x3)|]
-qqInstructionP (A.FPExt x1 x2 x3) =
-  Just [p|L.FPExt $(qqP x1) $(qqP x2) $(qqP x3)|]
-qqInstructionP (A.PtrToInt x1 x2 x3) =
-  Just [p|L.PtrToInt $(qqP x1) $(qqP x2) $(qqP x3)|]
-qqInstructionP (A.IntToPtr x1 x2 x3) =
-  Just [p|L.IntToPtr $(qqP x1) $(qqP x2) $(qqP x3)|]
-qqInstructionP (A.BitCast x1 x2 x3) =
-  Just [p|L.BitCast $(qqP x1) $(qqP x2) $(qqP x3)|]
-qqInstructionP (A.AddrSpaceCast x1 x2 x3) =
-  Just [p|L.AddrSpaceCast $(qqP x1) $(qqP x2) $(qqP x3)|]
-qqInstructionP (A.ICmp x1 x2 x3 x4) =
-  Just [p|L.ICmp $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4)|]
-qqInstructionP (A.FCmp x1 x2 x3 x4) =
-  Just [p|L.FCmp $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4)|]
-qqInstructionP (A.Phi x1 x2 x3) =
-  Just [p|L.Phi $(qqP x1) $(qqP x2) $(qqP x3)|]
-qqInstructionP (A.Call x1 x2 x3 x4 x5 x6 x7) =
-  Just [p|L.Call $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4) $(qqP x5)
-                 $(qqP x6) $(qqP x7)|]
-qqInstructionP (A.Select x1 x2 x3 x4) =
-  Just [p|L.Select $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4)|]
-qqInstructionP (A.VAArg x1 x2 x3) =
-  Just [p|L.VAArg $(qqP x1) $(qqP x2) $(qqP x3)|]
-qqInstructionP (A.ExtractElement x1 x2 x3) =
-  Just [p|L.ExtractElement $(qqP x1) $(qqP x2) $(qqP x3)|]
-qqInstructionP (A.InsertElement x1 x2 x3 x4) =
-  Just [p|L.InsertElement $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4)|]
-qqInstructionP (A.ShuffleVector x1 x2 x3 x4) =
-  Just [p|L.ShuffleVector $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4)|]
-qqInstructionP (A.ExtractValue x1 x2 x3) =
-  Just [p|L.ExtractValue $(qqP x1) $(qqP x2) $(qqP x3)|]
-qqInstructionP (A.InsertValue x1 x2 x3 x4) =
-  Just [p|L.InsertValue $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4)|]
-qqInstructionP (A.LandingPad x1 x2 x3 x4 x5) =
-  Just [p|L.LandingPad $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4) $(qqP x5)|]
-qqInstructionP (A.AntiInstruction s) =
-  Just $ antiVarP s
-
-qqNamedP :: (Typeable a, Data a) => A.Named a -> Maybe (Q Pat)
-qqNamedP ((A.:=) x1 x2) =
-  Just [p|(L.:=) $(qqP x1) $(qqP x2)|]
-qqNamedP (A.Do x1) =
-  Just [p|L.Do $(qqP x1)|]
-qqNamedP (A.AntiInstructionList s) =
-  error $ "Antiquote not allowed in pattern: " ++ s
-
-qqMetadataNodeIDP :: A.MetadataNodeID -> Maybe (Q Pat)
-qqMetadataNodeIDP (A.MetadataNodeID x1) =
-  Just [p|L.MetadataNodeID $(qqP x1)|]
-
-qqMetadataNodeP :: A.MetadataNode -> Maybe (Q Pat)
-qqMetadataNodeP (A.MetadataNode x1) =
-  Just [p|L.MetadataNode $(qqP x1)|]
-qqMetadataNodeP (A.MetadataNodeReference x1) =
-  Just [p|L.MetadataNodeReference $(qqP x1)|]
-
-qqOperandP :: A.Operand -> Maybe (Q Pat)
-qqOperandP (A.LocalReference x1) =
-  Just [p|L.LocalReference $(qqP x1)|]
-qqOperandP (A.ConstantOperand x1) =
-  Just [p|L.ConstantOperand $(qqP x1)|]
-qqOperandP (A.MetadataStringOperand x1) =
-  Just [p|L.MetadataStringOperand $(qqP x1)|]
-qqOperandP (A.MetadataNodeOperand x1) =
-  Just [p|L.MetadataNodeOperand $(qqP x1)|]
-qqOperandP (A.AntiOperand s) =
-  Just $ antiVarP s
-qqOperandP (A.AntiOperands s) =
-  error $ "Antiquote not allowed in pattern: " ++ s
-
-qqConstantP :: A.Constant -> Maybe (Q Pat)
-qqConstantP (A.Int x1 x2) =
-  Just [p|L.Int $(qqP x1) $(qqP x2)|]
-qqConstantP (A.Float x1) =
-  Just [p|L.Float $(qqP x1)|]
-qqConstantP (A.Null x1) =
-  Just [p|L.Null $(qqP x1)|]
-qqConstantP (A.Struct x1 x2 x3) =
-  Just [p|L.Struct $(qqP x1) $(qqP x2) $(qqP x3)|]
-qqConstantP (A.Array x1 x2) =
-  Just [p|L.Array $(qqP x1) $(qqP x2)|]
-qqConstantP (A.Vector x1) =
-  Just [p|L.Vector $(qqP x1)|]
-qqConstantP (A.Undef x1) =
-  Just [p|L.Undef $(qqP x1)|]
-qqConstantP (A.BlockAddress x1 x2) =
-  Just [p|L.BlockAddress $(qqP x1) $(qqP x2)|]
-qqConstantP (A.GlobalReference x1) =
-  Just [p|L.GlobalReference $(qqP x1)|]
-qqConstantP (A.AntiConstant s) =
-  Just $ antiVarP s
-qqConstantP (A.IntAntiBs s _) =
-  error $ "Antiquote not allowed in pattern: " ++ s
-
-qqNameP :: A.Name -> Maybe (Q Pat)
-qqNameP (A.Name x1) =
-  Just [p|L.Name $(qqP x1)|]
-qqNameP (A.UnName x1) =
-  Just [p|L.UnName $(qqP x1)|]
-qqNameP (A.AntiName s) =
-  Just $ antiVarP s
-qqNameP A.NeedsName =
-  error "can't use unnamed basic blocks within pattern quote"
-
-qqFloatingPointFormatP :: A.FloatingPointFormat -> Maybe (Q Pat)
-qqFloatingPointFormatP A.IEEE =
-  Just [p|L.IEEE|]
-qqFloatingPointFormatP A.DoubleExtended =
-  Just [p|L.DoubleExtended|]
-qqFloatingPointFormatP A.PairOfFloats =
-  Just [p|L.PairOfFloats|]
-
-qqTypeP :: A.Type -> Maybe (Q Pat)
-qqTypeP A.VoidType =
-  Just [p|L.VoidType|]
-qqTypeP (A.IntegerType x1) =
-  Just [p|L.IntegerType $(qqP x1)|]
-qqTypeP (A.PointerType x1 x2) =
-  Just [p|L.PointerType $(qqP x1) $(qqP x2)|]
-qqTypeP (A.FloatingPointType x1 x2) =
-  Just [p|L.FloatingPointType $(qqP x1) $(qqP x2)|]
-qqTypeP (A.FunctionType x1 x2 x3) =
-  Just [p|L.FunctionType $(qqP x1) $(qqP x2) $(qqP x3)|]
-qqTypeP (A.VectorType x1 x2) =
-  Just [p|L.VectorType $(qqP x1) $(qqP x2)|]
-qqTypeP (A.StructureType x1 x2) =
-  Just [p|L.StructureType $(qqP x1) $(qqP x2)|]
-qqTypeP (A.ArrayType x1 x2) =
-  Just [p|L.ArrayType $(qqP x1) $(qqP x2)|]
-qqTypeP (A.NamedTypeReference x1) =
-  Just [p|L.NamedTypeReference $(qqP x1)|]
-qqTypeP A.MetadataType =
-  Just [p|L.MetadataType|]
-qqTypeP (A.AntiType s) =
-  Just $ antiVarP s
-qqTypeP (A.AntiTypes s) =
-  error $ "Antiquote not allowed in pattern: " ++ s
-
-qqDialectP :: A.Dialect -> Maybe (Q Pat)
-qqDialectP A.ATTDialect =
-  Just [p|L.ATTDialect|]
-qqDialectP A.IntelDialect =
-  Just [p|L.IntelDialect|]
-
-qqInlineAssemblyP :: A.InlineAssembly -> Maybe (Q Pat)
-qqInlineAssemblyP (A.InlineAssembly x1 x2 x3 x4 x5 x6) =
-  Just [p|L.InlineAssembly $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4) $(qqP x5)
-                           $(qqP x6)|]
-
-qqEndiannessP :: A.Endianness -> Maybe (Q Pat)
-qqEndiannessP A.LittleEndian =
-  Just [p|L.LittleEndian|]
-qqEndiannessP A.BigEndian =
-  Just [p|L.BigEndian|]
-
-qqAlignmentInfoP :: A.AlignmentInfo -> Maybe (Q Pat)
-qqAlignmentInfoP (A.AlignmentInfo x1 x2) =
-  Just [p|L.AlignmentInfo $(qqP x1) $(qqP x2)|]
-
-qqAlignTypeP :: A.AlignType -> Maybe (Q Pat)
-qqAlignTypeP A.IntegerAlign =
-  Just [p|L.IntegerAlign|]
-qqAlignTypeP A.VectorAlign =
-  Just [p|L.VectorAlign|]
-qqAlignTypeP A.FloatAlign =
-  Just [p|L.FloatAlign|]
-qqAlignTypeP A.AggregateAlign =
-  Just [p|L.AggregateAlign|]
-qqAlignTypeP A.StackAlign =
-  Just [p|L.StackAlign|]
-
-qqDataLayoutP :: A.DataLayout -> Maybe (Q Pat)
-qqDataLayoutP (A.DataLayout x1 x2 x3 x4 x5) =
-  Just [p|L.DataLayout $(qqP x1) $(qqP x2) $(qqP x3) $(qqP x4) $(qqP x5)|]
-qqDataLayoutP (A.AntiDataLayout s) =
-  Just $ antiVarP s
-
-qqTargetTripleP :: A.TargetTriple -> Maybe (Q Pat)
-qqTargetTripleP A.NoTargetTriple =
-  Just [p|Nothing|]
-qqTargetTripleP (A.TargetTriple v) =
-  Just [p|Just $(qqP v)|]
-qqTargetTripleP (A.AntiTargetTriple v) =
-  Just $ antiVarP v
-
-qqP :: Data a => a -> Q Pat
-qqP x = dataToPatQ qqPat x
-
-qqPat :: Typeable a => a -> Maybe (Q Pat)
-qqPat = const Nothing
- `extQ` qqDefinitionP
- `extQ` qqDefinitionListP
- `extQ` qqModuleP
- `extQ` qqGlobalP
- `extQ` qqParameterListP
- `extQ` qqParameterP
- `extQ` qqBasicBlockP
- `extQ` qqBasicBlockListP
- `extQ` qqTerminatorP
- `extQ` qqMemoryOrderingP
- `extQ` qqAtomicityP
- `extQ` qqLandingPadClauseP
- `extQ` qqFastMathFlagsP
- `extQ` qqInstructionP
- `extQ` (qqNamedP :: A.Named A.Instruction -> Maybe (Q Pat))
- `extQ` (qqNamedP :: A.Named A.Terminator -> Maybe (Q Pat))
- `extQ` qqMetadataNodeIDP
- `extQ` qqMetadataNodeP
- `extQ` qqOperandP
- `extQ` qqConstantP
- `extQ` qqNameP
- `extQ` qqFloatingPointFormatP
- `extQ` qqTypeP
- `extQ` qqDialectP
- `extQ` qqInlineAssemblyP
- `extQ` qqEndiannessP
- `extQ` qqAlignmentInfoP
- `extQ` qqAlignTypeP
- `extQ` qqDataLayoutP
- `extQ` qqTargetTripleP
 
 parse :: [A.Extensions]
       -> P.P a
@@ -1360,7 +776,7 @@ quasiquote :: forall a b. (Data a, QQExp a b)
            -> TQuasiQuoter b
 quasiquote exts p = TQuasiQuoter $
   QuasiQuoter { quoteExp  = parse exts p >=> unTypeQ . (qqExp :: a -> TExpQ b)
-              , quotePat  = parse exts p >=> qqP
+              , quotePat  = fail "LLVM pattern quasiquoter undefined"
               , quoteType = fail "LLVM type quasiquoter undefined"
               , quoteDec  = fail "LLVM declaration quasiquoter undefined"
               }
