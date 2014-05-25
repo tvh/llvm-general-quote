@@ -635,7 +635,7 @@ instruction_ :
   | 'icmp' intP type operand ',' operand    { A.ICmp $2 ($4 $3) ($6 $3) }
   | 'fcmp' fpP type operand ',' operand     { A.FCmp $2 ($4 $3) ($6 $3) }
   | 'phi' type phiList                      { A.Phi $2 (rev ($3 $2)) }
-  | tail 'call' cconv pAttributes callableOperand '(' argumentList ')' fAttributes
+  | tail 'call' cconv parameterAttributes callableOperand '(' argumentList ')' fAttributes
                                             { A.Call $1 $3 (rev $4) ($5 (map fst (rev $7))) (map snd (rev $7)) (rev $9) }
   | 'select' tOperand ',' tOperand ',' tOperand
                                             { A.Select $2 $4 $6 }
@@ -708,7 +708,7 @@ terminator_ :
                           { A.Switch ($3 $2) $6 (rev $8) }
   | 'indirectbr' tOperand ',' '[' labels ']'
                           { A.IndirectBr $2 (rev $5) }
-  | 'invoke' cconv pAttributes callableOperand '(' argumentList ')' fAttributes 'to' 'label' name 'unwind' 'label' name
+  | 'invoke' cconv parameterAttributes callableOperand '(' argumentList ')' fAttributes 'to' 'label' name 'unwind' 'label' name
                           { A.Invoke $2 (rev $3) ($4 (map fst (rev $6))) (map snd (rev $6)) (rev $8) $11 $14 }
   | 'resume' tOperand     { A.Resume $2 }
   | 'unreachable'         { A.Unreachable }
@@ -864,18 +864,9 @@ cconv :
   | 'coldcc'                   { A.Cold }
   | 'cc' INT                   { if $2 == 10 then A.GHC else A.Numbered (fromInteger $2) }
 
-pAttribute :: { A.ParameterAttribute }
-pAttribute :
-    'nocapture'         { A.NoCapture }
-
-pAttributes :: { RevList A.ParameterAttribute }
-pAttributes :
-    {- empty -}                { RNil }
-  | pAttributes pAttribute     { RCons $2 $1 }
-
 parameter :: { A.Parameter }
 parameter :
-    type pAttributes name         { A.Parameter $1 $3 (rev $2) }
+    type parameterAttributes name { A.Parameter $1 $3 (rev $2) }
   | ANTI_PARAM                    { A.AntiParameter $1 }
   | ANTI_PARAMS                   { A.AntiParameterList $1 }
 
@@ -932,7 +923,7 @@ isConstant :
 
 global :: { A.Global }
 global :
-    'define' linkage visibility cconv pAttributes type globalName '(' parameterList ')' fAttributes section alignment gc '{' basicBlocks '}'
+    'define' linkage visibility cconv parameterAttributes type globalName '(' parameterList ')' fAttributes section alignment gc '{' basicBlocks '}'
       { A.Function $2 $3 $4 (rev $5) $6 $7 $9 (rev $11) $12 $13 $14 (rev $16) }
   | globalName '=' linkage visibility isConstant type mConstant alignment
       { A.GlobalVariable $1 $3 $4 False (A.AddrSpace 0) False $5 $6 ($7 $6) Nothing $8 }
