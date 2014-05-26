@@ -4,13 +4,13 @@ module LLVM.General.Quote.LLVM (
     llg,
     -- llbb,
     -- llbbs,
-    -- lli,
+    lli,
     llmodM,
     lldefM,
     llgM,
     -- llbbM,
     -- llbbsM,
-    -- lliM
+    lliM
   ) where
 
 import qualified LLVM.General.Quote.Parser.Parser as P
@@ -37,10 +37,10 @@ lldef = unTQuasiQuoter
 llg :: QuasiQuoter
 llg = unTQuasiQuoter (quasiquote exts P.parseGlobal :: TQuasiQuoter L.Global)
 
--- -- |Quasiquoter for 'LLVM.General.AST.Instruction.Instruction'
--- lli :: QuasiQuoter
--- lli = unTQuasiQuoter
---         (quasiquote exts P.parseInstruction :: TQuasiQuoter L.Instruction)
+-- |Quasiquoter for 'LLVM.General.AST.Instruction.Instruction'
+lli :: QuasiQuoter
+lli = unTQuasiQuoter
+        (quasiquote exts P.parseInstruction :: TQuasiQuoter L.Instruction)
 
 
 -- |Quasiquoter for 'LLVM.General.AST.Module'
@@ -57,7 +57,7 @@ lldefM = unTQuasiQuoter
 llgM :: QuasiQuoter
 llgM = unTQuasiQuoter (quasiquoteM exts P.parseGlobal :: TQuasiQuoter (CodeGen L.Global))
 
--- -- |Quasiquoter for 'LLVM.General.AST.Instruction.Instruction'
--- lliM :: QuasiQuoter
--- lliM = unTQuasiQuoter
---         (quasiquoteM exts P.parseInstruction :: TQuasiQuoter (CodeGen L.Instruction))
+-- |Quasiquoter for 'LLVM.General.AST.Instruction.Instruction'
+lliM :: QuasiQuoter
+lliM = unTQuasiQuoter
+        (quasiquoteM exts P.parseInstruction :: TQuasiQuoter (CodeGen L.Instruction))
