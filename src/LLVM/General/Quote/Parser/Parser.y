@@ -852,7 +852,23 @@ parameterList :
     {- empty -}                      { ([], False) }
   | parameterList_                   { (rev $1, False) }
   | '...'                            { ([], True) }
-  | parameterList_ '...'             { (rev $1, True) }
+  | parameterList_ ',' '...'         { (rev $1, True) }
+
+parameterD :: { A.Parameter }
+parameterD :
+    type parameterAttributes { A.Parameter $1 (A.UnName 0) (rev $2) }
+
+parameterListD_ :: { RevList A.Parameter }
+parameterListD_ :
+    parameterD                       { RCons $1 RNil }
+  | parameterListD_ ',' parameterD   { RCons $3 $1 }
+
+parameterListD :: { ([A.Parameter], Bool) }
+parameterListD :
+    {- empty -}                      { ([], False) }
+  | parameterListD_                  { (rev $1, False) }
+  | '...'                            { ([], True) }
+  | parameterListD_ ',' '...'        { (rev $1, True) }
 
 fAttribute :: { A.FunctionAttribute }
 fAttribute :
@@ -897,8 +913,8 @@ global :: { A.Global }
 global :
     'define' linkage visibility cconv parameterAttributes type globalName '(' parameterList ')' fAttributes section alignment gc '{' instructions '}'
       { A.Function $2 $3 $4 (rev $5) $6 $7 $9 (rev $11) $12 $13 $14 (rev $16) }
-  | 'declare' linkage visibility cconv parameterAttributes type globalName '(' parameterList ')' fAttributes section alignment gc
-      { A.Function $2 $3 $4 (rev $5) $6 $7 $9 (rev $11) $12 $13 $14 [] }
+  | 'declare' linkage visibility cconv parameterAttributes type globalName '(' parameterListD ')' alignment gc
+      { A.Function $2 $3 $4 (rev $5) $6 $7 $9 [] Nothing $11 $12 [] }
   | globalName '=' linkage visibility isConstant type mConstant alignment
       { A.GlobalVariable $1 $3 $4 False (A.AddrSpace 0) False $5 $6 ($7 $6) Nothing $8 }
   | globalName '=' visibility 'alias' linkage type constant
