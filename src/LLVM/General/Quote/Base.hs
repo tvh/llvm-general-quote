@@ -26,6 +26,7 @@ import Control.Monad.Identity
 import qualified Data.ByteString.Char8 as B
 import Data.List
 import Control.Monad.State.Strict
+import Control.Monad.Writer.Strict
 import Data.Word
 import Data.Loc
 import Data.Data (Data(..))
@@ -516,19 +517,44 @@ qqLabeledInstructionListE (x:xs) =
              L.Do (L.Br l2 md) | l2 == nextLabel -> True
              _                                   -> False
 
-         -- this works under the ussumption, that the second block has only one incoming block
-         -- and no phi-nodes
-         fuse :: L.BasicBlock -> L.BasicBlock -> L.BasicBlock
-         fuse (L.BasicBlock n1 i1 t1) (L.BasicBlock n2 i2 t2) =
-           L.BasicBlock n1 (i1++i2) t2
+         replacePhiFroms :: [(L.Name,L.Name)] -> L.BasicBlock -> L.BasicBlock
+         replacePhiFroms labels (L.BasicBlock n is t) =
+           L.BasicBlock n (map (replacePhiFrom labels) is) t
+
+         replacePhiFrom :: [(L.Name,L.Name)] -> L.Named L.Instruction -> L.Named L.Instruction
+         replacePhiFrom names (n L.:= phi@L.Phi{}) =
+           n L.:= replacePhiFrom' names phi
+         replacePhiFrom names (L.Do phi@L.Phi{}) =
+           L.Do $ replacePhiFrom' names phi
+         replacePhiFrom _ named = named
          
-         fuseBlocks :: [L.BasicBlock] -> [L.BasicBlock]
-         fuseBlocks bbs@[] = bbs
-         fuseBlocks bbs@[_] = bbs
-         fuseBlocks (bb1:bbs@(bb2:bbs')) =
+         replacePhiFrom' :: [(L.Name,L.Name)] -> L.Instruction -> L.Instruction
+         replacePhiFrom' names phi@L.Phi{} =
+           phi{ L.incomingValues =
+                   [ (op,n') | (op,n) <- L.incomingValues phi,
+                               let n' = maybe n id (lookup n names)] }
+
+         fuse :: L.BasicBlock -> L.BasicBlock -> Writer [(L.Name,L.Name)] L.BasicBlock
+         fuse (L.BasicBlock n1 i1 t1) (L.BasicBlock n2 i2 t2) = do
+           tell [(n2,n1)]
+           return $ L.BasicBlock n1 (i1++i2) t2
+         
+         fuseBlocks' :: [L.BasicBlock] -> Writer [(L.Name,L.Name)] [L.BasicBlock]
+         fuseBlocks' bbs@[] = return bbs
+         fuseBlocks' bbs@[_] = return bbs
+         fuseBlocks' (bb1:bbs@(bb2:bbs')) =
            case jumpNext bb1 of
-             True  -> fuseBlocks ((fuse bb1 bb2):bbs')
-             False -> bb1 : fuseBlocks bbs
+             True  -> do
+               fused <- fuse bb1 bb2
+               fuseBlocks' (fused:bbs')
+             False -> do
+               bbs_ <- fuseBlocks' bbs
+               return $ bb1 : bbs_
+
+         fuseBlocks :: [L.BasicBlock] -> [L.BasicBlock]
+         fuseBlocks bbs =
+           let (bbs',labels) = runWriter $ fuseBlocks' bbs
+           in map (replacePhiFroms labels) bbs'
          
      in fuseBlocks <$> ((++) <$> $$(qqExpM x) <*> $$(qqExpM xs))||]
 
