@@ -159,6 +159,7 @@ import qualified LLVM.General.AST.DataLayout as A
  'datalayout'       { L _ T.Tdatalayout }
  'triple'           { L _ T.Ttriple }
  'define'           { L _ T.Tdefine }
+ 'declare'          { L _ T.Tdeclare }
  'void'             { L _ T.Tvoid }
  'half'             { L _ T.Thalf }
  'float'            { L _ T.Tfloat }
@@ -896,6 +897,8 @@ global :: { A.Global }
 global :
     'define' linkage visibility cconv parameterAttributes type globalName '(' parameterList ')' fAttributes section alignment gc '{' instructions '}'
       { A.Function $2 $3 $4 (rev $5) $6 $7 $9 (rev $11) $12 $13 $14 (rev $16) }
+  | 'declare' linkage visibility cconv parameterAttributes type globalName '(' parameterList ')' fAttributes section alignment gc
+      { A.Function $2 $3 $4 (rev $5) $6 $7 $9 (rev $11) $12 $13 $14 [] }
   | globalName '=' linkage visibility isConstant type mConstant alignment
       { A.GlobalVariable $1 $3 $4 False (A.AddrSpace 0) False $5 $6 ($7 $6) Nothing $8 }
   | globalName '=' visibility 'alias' linkage type constant

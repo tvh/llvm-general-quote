@@ -198,6 +198,7 @@ data Token
   | Tdatalayout
   | Ttriple
   | Tdefine
+  | Tdeclare
   -- Types
   | Thalf
   | Tfloat
@@ -399,6 +400,7 @@ instance Show Token where
   show Tdatalayout = "datalayout"
   show Ttriple = "triple"
   show Tdefine = "define"
+  show Tdeclare = "declare"
   show Tvoid = "void"
   show Thalf = "half"
   show Tfloat = "float"
@@ -494,6 +496,7 @@ instance Pretty Token where
 
 keywords :: [(String,             Token,            Maybe [Extensions])]
 keywords = [("define",            Tdefine,          Nothing),
+            ("declare",           Tdeclare,         Nothing),
             ("ret",               Tret,             Nothing),
             ("target",            Ttarget,          Nothing),
             ("datalayout",        Tdatalayout,      Nothing),
