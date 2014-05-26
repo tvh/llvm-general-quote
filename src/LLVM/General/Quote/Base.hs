@@ -563,7 +563,7 @@ qqLabeledInstructionListE (x:xs) =
          
      in fuseBlocks <$> ((++) <$> $$(qqExpM x) <*> $$(qqExpM xs))||]
 
-qqLabeledInstructionE :: forall m. (CodeGenMonad m) => Conversion' m A.LabeledInstruction [L.BasicBlock]
+qqLabeledInstructionE :: forall m. => Conversion' m A.LabeledInstruction [L.BasicBlock]
 qqLabeledInstructionE (A.Labeled label instr) =
   [||do label' <- $$(qqExpM label)
         L.BasicBlock _ is t:bbs <- $$(qqExpM instr)
