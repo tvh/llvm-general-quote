@@ -701,8 +701,6 @@ namedI :: { A.NamedInstruction }
 namedI :
     instruction                     { A.Do $1 }
   | name '=' instruction            { $1 A.:= $3 }
-  | 'for' type name 'in' operand direction operand mStep mElement '{' instructions '}'
-      { A.ForLoop $2 $3 $6 ($5 $2) ($7 $2) ($8 $2) $9 (rev $11) }
   | ANTI_BB
       { A.AntiBasicBlock $1 }
   | ANTI_BBS
@@ -712,11 +710,13 @@ namedI :
 labeledI :: { A.LabeledInstruction }
 labeledI :
     jumpLabel namedI                { A.Labeled $1 $2 }
+  | jumpLabel 'for' type name 'in' operand direction operand mStep mElement '{' instructions '}'
+      { A.ForLoop $1 $3 $4 $7 ($6 $3) ($8 $3) ($9 $3) $10 (rev $12) }
 
 instructions :: { RevList (A.LabeledInstruction) }
 instructions :
     {- empty -}                   { RNil }
-  | instructions labeledI           { RCons $2 $1 }
+  | instructions labeledI         { RCons $2 $1 }
 
 {------------------------------------------------------------------------------
  -

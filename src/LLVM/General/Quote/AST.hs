@@ -497,15 +497,8 @@ data LabeledInstruction
   = Labeled {
     label :: Name,
     instruction :: NamedInstruction }
-  deriving (Eq, Read, Show, Typeable, Data)
-
--- | Instances of instructions may be given a name, allowing their results to be referenced as 'Operand's.
--- Sometimes instructions - e.g. a call to a function returning void - don't need names.
-data NamedInstruction
-  = Name := Instruction
-  | Do Instruction
-  | AntiInstructionList String
   | ForLoop {
+    label :: Name,
     iterType :: Type,
     iterName :: Name,
     direction :: Direction,
@@ -514,6 +507,14 @@ data NamedInstruction
     step :: Operand,
     _element :: Maybe (Type, Operand, Name),
     body :: [LabeledInstruction]}
+  deriving (Eq, Read, Show, Typeable, Data)
+
+-- | Instances of instructions may be given a name, allowing their results to be referenced as 'Operand's.
+-- Sometimes instructions - e.g. a call to a function returning void - don't need names.
+data NamedInstruction
+  = Name := Instruction
+  | Do Instruction
+  | AntiInstructionList String
   | AntiBasicBlock String
   | AntiBasicBlockList String
   deriving (Eq, Read, Show, Typeable, Data)

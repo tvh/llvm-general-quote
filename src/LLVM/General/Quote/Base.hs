@@ -81,7 +81,7 @@ instance ToRvalue [L.Operand] where
 type CodeGen = State (Int, M.Map L.Name [L.Operand])
 
 instance CodeGenMonad CodeGen where
-  newVariable      = state $ \(i,vs) -> (L.Name ("n" ++ show i), (i+1,vs))
+  newVariable      = state $ \(i,vs) -> (L.UnName (fromIntegral i), (i+1,vs))
   lookupVariable v = gets  $ \(_,vs) -> M.lookup v vs
   setVariable v xs = state $ \(i,vs) -> ((), (i, M.insert v xs vs))
 
@@ -563,29 +563,12 @@ qqLabeledInstructionListE (x:xs) =
          
      in fuseBlocks <$> ((++) <$> $$(qqExpM x) <*> $$(qqExpM xs))||]
 
-qqLabeledInstructionE :: Conversion A.LabeledInstruction [L.BasicBlock]
+qqLabeledInstructionE :: forall m. (CodeGenMonad m) => Conversion' m A.LabeledInstruction [L.BasicBlock]
 qqLabeledInstructionE (A.Labeled label instr) =
   [||do label' <- $$(qqExpM label)
         L.BasicBlock _ is t:bbs <- $$(qqExpM instr)
         return $ L.BasicBlock label' is t:bbs||]
-
-qqNamedInstructionE :: forall m. Conversion' m A.NamedInstruction [L.BasicBlock]
-qqNamedInstructionE (x1 A.:= x2) =
-  [||do x1' <- $$(qqExpM x1)
-        x2' <- $$(qqExpM x2)
-        n <- newVariable
-        case x2' of
-          Left ins -> return [L.BasicBlock n [x1' L.:= ins] (L.Do $ L.Br (L.Name "nextblock") [])]
-          Right term -> return [L.BasicBlock n [] (x1' L.:= term)]||]
-qqNamedInstructionE (A.Do x2) =
-  [||do x2' <- $$(qqExpM x2)
-        n <- newVariable
-        case x2' of
-          Left ins -> return [L.BasicBlock n [L.Do ins] (L.Do $ L.Br (L.Name "nextblock") [])]
-          Right term -> return [L.BasicBlock n [] (L.Do term)]||]
-qqNamedInstructionE (A.AntiInstructionList s) =
-  unsafeTExpCoerce $ antiVarE s
-qqNamedInstructionE (A.ForLoop iterType iterName direction from to step element body) =
+qqLabeledInstructionE (A.ForLoop label iterType iterName direction from to step element body) =
   [||do
     element' <- $$(qqExpM element :: TExpQ (m (Maybe (TypeL, OperandL, L.Name))))
     let ret :: L.BasicBlock -> Maybe (Maybe L.Operand, L.Name)
@@ -624,7 +607,7 @@ qqNamedInstructionE (A.ForLoop iterType iterName direction from to step element 
               [ cond L.:= L.ICmp LI.SGT iter to' []
               , iterNameNew L.:= L.Sub True True iter step' []
               ]
-    label' <- newVariable
+    label' <- $$(qqExpM label)
     let labelString = labelStringF label'
         cond = L.Name (labelString ++ ".cond")
         labelHead = L.Name (labelString ++ ".head")
@@ -676,6 +659,23 @@ qqNamedInstructionE (A.ForLoop iterType iterName direction from to step element 
         main = replaceRets labelHead body'
     return (pre ++ main ++ post)
   ||]
+
+qqNamedInstructionE :: Conversion A.NamedInstruction [L.BasicBlock]
+qqNamedInstructionE (x1 A.:= x2) =
+  [||do x1' <- $$(qqExpM x1)
+        x2' <- $$(qqExpM x2)
+        n <- newVariable
+        case x2' of
+          Left ins -> return [L.BasicBlock n [x1' L.:= ins] (L.Do $ L.Br (L.Name "nextblock") [])]
+          Right term -> return [L.BasicBlock n [] (x1' L.:= term)]||]
+qqNamedInstructionE (A.Do x2) =
+  [||do x2' <- $$(qqExpM x2)
+        n <- newVariable
+        case x2' of
+          Left ins -> return [L.BasicBlock n [L.Do ins] (L.Do $ L.Br (L.Name "nextblock") [])]
+          Right term -> return [L.BasicBlock n [] (L.Do term)]||]
+qqNamedInstructionE (A.AntiInstructionList s) =
+  unsafeTExpCoerce $ antiVarE s
 qqNamedInstructionE (A.AntiBasicBlock v)
   = [||(:[]) <$> $$(unsafeTExpCoerce $ antiVarE v)||]
 qqNamedInstructionE (A.AntiBasicBlockList v)
