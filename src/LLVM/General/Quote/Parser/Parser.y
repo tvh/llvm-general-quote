@@ -303,7 +303,7 @@ constant :
   | 'blockaddress' '(' globalName ',' name ')'
                           { \_ -> A.BlockAddress $3 $5 }
   | 'undef'               { A.Undef }
-  | globalName            { \_ -> A.GlobalReference $1 }
+  | globalName            { \t -> A.GlobalReference t $1 }
   | ANTI_CONST            { \_ -> A.AntiConstant $1 }
 
 tConstant :: { A.Constant }
@@ -329,7 +329,7 @@ constantList :
 operand :: { A.Type -> A.Operand }
 operand :
     constant            { A.ConstantOperand . $1 }
-  | name                { \_ -> A.LocalReference $1 }
+  | name                { \t -> A.LocalReference t $1 }
   | '!' STRING          { \A.MetadataType -> A.MetadataStringOperand $2 }
   | metadataNode        { \A.MetadataType -> A.MetadataNodeOperand $1 }
   | ANTI_OPRS           { \_ -> A.AntiOperands $1 }

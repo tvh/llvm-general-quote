@@ -534,7 +534,7 @@ data MetadataNode
 -- | An 'Operand' is roughly that which is an argument to an 'LLVM.General.AST.Instruction.Instruction'
 data Operand
   -- | %foo
-  = LocalReference Name
+  = LocalReference Type Name
   -- | 'Constant's include 'LLVM.General.AST.Constant.GlobalReference', for \@foo
   | ConstantOperand Constant
   | MetadataStringOperand String
@@ -566,7 +566,7 @@ data Constant
     | Vector { memberValues :: [ Constant ] }
     | Undef { constantType :: Type }
     | BlockAddress { blockAddressFunction :: Name, blockAddressBlock :: Name }
-    | GlobalReference Name
+    | GlobalReference Type Name
     | AntiConstant String
     deriving (Eq, Ord, Read, Show, Typeable, Data)
 

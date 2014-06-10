@@ -289,7 +289,7 @@ instance QQExp A.Operand L.Operand where
                      (OperandList os) -> do
                         v <- newVariable
                         setVariable v os
-                        return $ L.LocalReference v||]
+                        return $ L.LocalReference L.VoidType v||]
 instance QQExp A.Constant L.Constant where
   qqExpM = qqConstantE
 instance QQExp A.Name L.Name where
@@ -594,7 +594,7 @@ qqLabeledInstructionE (A.ForLoop label iterType iterName direction from to step 
         iterNameNewF l = L.Name $ case l of
                         L.Name s -> s ++ ".new"
                         L.UnName n -> "num"++show n++".new"
-        newItersF n rs = map (\(_,l) -> (L.LocalReference n,l)) rs
+        newItersF t n rs = map (\(_,l) -> (L.LocalReference t n,l)) rs
         preInstrsF iterName' iterType' newIters initIter phiElements cond iter to' iterNameNew step' =
           [ iterName' L.:= L.Phi iterType' (initIter : newIters) [] ]
           ++ phiElements ++
@@ -626,14 +626,14 @@ qqLabeledInstructionE (A.ForLoop label iterType iterName direction from to step 
             return (body',returns,[(t, (opr,label'):returns', elementName)])
           TypeList ts -> do
             names <- mapM (\_ -> newVariable) ts
-            setVariable elementName (map L.LocalReference names)
+            setVariable elementName (zipWith L.LocalReference ts names)
             body' <- $$(qqExpM body :: TExpQ (m [L.BasicBlock]))
             let returns = body' >>= (maybeToList . ret)
                 returns' = [(x,l) | (Just x, l) <- returns]
-            rets <- mapM (\(L.LocalReference x,l) -> getVariable x >>= \xs -> return (xs,l)) returns'
+            rets <- mapM (\(L.LocalReference t x,l) -> getVariable x >>= \xs -> return (xs,l)) returns'
             xs <- case elementFrom of
               OperandList xs -> return xs
-              Operand (L.LocalReference n) -> getVariable n
+              Operand (L.LocalReference t n) -> getVariable n
               Operand o -> fail $ "can't use single Operand with list of types: " ++ show o
             let froms = (xs,label') : rets
                 froms' = transpose [[(x,l) | x <- xs'] | (xs',l) <- froms] 
@@ -643,15 +643,15 @@ qqLabeledInstructionE (A.ForLoop label iterType iterName direction from to step 
     iterType' <- $$(qqExpM iterType :: TExpQ (m L.Type))
     from' <- $$(qqExpM from :: TExpQ (m L.Operand))
     let iterNameNew = iterNameNewF iterName'
-        iter = L.LocalReference iterName'
-        newIters = newItersF iterNameNew returns
+        iter = L.LocalReference iterType' iterName'
+        newIters = newItersF iterType' iterNameNew returns
     let initIter = (from', label')
     step' <- $$(qqExpM step :: TExpQ (m L.Operand))
     to' <- $$(qqExpM to)
     let preInstrs = preInstrsF iterName' iterType' newIters initIter phiElements cond iter to' iterNameNew step'
         branchTo l = case body' of
           [] -> error "empty body of for-loop"
-          (L.BasicBlock bodyLabel _ _:_) -> L.Do (L.CondBr (L.LocalReference cond) bodyLabel l [])
+          (L.BasicBlock bodyLabel _ _:_) -> L.Do (L.CondBr (L.LocalReference (L.IntegerType 1) cond) bodyLabel l [])
         retTerm = (L.Do (L.Br (L.Name "nextblock") []))
         (pre,post) =
                 ([L.BasicBlock label' [] (L.Do (L.Br labelHead [])), L.BasicBlock labelHead preInstrs (branchTo labelEnd)]
@@ -692,8 +692,8 @@ qqMetadataNodeE (A.MetadataNodeReference x1) =
   [||L.MetadataNodeReference <$> $$(qqExpM x1)||]
 
 qqOperandE :: Conversion A.Operand OperandL
-qqOperandE (A.LocalReference x1) =
-  [||Operand . L.LocalReference <$> $$(qqExpM x1)||]
+qqOperandE (A.LocalReference x1 x2) =
+  [||Operand <$> (L.LocalReference <$> $$(qqExpM x1) <*> $$(qqExpM x2))||]
 qqOperandE (A.ConstantOperand x1) =
   [||Operand . L.ConstantOperand <$> $$(qqExpM x1)||]
 qqOperandE (A.MetadataStringOperand x1) =
@@ -726,8 +726,8 @@ qqConstantE (A.Undef x1) =
   [||L.Undef <$> $$(qqExpM x1)||]
 qqConstantE (A.BlockAddress x1 x2) =
   [||L.BlockAddress <$> $$(qqExpM x1) <*> $$(qqExpM x2)||]
-qqConstantE (A.GlobalReference x1) =
-  [||L.GlobalReference <$> $$(qqExpM x1)||]
+qqConstantE (A.GlobalReference x1 x2) =
+  [||L.GlobalReference <$> $$(qqExpM x1)<*> $$(qqExpM x2)||]
 qqConstantE (A.AntiConstant s) =
   unsafeTExpCoerce [|$(antiVarE s) >>= (return . toConstant)|]
 
