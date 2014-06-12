@@ -24,7 +24,6 @@ module LLVM.General.Quote.Base (
 import Control.Applicative
 import Control.Monad.Identity
 import qualified Data.ByteString.Char8 as B
-import Data.List
 import Control.Monad.State.Strict
 import Control.Monad.Writer.Strict
 import Data.Word
@@ -39,6 +38,7 @@ import Language.Haskell.TH.Quote (QuasiQuoter(..))
 
 import qualified LLVM.General.Quote.Parser as P
 import qualified LLVM.General.Quote.AST as A
+import LLVM.General.Quote.SSA
 import qualified LLVM.General.AST.IntegerPredicate as LI
 import qualified LLVM.General.AST as L
 import qualified LLVM.General.AST.Constant as L
@@ -50,7 +50,6 @@ import qualified LLVM.General.AST.DataLayout as L
 import qualified LLVM.General.AST.Attribute as L
 
 import qualified Data.Map as M
-import Data.Maybe
 
 class (Applicative m, Monad m) => CodeGenMonad m where
   newVariable    :: m L.Name
@@ -342,7 +341,7 @@ qqGlobalE (A.GlobalAlias x1 x2 x3 x4 x5) =
 qqGlobalE (A.Function x1 x2 x3 x4 x5 x6 x7 x8 x9 xA xB xC) =
   [||L.Function <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3) <*> $$(qqExpM x4)
                 <*> $$(qqExpM x5) <*> $$(qqExpM x6) <*> $$(qqExpM x7) <*> $$(qqExpM x8)
-                <*> $$(qqExpM x9) <*> $$(qqExpM xA) <*> $$(qqExpM xB) <*> $$(qqExpM xC)||]
+                <*> $$(qqExpM x9) <*> $$(qqExpM xA) <*> $$(qqExpM xB) <*> toSSA `fmap` $$(qqExpM xC)||]
 
 qqParameterListE :: Conversion [A.Parameter] [L.Parameter]
 qqParameterListE [] = [||pure []||]
@@ -560,7 +559,7 @@ qqLabeledInstructionListE (x:xs) =
          fuseBlocks bbs =
            let (bbs',labels) = runWriter $ fuseBlocks' bbs
            in map (replacePhiFroms labels) bbs'
-         
+
      in fuseBlocks <$> ((++) <$> $$(qqExpM x) <*> $$(qqExpM xs))||]
 
 qqLabeledInstructionE :: forall m. Conversion' m A.LabeledInstruction [L.BasicBlock]
@@ -568,96 +567,45 @@ qqLabeledInstructionE (A.Labeled label instr) =
   [||do label' <- $$(qqExpM label)
         L.BasicBlock _ is t:bbs <- $$(qqExpM instr)
         return $ L.BasicBlock label' is t:bbs||]
-qqLabeledInstructionE (A.ForLoop label iterType iterName direction from to step element body) =
+qqLabeledInstructionE (A.ForLoop label iterType iterName direction from to step body) =
   [||do
-    element' <- $$(qqExpM element :: TExpQ (m (Maybe (TypeL, OperandL, L.Name))))
-    let ret :: L.BasicBlock -> Maybe (Maybe L.Operand, L.Name)
-        ret (L.BasicBlock l _ t') = do
-          let t = case t' of
-                    _ L.:= t'' -> t''
-                    L.Do t''   -> t''
-          L.Ret x _ <- return t
-          return (x,l)
-
-        replaceRets :: L.Name -> [L.BasicBlock] -> [L.BasicBlock]
-        replaceRets n = map (replaceRet n)
-
-        replaceRet :: L.Name -> L.BasicBlock -> L.BasicBlock
-        replaceRet labelR bb@(L.BasicBlock bbn is t) =
-          case t of
-            n L.:= L.Ret _ md -> L.BasicBlock bbn is (n L.:= L.Br labelR md)
-            L.Do (L.Ret _ md) -> L.BasicBlock bbn is (L.Do (L.Br labelR md))
-            _                 -> bb
-        labelStringF l = case l of
+    let labelStringF l = case l of
                         L.Name s -> s
                         L.UnName n -> "num"++show n
-        iterNameNewF l = L.Name $ case l of
-                        L.Name s -> s ++ ".new"
-                        L.UnName n -> "num"++show n++".new"
-        newItersF t n rs = map (\(_,l) -> (L.LocalReference t n,l)) rs
-        preInstrsF iterName' iterType' newIters initIter phiElements cond iter to' iterNameNew step' =
-          [ iterName' L.:= L.Phi iterType' (initIter : newIters) [] ]
-          ++ phiElements ++
+        preInstrsF iterName' iterType' cond iter to' step' =
           case direction of
             A.Up ->
-              [ cond L.:= L.ICmp LI.SLT iter to' []
-              , iterNameNew L.:= L.Add True True iter step' []
-              ]
+              [ cond L.:= L.ICmp LI.SLT iter to' [] ]
             A.Down ->
-              [ cond L.:= L.ICmp LI.SGT iter to' []
-              , iterNameNew L.:= L.Sub True True iter step' []
-              ]
+              [ cond L.:= L.ICmp LI.SGT iter to' [] ]
     label' <- $$(qqExpM label)
     let labelString = labelStringF label'
         cond = L.Name (labelString ++ ".cond")
         labelHead = L.Name (labelString ++ ".head")
         labelEnd = L.Name (labelString ++ ".end")
-    (body',returns,phiElements) <- case element' of
-      Nothing -> do body' <- $$(qqExpM body :: TExpQ (m [L.BasicBlock]))
-                    let returns = body' >>= (maybeToList . ret)
-                    return (body',returns,[])
-      Just (elementType,elementFrom,elementName) -> do
-        (body',returns,elements) <- case elementType of
-          Type t -> do
-            let Operand opr = elementFrom
-            body' <- $$(qqExpM body :: TExpQ (m [L.BasicBlock]))
-            let returns = body' >>= (maybeToList . ret)
-                returns' = [(x,l) | (Just x, l) <- returns]
-            return (body',returns,[(t, (opr,label'):returns', elementName)])
-          TypeList ts -> do
-            names <- mapM (\_ -> newVariable) ts
-            setVariable elementName (zipWith L.LocalReference ts names)
-            body' <- $$(qqExpM body :: TExpQ (m [L.BasicBlock]))
-            let returns = body' >>= (maybeToList . ret)
-                returns' = [(x,l) | (Just x, l) <- returns]
-            rets <- mapM (\(L.LocalReference t x,l) -> getVariable x >>= \xs -> return (xs,l)) returns'
-            xs <- case elementFrom of
-              OperandList xs -> return xs
-              Operand (L.LocalReference t n) -> getVariable n
-              Operand o -> fail $ "can't use single Operand with list of types: " ++ show o
-            let froms = (xs,label') : rets
-                froms' = transpose [[(x,l) | x <- xs'] | (xs',l) <- froms] 
-            return (body',returns,zip3 ts froms' names)
-        return (body',returns,[n L.:= L.Phi t f [] | (t,f,n) <- elements])
+        labelLast = L.Name (labelString ++ ".last")
+    body' <- $$(qqExpM body :: TExpQ (m [L.BasicBlock]))
     iterName' <- $$(qqExpM iterName :: TExpQ (m L.Name))
     iterType' <- $$(qqExpM iterType :: TExpQ (m L.Type))
     from' <- $$(qqExpM from :: TExpQ (m L.Operand))
-    let iterNameNew = iterNameNewF iterName'
-        iter = L.LocalReference iterType' iterName'
-        newIters = newItersF iterType' iterNameNew returns
-    let initIter = (from', label')
-    step' <- $$(qqExpM step :: TExpQ (m L.Operand))
     to' <- $$(qqExpM to)
-    let preInstrs = preInstrsF iterName' iterType' newIters initIter phiElements cond iter to' iterNameNew step'
-        branchTo l = case body' of
+    step' <- $$(qqExpM step :: TExpQ (m L.Operand))
+    let iter = L.LocalReference iterType' iterName'
+        newIterInstr = case direction of
+          A.Up -> [ iterName' L.:= L.Add True True iter step' [] ]
+          A.Down -> [ iterName' L.:= L.Sub True True iter step' [] ]
+        body'' = body' ++ [L.BasicBlock labelLast newIterInstr (L.Do (L.Br labelHead []))]
+    let preInstrs = preInstrsF iterName' iterType' cond iter to' step'
+        branchTo l = case body'' of
           [] -> error "empty body of for-loop"
           (L.BasicBlock bodyLabel _ _:_) -> L.Do (L.CondBr (L.LocalReference (L.IntegerType 1) cond) bodyLabel l [])
-        retTerm = (L.Do (L.Br (L.Name "nextblock") []))
+        retTerm = L.Do (L.Br (L.Name "nextblock") [])
+        true = L.ConstantOperand $ L.Int 1 1
+        initIter = iterName' L.:= L.Select true from' from' []
         (pre,post) =
-                ([L.BasicBlock label' [] (L.Do (L.Br labelHead [])), L.BasicBlock labelHead preInstrs (branchTo labelEnd)]
+                ([L.BasicBlock label' [initIter] (L.Do (L.Br labelHead [])), L.BasicBlock labelHead preInstrs (branchTo labelEnd)]
                 ,[L.BasicBlock labelEnd [] retTerm])
-        main = replaceRets labelHead body'
-    return (pre ++ main ++ post)
+    return (pre ++ body'' ++ post)
   ||]
 
 qqNamedInstructionE :: Conversion A.NamedInstruction [L.BasicBlock]

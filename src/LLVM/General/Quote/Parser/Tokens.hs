@@ -235,9 +235,7 @@ data Token
   -- Loops
   | Tfor
   | Tin
-  | Twith
   | Tstep
-  | Tas
   | Tdownto
   -- Anti-Quotation
   | Tanti_dl String
@@ -486,9 +484,7 @@ instance Show Token where
   show Tfor = "for"
   show Tin = "in"
   show Tdownto = "downto"
-  show Twith = "with"
   show Tstep = "step"
-  show Tas = "as"
   show Teof = "EOF"
 
 instance Pretty Token where
@@ -685,9 +681,7 @@ keywords = [("define",            Tdefine,          Nothing),
             ("for",               Tfor,             Just [Loops]),
             ("in",                Tin,              Just [Loops]),
             ("downto",            Tdownto,          Just [Loops]),
-            ("with",              Twith,            Just [Loops]),
-            ("step",              Tstep,            Just [Loops]),
-            ("as",                Tas,              Just [Loops])
+            ("step",              Tstep,            Just [Loops])
            ]
 
 keywordMap :: Map.Map String (Token, Maybe ExtensionsInt)

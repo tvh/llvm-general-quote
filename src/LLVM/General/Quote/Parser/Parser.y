@@ -247,9 +247,7 @@ import qualified LLVM.General.AST.DataLayout as A
 
  'for'              { L _ T.Tfor }
  'in'               { L _ T.Tin }
- 'with'             { L _ T.Twith }
  'step'             { L _ T.Tstep }
- 'as'               { L _ T.Tas }
 
  ANTI_DL            { L _ (T.Tanti_dl $$) }
  ANTI_TT            { L _ (T.Tanti_tt $$) }
@@ -711,8 +709,8 @@ namedI :
 labeledI :: { A.LabeledInstruction }
 labeledI :
     jumpLabel namedI                { A.Labeled $1 $2 }
-  | jumpLabel 'for' type name 'in' operand direction operand mStep mElement '{' instructions '}'
-      { A.ForLoop $1 $3 $4 $7 ($6 $3) ($8 $3) ($9 $3) $10 (rev $12) }
+  | jumpLabel 'for' type name 'in' operand direction operand mStep '{' instructions '}'
+      { A.ForLoop $1 $3 $4 $7 ($6 $3) ($8 $3) ($9 $3) (rev $11) }
 
 instructions :: { RevList (A.LabeledInstruction) }
 instructions :
@@ -724,11 +722,6 @@ instructions :
  - Basic Blocks
  -
  -----------------------------------------------------------------------------}
-
-mElement :: { Maybe (A.Type, A.Operand, A.Name) }
-mElement :
-    {- empty -}                       { Nothing }
-  | 'with' type operand 'as' name     { Just ($2, ($3 $2), $5) }
 
 mStep :: { A.Type -> A.Operand }
 mStep :

@@ -29,7 +29,8 @@ library
     LLVM.General.Quote.Parser.Parser,
     LLVM.General.Quote.Parser,
     LLVM.General.Quote.AST,
-    LLVM.General.Quote.Base
+    LLVM.General.Quote.Base,
+    LLVM.General.Quote.SSA
   other-extensions:    CPP
   ghc-options:     -Wall
   build-depends:

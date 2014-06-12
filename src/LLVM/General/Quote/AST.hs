@@ -505,7 +505,6 @@ data LabeledInstruction
     from :: Operand,
     to :: Operand,
     step :: Operand,
-    _element :: Maybe (Type, Operand, Name),
     body :: [LabeledInstruction]}
   deriving (Eq, Read, Show, Typeable, Data)
 
