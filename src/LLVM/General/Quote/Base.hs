@@ -53,36 +53,24 @@ import qualified Data.Map as M
 
 class (Applicative m, Monad m) => CodeGenMonad m where
   newVariable    :: m L.Name
-  lookupVariable :: L.Name -> m (Maybe [L.Operand])
-  getVariable    :: L.Name -> m [L.Operand]
-  getVariable v =
-    let msg = "variable not defined: " ++ show v
-    in  maybe (fail msg) return =<< lookupVariable v
-
-  setVariable   :: L.Name -> [L.Operand]   -> m ()
-  assign        :: L.Name -> m [L.Operand] -> m [L.BasicBlock]
+  assign        :: [L.Name] -> m [L.Operand] -> m [L.BasicBlock]
 
   exec     :: m () -> m [L.BasicBlock]
   execRet  :: m L.Operand -> m [L.BasicBlock]
   execRet_ :: m () -> m [L.BasicBlock]
 
-class ToRvalue a where
-  toRvalue :: a -> [L.Operand]
-instance ToRvalue L.Operand where
-  toRvalue = return
-instance ToRvalue [L.Operand] where
-  toRvalue = id
-
-(.=.) :: (ToRvalue r, CodeGenMonad m) => L.Name -> m r -> m [L.BasicBlock]
-(.=.) lhs rhs = assign lhs (toRvalue <$> rhs)
+class Assignable a b where
+  (.=.) :: CodeGenMonad m => a -> m b -> m [L.BasicBlock]
+instance Assignable L.Name L.Operand where
+  (.=.) lhs rhs = assign [lhs] (rhs >>= return . (:[]))
+instance Assignable [L.Name] [L.Operand] where
+  (.=.) = assign
 
 
 type CodeGen = State (Int, M.Map L.Name [L.Operand])
 
 instance CodeGenMonad CodeGen where
   newVariable      = state $ \(i,vs) -> (L.UnName (fromIntegral i), (i+1,vs))
-  lookupVariable v = gets  $ \(_,vs) -> M.lookup v vs
-  setVariable v xs = state $ \(i,vs) -> ((), (i, M.insert v xs vs))
 
   assign   = error "not defined: assign"
   exec     = error "not defined: exec"
