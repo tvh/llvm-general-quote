@@ -538,7 +538,6 @@ data Operand
   | ConstantOperand Constant
   | MetadataStringOperand String
   | MetadataNodeOperand MetadataNode
-  | AntiOperands String
   | AntiOperand String
   deriving (Eq, Ord, Read, Show, Typeable, Data)
 
@@ -619,7 +618,6 @@ data Type
   | NamedTypeReference Name
   -- | <http://llvm.org/docs/LangRef.html#metadata-type>
   | MetadataType -- only to be used as a parameter type for a few intrinsics
-  | AntiTypes String
   | AntiType String
   deriving (Eq, Ord, Read, Show, Typeable, Data)
 

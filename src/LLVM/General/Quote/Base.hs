@@ -132,16 +132,6 @@ instance ToTargetTriple String where
 instance ToTargetTriple (Maybe String) where
   toTargetTriple = id
 
-data OperandL
-  = Operand L.Operand
-  | OperandList [L.Operand]
-  deriving (Show)
-
-data TypeL
-  = Type L.Type
-  | TypeList [L.Type]
-  deriving (Show)
-
 antiVarE :: String -> ExpQ
 antiVarE s = [|$(either fail return $ parseExp s)|]
 
@@ -201,10 +191,6 @@ instance QQExp [A.Type] [L.Type] where
   qqExpM (x:xs) = [||(:) <$> $$(qqExpM x) <*> $$(qqExpM xs)||]
   qqExpM []     = [||pure []||]
 
-instance QQExp [(A.Operand, A.Name)] [(OperandL, L.Name)] where
-  qqExpM (x:xs) = [||(:) <$> $$(qqExpM x) <*> $$(qqExpM xs)||]
-  qqExpM []     = [||pure []||]
-
 -- instance (QQExp a b) => QQExp (Maybe a) (Maybe b) where
 --   qqExpM Nothing  = [||pure Nothing||]
 --   qqExpM (Just x) = [||Just <$> $$(qqExpM x)||]
@@ -230,7 +216,7 @@ instance QQExp (Maybe A.Constant) (Maybe L.Constant) where
   qqExpM (Just x) = [||Just <$> $$(qqExpM x)||]
   
 instance QQExp (Maybe (A.Type, A.Operand, A.Name))
-               (Maybe (TypeL, OperandL, L.Name)) where
+               (Maybe (L.Type, L.Operand, L.Name)) where
   qqExpM Nothing  = [||pure Nothing||]
   qqExpM (Just x) = [||Just <$> $$(qqExpM x)||]
   
@@ -279,24 +265,14 @@ instance QQExp A.MetadataNodeID L.MetadataNodeID where
   qqExpM = qqMetadataNodeIDE
 instance QQExp A.MetadataNode L.MetadataNode where
   qqExpM = qqMetadataNodeE
-instance QQExp A.Operand OperandL where
-  qqExpM = qqOperandE
 instance QQExp A.Operand L.Operand where
-  qqExpM x = [||do o' <- $$(qqExpM x) 
-                   case o' of
-                     (Operand o) -> return o
-                     (OperandList os) -> do
-                        v <- newVariable
-                        setVariable v os
-                        return $ L.LocalReference L.VoidType v||]
+  qqExpM = qqOperandE
 instance QQExp A.Constant L.Constant where
   qqExpM = qqConstantE
 instance QQExp A.Name L.Name where
   qqExpM = qqNameE
-instance QQExp A.Type TypeL where
-  qqExpM = qqTypeE
 instance QQExp A.Type L.Type where
-  qqExpM x = [||$$(qqExpM x) >>= \(Type t) -> return t||]
+  qqExpM = qqTypeE
 instance QQExp A.DataLayout L.DataLayout where
   qqExpM = qqDataLayoutE
 instance QQExp A.TargetTriple (Maybe String) where
@@ -639,19 +615,17 @@ qqMetadataNodeE (A.MetadataNode x1) =
 qqMetadataNodeE (A.MetadataNodeReference x1) =
   [||L.MetadataNodeReference <$> $$(qqExpM x1)||]
 
-qqOperandE :: Conversion A.Operand OperandL
+qqOperandE :: Conversion A.Operand L.Operand
 qqOperandE (A.LocalReference x1 x2) =
-  [||Operand <$> (L.LocalReference <$> $$(qqExpM x1) <*> $$(qqExpM x2))||]
+  [||L.LocalReference <$> $$(qqExpM x1) <*> $$(qqExpM x2)||]
 qqOperandE (A.ConstantOperand x1) =
-  [||Operand . L.ConstantOperand <$> $$(qqExpM x1)||]
+  [||L.ConstantOperand <$> $$(qqExpM x1)||]
 qqOperandE (A.MetadataStringOperand x1) =
-  [||Operand . L.MetadataStringOperand <$> $$(qqExpM x1)||]
+  [||L.MetadataStringOperand <$> $$(qqExpM x1)||]
 qqOperandE (A.MetadataNodeOperand x1) =
-  [||Operand . L.MetadataNodeOperand <$> $$(qqExpM x1)||]
-qqOperandE (A.AntiOperands s) =
-  [||OperandList <$> $$(unsafeTExpCoerce $ antiVarE s)||]
+  [||L.MetadataNodeOperand <$> $$(qqExpM x1)||]
 qqOperandE (A.AntiOperand s) =
-  [||Operand <$> $$(unsafeTExpCoerce $ antiVarE s)||]
+  [||$$(unsafeTExpCoerce $ antiVarE s)||]
 
 qqConstantE :: Conversion A.Constant L.Constant
 qqConstantE (A.Int x1 x2) =
@@ -690,31 +664,29 @@ qqNameE A.NeedsName = do
 qqNameE (A.AntiName s) =
   unsafeTExpCoerce [|$(antiVarE s) >>= return . toName|]
 
-qqTypeE :: Conversion A.Type TypeL
+qqTypeE :: Conversion A.Type L.Type
 qqTypeE A.VoidType =
-  [||pure $ Type L.VoidType||]
+  [||pure L.VoidType||]
 qqTypeE (A.IntegerType x1) =
-  [||Type <$> (L.IntegerType <$> $$(qqExpM x1))||]
+  [||L.IntegerType <$> $$(qqExpM x1)||]
 qqTypeE (A.PointerType x1 x2) =
-  [||Type <$> (L.PointerType <$> $$(qqExpM x1) <*> $$(qqExpM x2))||]
+  [||L.PointerType <$> $$(qqExpM x1) <*> $$(qqExpM x2)||]
 qqTypeE (A.FloatingPointType x1 x2) =
-  [||Type <$> (L.FloatingPointType <$> $$(qqExpM x1) <*> $$(qqExpM x2))||]
+  [||L.FloatingPointType <$> $$(qqExpM x1) <*> $$(qqExpM x2)||]
 qqTypeE (A.FunctionType x1 x2 x3) =
-  [||Type <$> (L.FunctionType <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3))||]
+  [||L.FunctionType <$> $$(qqExpM x1) <*> $$(qqExpM x2) <*> $$(qqExpM x3)||]
 qqTypeE (A.VectorType x1 x2) =
-  [||Type <$> (L.VectorType <$> $$(qqExpM x1) <*> $$(qqExpM x2))||]
+  [||L.VectorType <$> $$(qqExpM x1) <*> $$(qqExpM x2)||]
 qqTypeE (A.StructureType x1 x2) =
-  [||Type <$> (L.StructureType <$> $$(qqExpM x1) <*> $$(qqExpM x2))||]
+  [||L.StructureType <$> $$(qqExpM x1) <*> $$(qqExpM x2)||]
 qqTypeE (A.ArrayType x1 x2) =
-  [||Type <$> (L.ArrayType <$> $$(qqExpM x1) <*> $$(qqExpM x2))||]
+  [||L.ArrayType <$> $$(qqExpM x1) <*> $$(qqExpM x2)||]
 qqTypeE (A.NamedTypeReference x1) =
-  [||Type <$> (L.NamedTypeReference <$> $$(qqExpM x1))||]
+  [||L.NamedTypeReference <$> $$(qqExpM x1)||]
 qqTypeE A.MetadataType =
-  [||pure $ Type L.MetadataType||]
-qqTypeE (A.AntiTypes s) =
-  [||TypeList <$> $$(unsafeTExpCoerce $ antiVarE s)||]
+  [||pure L.MetadataType||]
 qqTypeE (A.AntiType s) =
-  [||Type <$> $$(unsafeTExpCoerce $ antiVarE s)||]
+  [||$$(unsafeTExpCoerce $ antiVarE s)||]
 
 qqDataLayoutE :: Conversion A.DataLayout L.DataLayout
 qqDataLayoutE (A.DataLayout x1 x2 x3 x4 x5) =

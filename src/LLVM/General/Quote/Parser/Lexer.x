@@ -81,12 +81,8 @@ tokens :-
  "$instrsM:"       / { allowAnti } { lexAntiM Tanti_instrs }
  "$type:"         / { allowAnti } { lexAnti Tanti_type }
  "$typeM:"         / { allowAnti } { lexAntiM Tanti_type }
- "$types:"         / { allowAnti } { lexAnti Tanti_types }
- "$typesM:"         / { allowAnti } { lexAntiM Tanti_types }
  "$opr:"          / { allowAnti } { lexAnti Tanti_opr }
  "$oprM:"          / { allowAnti } { lexAntiM Tanti_opr }
- "$oprs:"          / { allowAnti } { lexAnti Tanti_oprs }
- "$oprsM:"          / { allowAnti } { lexAntiM Tanti_oprs }
  "$const:"        / { allowAnti } { lexAnti Tanti_const }
  "$constM:"        / { allowAnti } { lexAntiM Tanti_const }
  "$id:"           / { allowAnti } { lexAnti Tanti_id }
