@@ -1,11 +1,14 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TupleSections   #-}
 {-# LANGUAGE ScopedTypeVariables      #-}
-module LLVM.General.Quote.SSA ( toSSA ) where
+module LLVM.General.Quote.SSA ( toSSA, typeOfConstant, typeOfOperand, typeOfInstruction ) where
 
 import Prelude hiding (pred)
 
 import LLVM.General.AST
+import LLVM.General.AST.AddrSpace
+import qualified LLVM.General.AST.InlineAssembly as I
+import qualified LLVM.General.AST.Constant as C
 
 import Control.Monad
 import qualified Data.Map.Strict as M
@@ -16,8 +19,6 @@ import Data.STRef
 
 import Data.Generics
 
-
-{-
 
 typeOfConstant :: C.Constant -> Type
 typeOfConstant C.Int{..} = IntegerType integerBits
@@ -95,7 +96,70 @@ typeOfOperand (ConstantOperand c) = typeOfConstant c
 typeOfOperand MetadataStringOperand{} = MetadataType
 typeOfOperand MetadataNodeOperand{} = MetadataType
 
--}
+typeOfInstruction :: Instruction -> Type
+typeOfInstruction instr = case instr of
+  Add{..} -> typeOfOperand operand0
+  FAdd{..} -> typeOfOperand operand0
+  Sub{..} -> typeOfOperand operand0
+  FSub{..} -> typeOfOperand operand0
+  Mul{..} -> typeOfOperand operand0
+  FMul{..} -> typeOfOperand operand0
+  UDiv{..} -> typeOfOperand operand0
+  SDiv{..} -> typeOfOperand operand0
+  FDiv{..} -> typeOfOperand operand0
+  URem{..} -> typeOfOperand operand0
+  SRem{..} -> typeOfOperand operand0
+  FRem{..} -> typeOfOperand operand0
+  Shl{..} -> typeOfOperand operand0
+  LShr{..} -> typeOfOperand operand0
+  AShr{..} -> typeOfOperand operand0
+  And{..} -> typeOfOperand operand0
+  Or{..} -> typeOfOperand operand0
+  Xor{..} -> typeOfOperand operand0
+  Alloca{..} -> PointerType allocatedType (AddrSpace 0)
+  Load{..} -> pointerReferent $ typeOfOperand address
+  Store{..} -> typeOfOperand address
+--  GetElementPtr{..} -> undefined
+  Fence{..} -> VoidType
+  CmpXchg{..} -> typeOfOperand expected
+  AtomicRMW{..} -> typeOfOperand value
+  Trunc{..} -> type'
+  ZExt{..} -> type'
+  SExt{..} -> type'
+  FPToUI{..} -> type'
+  FPToSI{..} -> type'
+  UIToFP{..} -> type'
+  SIToFP{..} -> type'
+  FPTrunc{..} -> type'
+  FPExt{..} -> type'
+  PtrToInt{..} -> type'
+  IntToPtr{..} -> type'
+  BitCast{..} -> type'
+  AddrSpaceCast{..} -> type'
+  ICmp{..} -> case typeOfOperand operand0 of
+    VectorType{..} -> VectorType nVectorElements (IntegerType 1)
+    _              -> IntegerType 1
+  FCmp{..} -> case typeOfOperand operand0 of
+    VectorType{..} -> VectorType nVectorElements (IntegerType 1)
+    _              -> IntegerType 1
+  Phi{..} -> type'
+  Call{..} -> case function of
+    Left I.InlineAssembly{..} -> type'
+    Right op -> typeOfOperand op
+  Select{..} -> typeOfOperand trueValue
+  VAArg{..} -> type'
+  ExtractElement{..} -> elementType $ typeOfOperand vector
+  InsertElement{..} -> typeOfOperand vector
+  ShuffleVector{..} -> let VectorType _ t = typeOfOperand operand0
+                           VectorType n _ = typeOfConstant mask
+                       in VectorType n t
+--  ExtractValue{..} -> undefined
+  InsertValue{..} -> typeOfOperand aggregate
+  LandingPad{..} -> type'
+
+
+
+
 
 type CFG s =[(Name, MutableBlock s)]
 

@@ -17,8 +17,7 @@ module LLVM.General.Quote.Base (
     quasiquote,
     quasiquoteM,
     TQuasiQuoter(..),
-    parse,
-    (.=.)
+    parse
   ) where
 
 import Control.Applicative
@@ -53,29 +52,20 @@ import qualified Data.Map as M
 
 class (Applicative m, Monad m) => CodeGenMonad m where
   newVariable    :: m L.Name
-  assign        :: [L.Name] -> m [L.Operand] -> m [L.BasicBlock]
-
   exec     :: m () -> m [L.BasicBlock]
-  execRet  :: m L.Operand -> m [L.BasicBlock]
-  execRet_ :: m () -> m [L.BasicBlock]
-
-class Assignable a b where
-  (.=.) :: CodeGenMonad m => a -> m b -> m [L.BasicBlock]
-instance Assignable L.Name L.Operand where
-  (.=.) lhs rhs = assign [lhs] (rhs >>= return . (:[]))
-instance Assignable [L.Name] [L.Operand] where
-  (.=.) = assign
-
 
 type CodeGen = State (Int, M.Map L.Name [L.Operand])
 
 instance CodeGenMonad CodeGen where
   newVariable      = state $ \(i,vs) -> (L.UnName (fromIntegral i), (i+1,vs))
-
-  assign   = error "not defined: assign"
   exec     = error "not defined: exec"
-  execRet  = error "not defined: execRet"
-  execRet_ = error "not defined: execRet_"
+
+class ToBasicBlockList a where
+  toBasicBlockList :: CodeGenMonad m => m a -> m [L.BasicBlock]
+instance ToBasicBlockList () where
+  toBasicBlockList = exec
+instance ToBasicBlockList [L.BasicBlock] where
+  toBasicBlockList = id
 
 class ToDefintion a where
   toDefinition :: a -> L.Definition
@@ -591,7 +581,7 @@ qqNamedInstructionE (A.AntiInstructionList s) =
 qqNamedInstructionE (A.AntiBasicBlock v)
   = [||(:[]) <$> $$(unsafeTExpCoerce $ antiVarE v)||]
 qqNamedInstructionE (A.AntiBasicBlockList v)
-  = unsafeTExpCoerce $ antiVarE v
+  = unsafeTExpCoerce $ [|toBasicBlockList $(antiVarE v)|]
 
 qqMetadataNodeIDE :: Conversion A.MetadataNodeID L.MetadataNodeID
 qqMetadataNodeIDE (A.MetadataNodeID x1) =
