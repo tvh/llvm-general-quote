@@ -471,8 +471,8 @@ qqLabeledInstructionListE (x:xs) =
          jumpNext :: L.BasicBlock -> Bool
          jumpNext (L.BasicBlock _ _ t) =
            case t of
-             _ L.:= L.Br l2 md | l2 == nextLabel -> True
-             L.Do (L.Br l2 md) | l2 == nextLabel -> True
+             _ L.:= L.Br l2 _ | l2 == nextLabel -> True
+             L.Do (L.Br l2 _) | l2 == nextLabel -> True
              _                                   -> False
 
          replacePhiFroms :: [(L.Name,L.Name)] -> L.BasicBlock -> L.BasicBlock
@@ -491,9 +491,11 @@ qqLabeledInstructionListE (x:xs) =
            phi{ L.incomingValues =
                    [ (op,n') | (op,n) <- L.incomingValues phi,
                                let n' = maybe n id (lookup n names)] }
+         replacePhiFrom' _ _ =
+           error "this should never happen"
 
          fuse :: L.BasicBlock -> L.BasicBlock -> Writer [(L.Name,L.Name)] L.BasicBlock
-         fuse (L.BasicBlock n1 i1 t1) (L.BasicBlock n2 i2 t2) = do
+         fuse (L.BasicBlock n1 i1 _t1) (L.BasicBlock n2 i2 t2) = do
            tell [(n2,n1)]
            return $ L.BasicBlock n1 (i1++i2) t2
          
@@ -526,7 +528,7 @@ qqLabeledInstructionE (A.ForLoop label iterType iterName direction from to step 
     let labelStringF l = case l of
                         L.Name s -> s
                         L.UnName n -> "num"++show n
-        preInstrsF iterName' iterType' cond iter to' step' =
+        preInstrsF cond iter to' =
           case direction of
             A.Up ->
               [ cond L.:= L.ICmp LI.SLT iter to' [] ]
@@ -549,7 +551,7 @@ qqLabeledInstructionE (A.ForLoop label iterType iterName direction from to step 
           A.Up -> [ iterName' L.:= L.Add True True iter step' [] ]
           A.Down -> [ iterName' L.:= L.Sub True True iter step' [] ]
         body'' = body' ++ [L.BasicBlock labelLast newIterInstr (L.Do (L.Br labelHead []))]
-    let preInstrs = preInstrsF iterName' iterType' cond iter to' step'
+    let preInstrs = preInstrsF cond iter to'
         branchTo l = case body'' of
           [] -> error "empty body of for-loop"
           (L.BasicBlock bodyLabel _ _:_) -> L.Do (L.CondBr (L.LocalReference (L.IntegerType 1) cond) bodyLabel l [])
