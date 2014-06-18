@@ -248,6 +248,9 @@ import qualified LLVM.General.AST.DataLayout as A
  'for'              { L _ T.Tfor }
  'in'               { L _ T.Tin }
  'step'             { L _ T.Tstep }
+ 'if'               { L _ T.Tif }
+ 'else'             { L _ T.Telse }
+ 'while'            { L _ T.Twhile }
 
  ANTI_DL            { L _ (T.Tanti_dl $$) }
  ANTI_TT            { L _ (T.Tanti_tt $$) }
@@ -703,11 +706,21 @@ namedI :
       { A.AntiBasicBlockList $1 }
   | ANTI_INSTRS                     { A.AntiInstructionList $1 }
 
+elseInstrs :: { [A.LabeledInstruction] }
+elseInstrs :
+    {- empty -}         { [] }
+  | 'else' '{' instructions '}'
+      { rev $3 }
+
 labeledI :: { A.LabeledInstruction }
 labeledI :
     jumpLabel namedI                { A.Labeled $1 $2 }
   | jumpLabel 'for' type name 'in' operand direction operand mStep '{' instructions '}'
       { A.ForLoop $1 $3 $4 $7 ($6 $3) ($8 $3) ($9 $3) (rev $11) }
+  | jumpLabel 'if' operand '{' instructions '}' elseInstrs
+      { A.ITE $1 ($3 (A.IntegerType 1)) (rev $5) $7 }
+  | jumpLabel 'while' operand '{' instructions '}'
+      { A.While $1 ($3 (A.IntegerType 1)) (rev $5) }
 
 instructions :: { RevList (A.LabeledInstruction) }
 instructions :

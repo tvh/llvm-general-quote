@@ -563,6 +563,50 @@ qqLabeledInstructionE (A.ForLoop label iterType iterName direction from to step 
                 ,[L.BasicBlock labelEnd [] retTerm])
     return (pre ++ body'' ++ post)
   ||]
+qqLabeledInstructionE (A.ITE label cond then_body else_body) =
+  [||do
+    label' <- $$(qqExpM label)
+    cond' <- $$(qqExpM cond)
+    then_body' <- $$(qqExpM then_body)
+    else_body' <- $$(qqExpM else_body)
+    let labelString = case label' of
+          L.Name n -> n
+          L.UnName n -> show n
+        thenLabel = L.Name (labelString ++ ".then")
+        thenLastLabel = L.Name (labelString ++ ".then.last")
+        elseLabel = L.Name (labelString ++ ".else")
+        elseLastLabel = L.Name (labelString ++ ".else.last")
+        endLabel = L.Name (labelString ++ ".end")
+        headLabel = L.Name (labelString ++ ".head")
+        brEnd l = [L.BasicBlock l [] (L.Do (L.Br endLabel []))]
+        pre = [L.BasicBlock label' [] (L.Do (L.Br headLabel []))
+              ,L.BasicBlock headLabel [] (L.Do (L.CondBr cond' thenLabel elseLabel []))]
+        brNext l = [L.BasicBlock l [] (L.Do (L.Br (L.Name "nextblock") []))]
+        end = brNext endLabel
+        then_body'' = brNext thenLabel ++ then_body' ++ brEnd thenLastLabel
+        else_body'' = brNext elseLabel ++ else_body' ++ brEnd elseLastLabel
+    return (pre ++ then_body'' ++ else_body'' ++ end)
+  ||]
+qqLabeledInstructionE (A.While label cond body) =
+  [||do
+    label' <- $$(qqExpM label)
+    cond' <- $$(qqExpM cond)
+    body' <- $$(qqExpM body)
+    let labelString = case label' of
+          L.Name n -> n
+          L.UnName n -> show n
+        bodyLabel = L.Name (labelString ++ ".body")
+        bodyLastLabel = L.Name (labelString ++ ".body.last")
+        endLabel = L.Name (labelString ++ ".end")
+        headLabel = L.Name (labelString ++ ".head")
+        pre = [L.BasicBlock label' [] (L.Do (L.Br headLabel []))
+              ,L.BasicBlock headLabel [] (L.Do (L.CondBr cond' bodyLabel endLabel []))]
+        brNext l = [L.BasicBlock l [] (L.Do (L.Br (L.Name "nextblock") []))]
+        end = brNext endLabel
+        brTop = [L.BasicBlock bodyLastLabel [] (L.Do (L.Br label' []))]
+        body'' = brNext bodyLabel ++ body' ++ brTop
+    return (pre ++ body'' ++ end)
+  ||]
 
 qqNamedInstructionE :: Conversion A.NamedInstruction [L.BasicBlock]
 qqNamedInstructionE (x1 A.:= x2) =
