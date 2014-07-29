@@ -5,7 +5,7 @@ import Control.Monad (forM_,
                       when,
                       unless,
                       liftM)
-import Control.Monad.Exception
+import Control.Monad.Except
 import Data.List (intersperse)
 import Data.List.Split
 import Data.Loc

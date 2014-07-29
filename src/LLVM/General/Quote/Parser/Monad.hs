@@ -58,8 +58,8 @@ module LLVM.General.Quote.Parser.Monad (
   ) where
 
 import Control.Applicative (Applicative(..))
-import Control.Monad.Exception
-import Control.Monad.Identity
+import Control.Monad.Except
+import Control.Exception (SomeException, Exception, toException)
 import Control.Monad.State
 import Data.Bits
 import qualified Data.ByteString.Char8 as B
@@ -129,16 +129,15 @@ instance MonadState PState P where
     get    = P $ \s -> Right (s, s)
     put s  = P $ \_ -> Right ((), s)
 
-instance MonadException P where
-    throw e = P $ \_ -> Left (toException e)
-
-    m `catch` h = P $ \s ->
+instance MonadError SomeException P where
+    throwError e = P $ \_ -> Left e
+    m `catchError` h = P $ \s ->
         case runP m s of
-          Left e ->
-              case fromException e of
-                Just e'  -> runP (h e') s
-                Nothing  -> Left e
+          Left e -> runP (h e) s
           Right (a, s')  -> Right (a, s')
+
+throw :: Exception e => e -> P a
+throw e = P $ \_ -> Left (toException e)
 
 evalP :: P a -> PState -> Either SomeException a
 evalP comp st =
