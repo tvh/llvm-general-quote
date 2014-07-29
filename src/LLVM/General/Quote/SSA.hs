@@ -310,9 +310,14 @@ toSSA :: [BasicBlock] -> [BasicBlock]
 toSSA bbs = runST $ do
   cfg <- toCFG bbs
   ctr <- newSTRef 1
+
+  -- process all Instructions
   mapM_ (blockToSSAPre ctr) (map snd cfg)
+  -- replace names in Phis with correct references
   mapM_ (blockToSSAPhi ctr cfg) (map snd cfg)
+  -- replace names in newly added Phis with correct references
   handleIncompletePhis ctr cfg
+
   fromCFG cfg
 
 handleIncompletePhis
