@@ -603,7 +603,7 @@ qqLabeledInstructionE (A.While label cond body) =
               ,L.BasicBlock headLabel [] (L.Do (L.CondBr cond' bodyLabel endLabel []))]
         brNext l = [L.BasicBlock l [] (L.Do (L.Br (L.Name "nextblock") []))]
         end = brNext endLabel
-        brTop = [L.BasicBlock bodyLastLabel [] (L.Do (L.Br label' []))]
+        brTop = [L.BasicBlock bodyLastLabel [] (L.Do (L.Br headLabel []))]
         body'' = brNext bodyLabel ++ body' ++ brTop
     return (pre ++ body'' ++ end)
   ||]
