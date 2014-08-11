@@ -525,42 +525,43 @@ qqLabeledInstructionE (A.Labeled label instr) =
         return $ L.BasicBlock label' is t:bbs||]
 qqLabeledInstructionE (A.ForLoop label iterType iterName direction from to step body) =
   [||do
-    let labelStringF l = case l of
-                        L.Name s -> s
-                        L.UnName n -> "num"++show n
-        preInstrsF cond iter to' =
-          case direction of
-            A.Up ->
-              [ cond L.:= L.ICmp LI.SLT iter to' [] ]
-            A.Down ->
-              [ cond L.:= L.ICmp LI.SGT iter to' [] ]
     label' <- $$(qqExpM label)
-    let labelString = labelStringF label'
-        cond = L.Name (labelString ++ ".cond")
-        labelHead = L.Name (labelString ++ ".head")
-        labelEnd = L.Name (labelString ++ ".end")
-        labelLast = L.Name (labelString ++ ".last")
     body' <- $$(qqExpM body :: TExpQ (m [L.BasicBlock]))
     iterName' <- $$(qqExpM iterName :: TExpQ (m L.Name))
     iterType' <- $$(qqExpM iterType :: TExpQ (m L.Type))
     from' <- $$(qqExpM from :: TExpQ (m L.Operand))
     to' <- $$(qqExpM to)
     step' <- $$(qqExpM step :: TExpQ (m L.Operand))
-    let iter = L.LocalReference iterType' iterName'
+
+    let labelString = case label' of
+                        L.Name s -> s
+                        L.UnName n -> "num"++show n
+        cond = L.Name (labelString ++ ".cond")
+        labelHead = L.Name (labelString ++ ".head")
+        labelEnd = L.Name (labelString ++ ".end")
+        labelLast = L.Name (labelString ++ ".last")
+
+        iter = L.LocalReference iterType' iterName'
         newIterInstr = case direction of
           A.Up -> [ iterName' L.:= L.Add True True iter step' [] ]
           A.Down -> [ iterName' L.:= L.Sub True True iter step' [] ]
-        body'' = body' ++ [L.BasicBlock labelLast newIterInstr (L.Do (L.Br labelHead []))]
-    let preInstrs = preInstrsF cond iter to'
+        preInstrs = case direction of
+            A.Up ->
+              [ cond L.:= L.ICmp LI.SLT iter to' [] ]
+            A.Down ->
+              [ cond L.:= L.ICmp LI.SGT iter to' [] ]
         branchTo l = case body'' of
           [] -> error "empty body of for-loop"
           (L.BasicBlock bodyLabel _ _:_) -> L.Do (L.CondBr (L.LocalReference (L.IntegerType 1) cond) bodyLabel l [])
         retTerm = L.Do (L.Br (L.Name "nextblock") [])
         true = L.ConstantOperand $ L.Int 1 1
         initIter = iterName' L.:= L.Select true from' from' []
+
         (pre,post) =
                 ([L.BasicBlock label' [initIter] (L.Do (L.Br labelHead [])), L.BasicBlock labelHead preInstrs (branchTo labelEnd)]
                 ,[L.BasicBlock labelEnd [] retTerm])
+        body'' = body' ++ [L.BasicBlock labelLast newIterInstr (L.Do (L.Br labelHead []))]
+
     return (pre ++ body'' ++ post)
   ||]
 qqLabeledInstructionE (A.ITE label cond then_body else_body) =
@@ -578,6 +579,7 @@ qqLabeledInstructionE (A.ITE label cond then_body else_body) =
         elseLastLabel = L.Name (labelString ++ ".else.last")
         endLabel = L.Name (labelString ++ ".end")
         headLabel = L.Name (labelString ++ ".head")
+
         brEnd l = [L.BasicBlock l [] (L.Do (L.Br endLabel []))]
         pre = [L.BasicBlock label' [] (L.Do (L.Br headLabel []))
               ,L.BasicBlock headLabel [] (L.Do (L.CondBr cond' thenLabel elseLabel []))]
@@ -599,6 +601,7 @@ qqLabeledInstructionE (A.While label cond body) =
         bodyLastLabel = L.Name (labelString ++ ".body.last")
         endLabel = L.Name (labelString ++ ".end")
         headLabel = L.Name (labelString ++ ".head")
+
         pre = [L.BasicBlock label' [] (L.Do (L.Br headLabel []))
               ,L.BasicBlock headLabel [] (L.Do (L.CondBr cond' bodyLabel endLabel []))]
         brNext l = [L.BasicBlock l [] (L.Do (L.Br (L.Name "nextblock") []))]
