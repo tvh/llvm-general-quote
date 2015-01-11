@@ -285,9 +285,10 @@ import qualified LLVM.General.AST.DataLayout as A
  - Constants
  -
  -----------------------------------------------------------------------------}
-    
-constant :: { A.Type -> A.Constant }
-constant :
+
+{- Constants that require a type (distinct from cConstant) -}
+fConstant :: { A.Type -> A.Constant }
+fConstant :
     INT                   { intConstant $1 }
   | '-' INT               { intConstant (-$2) }
   | 'true'                { intConstant 1 }
@@ -303,6 +304,15 @@ constant :
                           { \_ -> A.BlockAddress $3 $5 }
   | 'undef'               { A.Undef }
   | globalName            { \t -> A.GlobalReference t $1 }
+  
+{- Constants that don't require a type -}
+cConstant :: { A.Constant }
+cConstant :
+    ANTI_CONST            { A.AntiConstant $1 }
+    
+constant :: { A.Type -> A.Constant }
+constant :
+    fConstant             { $1 }  
   | cConstant             { \_ -> $1 }
 
 tConstant :: { A.Constant }
@@ -319,11 +329,6 @@ constantList :: { RevList A.Constant }
 constantList :
     tConstant                    { RCons $1 RNil }
   | constantList ',' tConstant   { RCons $3 $1 }
-
-{- Constants that don't require a type -}
-cConstant :: { A.Constant }
-cConstant :
-    ANTI_CONST            { A.AntiConstant $1 }
     
 {------------------------------------------------------------------------------
  -
@@ -333,7 +338,7 @@ cConstant :
 
 operand :: { A.Type -> A.Operand }
 operand :
-    constant            { A.ConstantOperand . $1 }
+    fConstant           { A.ConstantOperand . $1 }
   | name                { \t -> A.LocalReference t $1 }
   | '!' STRING          { \A.MetadataType -> A.MetadataStringOperand $2 }
   | metadataNode        { \A.MetadataType -> A.MetadataNodeOperand $1 }
@@ -352,7 +357,8 @@ tOperand :
 {- Operands that don't require a type -}
 cOperand :: { A.Operand }
 cOperand :
-   ANTI_OPR            { A.AntiOperand $1 }
+    ANTI_OPR            { A.AntiOperand $1 }
+  | cConstant           { A.ConstantOperand $1 }
 
 {- Binary operator operands -}
 binOperands :: { (A.Operand, A.Operand) }
