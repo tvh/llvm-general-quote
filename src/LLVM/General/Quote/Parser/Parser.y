@@ -285,7 +285,7 @@ import qualified LLVM.General.AST.DataLayout as A
  - Constants
  -
  -----------------------------------------------------------------------------}
-
+    
 constant :: { A.Type -> A.Constant }
 constant :
     INT                   { intConstant $1 }
@@ -303,22 +303,28 @@ constant :
                           { \_ -> A.BlockAddress $3 $5 }
   | 'undef'               { A.Undef }
   | globalName            { \t -> A.GlobalReference t $1 }
-  | ANTI_CONST            { \_ -> A.AntiConstant $1 }
+  | cConstant             { \_ -> $1 }
 
 tConstant :: { A.Constant }
 tConstant :
     type constant         { $2 $1 }
+  | cConstant             { $1 }
 
 mConstant :: { A.Type -> Maybe A.Constant }
 mConstant :
     {- empty -}            { \_ -> Nothing }
   | constant               { Just . $1 }
-
+  
 constantList :: { RevList A.Constant }
 constantList :
     tConstant                    { RCons $1 RNil }
   | constantList ',' tConstant   { RCons $3 $1 }
 
+{- Constants that don't require a type -}
+cConstant :: { A.Constant }
+cConstant :
+    ANTI_CONST            { A.AntiConstant $1 }
+    
 {------------------------------------------------------------------------------
  -
  - Operands
@@ -331,7 +337,7 @@ operand :
   | name                { \t -> A.LocalReference t $1 }
   | '!' STRING          { \A.MetadataType -> A.MetadataStringOperand $2 }
   | metadataNode        { \A.MetadataType -> A.MetadataNodeOperand $1 }
-  | ANTI_OPR            { \_ -> A.AntiOperand $1 }
+  | cOperand            { \_ -> $1 }
 
 mOperand :: { Maybe A.Operand }
 mOperand :
@@ -341,6 +347,18 @@ mOperand :
 tOperand :: { A.Operand }
 tOperand :
     type operand        { $2 $1 }
+  | cOperand            { $1 }
+    
+{- Operands that don't require a type -}
+cOperand :: { A.Operand }
+cOperand :
+   ANTI_OPR            { A.AntiOperand $1 }
+
+{- Binary operator operands -}
+binOperands :: { (A.Operand, A.Operand) }
+binOperands :
+    type operand ',' operand    { ($2 $1, $4 $1) }
+  | cOperand ',' cOperand       { ($1, $3) }
 
 {------------------------------------------------------------------------------
  -
@@ -603,24 +621,24 @@ instructionMetadata :
 
 instruction_ :: { A.InstructionMetadata -> A.Instruction }
 instruction_ :
-    'add' nuw nsw type operand ',' operand  { A.Add $3 $2 ($5 $4) ($7 $4) }
-  | 'fadd' fmflags type operand ',' operand { A.FAdd $2 ($4 $3) ($6 $3) }
-  | 'sub' nuw nsw type operand ',' operand  { A.Sub $3 $2 ($5 $4) ($7 $4) }
-  | 'fsub' fmflags type operand ',' operand { A.FSub $2 ($4 $3) ($6 $3) }
-  | 'mul' nuw nsw type operand ',' operand  { A.Mul $3 $2 ($5 $4) ($7 $4) }
-  | 'fmul' fmflags type operand ',' operand { A.FMul $2 ($4 $3) ($6 $3) }
-  | 'udiv' exact type operand ',' operand   { A.UDiv $2 ($4 $3) ($6 $3) }
-  | 'sdiv' exact type operand ',' operand   { A.SDiv $2 ($4 $3) ($6 $3) }
-  | 'fdiv' fmflags type operand ',' operand { A.FDiv $2 ($4 $3) ($6 $3) }
-  | 'urem' type operand ',' operand         { A.URem ($3 $2) ($5 $2) }
-  | 'srem' type operand ',' operand         { A.SRem ($3 $2) ($5 $2) }
-  | 'frem' fmflags type operand ',' operand { A.FRem $2 ($4 $3) ($6 $3) }
-  | 'shl' nuw nsw type operand ',' operand  { A.Shl $3 $2 ($5 $4) ($7 $4) }
-  | 'lshr' exact type operand ',' operand   { A.LShr $2 ($4 $3) ($6 $3) }
-  | 'ashr' exact type operand ',' operand   { A.AShr $2 ($4 $3) ($6 $3) }
-  | 'and' type operand ',' operand          { A.And ($3 $2) ($5 $2) }
-  | 'or' type operand ',' operand           { A.Or ($3 $2) ($5 $2) }
-  | 'xor' type operand ',' operand          { A.Xor ($3 $2) ($5 $2) }
+    'add' nuw nsw binOperands   { A.Add $3 $2 (fst $4) (snd $4) }
+  | 'fadd' fmflags binOperands  { A.FAdd $2 (fst $3) (snd $3) }
+  | 'sub' nuw nsw binOperands   { A.Sub $3 $2 (fst $4) (snd $4) }
+  | 'fsub' fmflags binOperands  { A.FSub $2 (fst $3) (snd $3) }
+  | 'mul' nuw nsw binOperands   { A.Mul $3 $2 (fst $4) (snd $4) }
+  | 'fmul' fmflags binOperands  { A.FMul $2 (fst $3) (snd $3) }
+  | 'udiv' exact binOperands    { A.UDiv $2 (fst $3) (snd $3) }
+  | 'sdiv' exact binOperands    { A.SDiv $2 (fst $3) (snd $3) }
+  | 'fdiv' fmflags binOperands  { A.FDiv $2 (fst $3) (snd $3) }
+  | 'urem' binOperands          { A.URem (fst $2) (snd $2) }
+  | 'srem' binOperands          { A.SRem (fst $2) (snd $2) }
+  | 'frem' fmflags binOperands  { A.FRem $2 (fst $3) (snd $3) }
+  | 'shl' nuw nsw binOperands   { A.Shl $3 $2 (fst $4) (snd $4) }
+  | 'lshr' exact binOperands    { A.LShr $2 (fst $3) (snd $3) }
+  | 'ashr' exact binOperands    { A.AShr $2 (fst $3) (snd $3) }
+  | 'and' binOperands           { A.And (fst $2) (snd $2) }
+  | 'or' binOperands            { A.Or (fst $2) (snd $2) }
+  | 'xor' binOperands           { A.Xor (fst $2) (snd $2) }
   | 'alloca' type mOperand alignment        { A.Alloca $2 $3 $4 }
   | 'load' volatile tOperand alignment      { A.Load $2 $3 Nothing $4 }
   | 'load' 'atomic' volatile tOperand atomicity alignment      { A.Load $3 $4 (Just $5) $6 }
@@ -652,8 +670,8 @@ instruction_ :
   | 'inttoptr' tOperand 'to' type           { A.IntToPtr $2 $4 }
   | 'bitcast' tOperand 'to' type            { A.BitCast $2 $4 }
   | 'addrspacecast' tOperand 'to' type      { A.AddrSpaceCast $2 $4 }
-  | 'icmp' intP type operand ',' operand    { A.ICmp $2 ($4 $3) ($6 $3) }
-  | 'fcmp' fpP type operand ',' operand     { A.FCmp $2 ($4 $3) ($6 $3) }
+  | 'icmp' intP binOperands                 { A.ICmp $2 (fst $3) (snd $3) }
+  | 'fcmp' fpP binOperands                  { A.FCmp $2 (fst $3) (snd $3) }
   | 'phi' type phiList                      { A.Phi $2 (rev ($3 $2)) }
   | tail 'call' cconv parameterAttributes callableOperand '(' argumentList ')' fAttributes
                                             { A.Call $1 $3 (rev $4) ($5 (map fst (rev $7))) (map snd (rev $7)) (rev $9) }
@@ -663,8 +681,8 @@ instruction_ :
   | 'extractelement' tOperand ',' tOperand  { A.ExtractElement $2 $4 }
   | 'insertelement' tOperand ',' tOperand ',' tOperand
                                             { A.InsertElement $2 $4 $6 }
-  | 'shufflevector' tOperand ',' tOperand ',' type constant
-                                            { A.ShuffleVector $2 $4 ($7 $6) }
+  | 'shufflevector' tOperand ',' tOperand ',' tConstant
+                                            { A.ShuffleVector $2 $4 $6 }
   | 'extractvalue' tOperand ',' idxs        { A.ExtractValue $2 (rev $4) }
   | 'insertvalue' tOperand ',' tOperand ',' idxs
                                             { A.InsertValue $2 $4 (rev $6) }
