@@ -13,6 +13,7 @@ import qualified Data.Map as M
 import qualified Data.Set as S
 import Data.Maybe (fromMaybe, catMaybes, listToMaybe)
 import Data.Word
+import Data.Char (ord)
 import Text.PrettyPrint.Mainland
 
 import LLVM.General.Quote.Parser.Lexer
@@ -39,6 +40,7 @@ import qualified LLVM.General.AST.DataLayout as A
  INT                 { L _ (T.TintConst $$) }
  FLOAT               { L _ (T.TfloatConst $$) }
  STRING              { L _ (T.TstringConst $$) }
+ CSTRING             { L _ (T.TcstringConst $$) }
  NAMED_GLOBAL        { L _ (T.Tnamed T.Global $$) }
  NAMED_LOCAL         { L _ (T.Tnamed T.Local $$) }
  NAMED_META          { L _ (T.Tnamed T.Meta $$) }
@@ -309,6 +311,7 @@ fConstant :
 cConstant :: { A.Constant }
 cConstant :
     ANTI_CONST            { A.AntiConstant $1 }
+  | CSTRING               { A.Array (A.IntegerType 8) (map (A.Int 8 . fromIntegral . ord) $1) }
     
 constant :: { A.Type -> A.Constant }
 constant :

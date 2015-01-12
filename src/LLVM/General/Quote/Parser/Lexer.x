@@ -98,6 +98,8 @@ tokens :-
 <0> {
  ";" .* ;
  $whitechar+          ;
+ 
+ c \" { lexcStringTok }
 
  @identifier { identifier }
  @jumpLabel { jumpLabel }
@@ -110,7 +112,7 @@ tokens :-
  @hexadecimalConstant                 { lexInteger 2 hexadecimal }
 
  \" { lexStringTok }
-
+ 
  "("   { token Tlparen }
  ")"   { token Trparen }
  "["   { token Tlbrack }
@@ -262,6 +264,38 @@ lexCharEscape = do
       n | isOctDigit n -> setInput cur >> chr <$> checkedReadNum isOctDigit 8 octDigit
       _c -> return c
 
+lexcStringTok :: Action
+lexcStringTok beg _ = do
+    s    <- lexString ""
+    end  <- getInput
+    return $ locateTok beg end (TcstringConst s)
+  where
+    lexString :: String -> P String
+    lexString s = do
+        c <- nextChar
+        case c of
+          '"'  -> return (reverse s)
+          '\\' -> do  c' <- lexCharHexEscape
+                      lexString (c' : s)
+          _    -> lexString (c : s)
+      
+lexCharHexEscape :: P Char
+lexCharHexEscape = do
+    c    <- nextChar
+    case c of
+      '\\' -> return '\\'
+      '"'  -> return '"'
+      n | isHexDigit n ->
+        do
+            cur <- getInput
+            c' <- nextChar
+            if isHexDigit c'
+            then return . chr $ hexDigit c * 16 + hexDigit c'
+            else do
+                setInput cur
+                return . chr $ hexDigit c 
+      _c -> return c
+      
 lexInteger :: Int -> Radix -> Action
 lexInteger ndrop radix@(_, isRadixDigit, _) beg end =
     case i of
