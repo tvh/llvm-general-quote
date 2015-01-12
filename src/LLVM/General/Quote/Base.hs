@@ -81,6 +81,8 @@ instance ToDefintion a => ToDefintions [a] where
 
 class ToConstant a where
   toConstant :: a -> L.Constant
+instance ToConstant L.Constant where
+  toConstant = id
 instance ToConstant Word8 where
   toConstant n = L.Int 8 (toInteger n)
 instance ToConstant Word16 where

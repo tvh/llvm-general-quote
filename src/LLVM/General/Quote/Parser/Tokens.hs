@@ -25,6 +25,7 @@ data Token
   | TintConst Integer
   | TfloatConst Rational
   | TstringConst String
+  | TcstringConst String
   | Tnamed Visibility String
   | Tunnamed Visibility Word
   | TjumpLabel String
@@ -262,6 +263,7 @@ instance Show Token where
   show (TintConst _) = "INT"
   show (TfloatConst _) = "FLOAT"
   show (TstringConst _) = "STRING"
+  show (TcstringConst _) = "CSTRING"
   show (Tnamed Global _) = "NAMED_GLOBAL"
   show (Tnamed Local _) = "NAMED_LOCAL"
   show (Tnamed Meta _) = "NAMED_META"

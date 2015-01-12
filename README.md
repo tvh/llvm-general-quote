@@ -3,6 +3,35 @@ llvm-general-quote
 `llvm-general-quote` is a quasiquoting-library for llvm-general.
 It aims to support all language constructs of llvm.
 
+`llvm-general-quote` provides both quasiquotes and antiquotes. The following trivial example uses both a quasiquote and an antiquote.
+
+```
+alloc :: Type -> Instruction
+alloc t = [lli|alloc $type:t|]
+```
+
+`LLVM.General.Quote.LLVM` provides quasiquoters or antiquoters for the following types. For each type `a`, there's also a corresponding quasiquoter or antiquoter for `CodeGen a` with an `M` added to the end of the name. For example, `Definition`'s quasiquoter is `lldef`; the corresponding quasiquoter for `CodeGen Definition` is `lldefM`. Its antiquoter is `$def:`; the corresponding antiquoter for `CodeGen Definition` is `$defM:`.
+
+AST Type                                     | Quasiquoter | Antiquoter
+-------------------------------------------- | ----------- | ----------
+`LLVM.General.AST.Module`                    | `llmod`     |
+`LLVM.General.AST.Definition`                | `lldef`     | `$def:`
+`[LLVM.General.AST.Definition]`              |             | `$defs:`
+`LLVM.General.AST.Global`                    | `llg`       |
+`LLVM.General.AST.Instruction.Instruction`   | `lli`       | `$instr:`
+`[LLVM.General.AST.Instruction.Instruction]` |             | `$instrs:`
+`LLVM.General.AST.DataLayout.DataLayout`     |             | `$dl:`
+`LLVM.General.Quote.AST.TargetTriple`        |             | `$tt:`
+`LLVM.General.AST.BasicBlock`                |             | `$bb:`
+`[LLVM.General.AST.BasicBlock]`              |             | `$bbs:`
+`LLVM.General.AST.Type.Type`                 |             | `$type:`
+`LLVM.General.AST.Operand.Operand`           |             | `$opr:`
+`LLVM.General.AST.Constant.Constant`         |             | `$const:`
+`LLVM.General.AST.Name.Name` (local)         |             | `$id:`
+`LLVM.General.AST.Name.Name` (global)        |             | `$gid:`
+`LLVM.General.AST.Parameter`                 |             | `$param:`
+`[LLVM.General.AST.Parameter]`               |             | `$params:`
+
 In addtion to this, it supports using mutable variables and control structures instead of pure SSA form.
 This is translated automatically into SSA through appropriate renaming.
 
